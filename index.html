@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KNYC Forecast</title>
+  <title>Bunny Temps – KNYC Forecast</title>
 
   <!-- Bulma -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+
+  <!-- Confetti.js (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
   <style>
     :root {
@@ -25,7 +28,6 @@
       overflow-x: hidden;
     }
 
-    /* Bunny footprints background */
     body::before {
       content: "";
       position: absolute;
@@ -46,7 +48,6 @@
       border: 3px solid var(--bunny-pink);
     }
 
-    /* Bunny ears on top */
     .card::before {
       content: "";
       position: absolute;
@@ -100,7 +101,6 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Bunny SVG in footer */
     .bunny-footer {
       text-align: center;
       margin-top: 2rem;
@@ -116,7 +116,7 @@
     <div class="card p-5">
       <h1 class="title has-text-centered">Bunny Temps</h1>
       <p class="subtitle has-text-centered mb-5">
-        Hop to your <strong>KNYC high temp</strong> forecast today!
+        Hop in your forecast for <strong>KNYC high temp</strong> today!
       </p>
 
       <form id="tempsForm" class="box p-4" style="background: #fffaf0; border-radius: 1.5rem;">
@@ -170,6 +170,56 @@
 </section>
 
 <script>
+  // === BUNNY CONFETTI FUNCTION ===
+  function launchBunnyConfetti() {
+    const bunnyShapes = [
+      // Simple bunny head (path)
+      "M32 10c-8 0-14 6-14 14 0 6 4 11 10 13v5c0 2 2 4 4 4s4-2 4-4v-5c6-2 10-7 10-13 0-8-6-14-14-14z M24 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm16 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-16 8c2-2 4-2 6 0m8 0c2-2 4-2 6 0",
+      // Carrot
+      "M20 15l5 10l-3 8l-4-8l-3-10z",
+      // Heart
+      "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+    ];
+
+    let count = 0;
+    const total = 80;
+
+    const launch = () => {
+      if (count >= total) return;
+
+      const defaults = {
+        particleCount: 3,
+        angle: 90,
+        spread: 50,
+        startVelocity: 45,
+        decay: 0.9,
+        scalar: 1.2,
+        ticks: 60,
+        origin: { x: Math.random(), y: Math.random() * 0.4 + 0.3 },
+        colors: ['#ff80ab', '#ff4081', '#ffcdd2', '#fff8e1', '#d1f2eb']
+      };
+
+      // Random bunny shape
+      const shapeIndex = Math.floor(Math.random() * bunnyShapes.length);
+      const path = bunnyShapes[shapeIndex];
+
+      confetti({
+        ...defaults,
+        shapes: [function bunnyShape(ctx) {
+          const path2d = new Path2D(path);
+          ctx.fillStyle = defaults.colors[Math.floor(Math.random() * defaults.colors.length)];
+          ctx.fill(path2d);
+        }]
+      });
+
+      count += 3;
+      setTimeout(launch, 80);
+    };
+
+    launch();
+  }
+
+  // === MAIN LOGIC ===
   document.addEventListener('DOMContentLoaded', () => {
     const form   = document.getElementById('tempsForm');
     const input  = document.getElementById('knyc_high');
@@ -184,7 +234,7 @@
         const val = data?.knyc_high ?? '';
         if (val) input.value = val;
       })
-      .catch(err => showToast('Could not load previous forecast', 'is-warning'));
+      .catch(() => showToast('Could not load previous forecast', 'is-warning'));
 
     // Submit
     form.addEventListener('submit', e => {
@@ -207,6 +257,7 @@
         .then(r => r.ok ? r.json() : Promise.reject('Server error'))
         .then(data => {
           showToast(`Forecast saved! (${temp}°F)`, 'is-success');
+          launchBunnyConfetti(); // BUNNY CONFETTI!
         })
         .catch(err => {
           showToast('Oops! Something went wrong.', 'is-danger');
@@ -218,7 +269,7 @@
     });
 
     function showToast(msg, type) {
-      toast.innerHTML = msg + (type === 'is-success' ? '' : '');
+      toast.innerHTML = msg;
       toast.className = `notification ${type}`;
       toast.classList.remove('is-hidden');
       setTimeout(() => toast.classList.add('is-hidden'), 4500);
