@@ -1,47 +1,144 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Temps</title>
-    <script>
-    (function () {
-        document.addEventListener("DOMContentLoaded", function() {
-            const form = document.getElementById("tempsForm");
-            form.addEventListener("submit", function(e) {
-                e.preventDefault();
-                const formData = new FormData(this);
-                const temp = formData.get('knyc_high');
-                fetch("https://predicttools.com/temps.php", {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(async data => {
-                    const t = 1;
-                });
-            });
-            fetch("temps.json")
-            .then(response => response.json())
-            .then(async data => {
-                const knyc = data.knyc_high;
-                document.getElementById("knyc_high").value = knyc;
-            });
-        });
-    })();
-    </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Temps – KNYC High Forecast</title>
+
+  <!-- Bulma (lightweight, responsive) -->
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+
+  <style>
+    html, body { height: 100%; }
+    body {
+      background: linear-gradient(135deg, #e0f7fa, #80deea);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+    .card {
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 8px 20px rgba(0,0,0,.12);
+    }
+    .title { color: #155a75; }
+    .subtitle { color: #555; }
+    .input.is-large { font-size: 1.75rem; text-align: center; }
+    .button.is-primary { height: 3rem; font-weight: 600; }
+    .notification { margin-top: 1rem; }
+    .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; margin-left: .5rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 
 <body>
-    <h1>
-        Temps App
-    </h1>
-    <form id="tempsForm">
-        What will the high temp at KNYC be today?
-        <input name="knyc_high" id="knyc_high" type="number" step="1" onkeypress="return event.charCode >= 48 && event.charCode <= 57" min="-25" max="125">
-        <button type="submit"> Confirm Forecast </button>
-    </form>
-</body>
+<section class="section p-0">
+  <div class="container">
+    <div class="card p-5">
+      <h1 class="title has-text-centered">Temps App</h1>
+      <p class="subtitle has-text-centered mb-5">
+        What will the <strong>high temperature</strong> at <strong>KNYC</strong> be today?
+      </p>
 
+      <form id="tempsForm" class="box">
+        <div class="field">
+          <label class="label has-text-centered" for="knyc_high">
+            High temperature (°F)
+          </label>
+          <div class="control has-text-centered">
+            <input class="input is-large is-rounded"
+                   name="knyc_high"
+                   id="knyc_high"
+                   type="number"
+                   step="1"
+                   min="-25"
+                   max="125"
+                   placeholder="e.g. 78"
+                   required
+                   autocomplete="off">
+          </div>
+          <p class="help has-text-centered mt-2">
+            Only whole numbers –25 °F to 125 °F
+          </p>
+        </div>
+
+        <div class="field">
+          <div class="control">
+            <button type="submit"
+                    class="button is-primary is-fullwidth is-large">
+              <span id="btnText">Confirm Forecast</span>
+              <span id="spinner" class="is-hidden"><i class="spinner"></i></span>
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <div id="toast" class="notification is-hidden"></div>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const form   = document.getElementById('tempsForm');
+    const input  = document.getElementById('knyc_high');
+    const btnTxt = document.getElementById('btnText');
+    const spin   = document.getElementById('spinner');
+    const toast  = document.getElementById('toast');
+
+    // ---- load previous value from temps.json ----
+    fetch('temps.json')
+      .then(r => r.ok ? r.json() : Promise.reject('Failed to load temps.json'))
+      .then(data => {
+        const val = data?.knyc_high ?? '';
+        if (val) input.value = val;
+      })
+      .catch(err => {
+        showToast(err, 'is-danger');
+      });
+
+    // ---- submit handler ----
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const temp = input.value.trim();
+
+      if (!temp || temp < -25 || temp > 125) {
+        showToast('Please enter a temperature between -25 and 125.', 'is-danger');
+        return;
+      }
+
+      // UI feedback
+      btnTxt.classList.add('is-hidden');
+      spin.classList.remove('is-hidden');
+
+      const formData = new FormData(form);
+      fetch('https://predicttools.com/temps.php', {
+        method: 'POST',
+        body: formData
+      })
+        .then(r => r.ok ? r.json() : Promise.reject('Server error'))
+        .then(data => {
+          showToast('Forecast saved! (' + temp + ' °F)', 'is-success');
+        })
+        .catch(err => {
+          showToast(err.toString(), 'is-danger');
+        })
+        .finally(() => {
+          btnTxt.classList.remove('is-hidden');
+          spin.classList.add('is-hidden');
+        });
+    });
+
+    // ---- toast helper ----
+    function showToast(msg, type) {
+      toast.textContent = msg;
+      toast.className = `notification ${type}`;
+      toast.classList.remove('is-hidden');
+      setTimeout(() => toast.classList.add('is-hidden'), 4000);
+    }
+  });
+</script>
+</body>
 </html>
