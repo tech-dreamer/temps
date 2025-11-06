@@ -25,7 +25,7 @@
             fetch("temps.json")
             .then(response => response.json())
             .then(async data => {
-                const knyc = data.knyc;
+                const knyc = data.knyc_high;
                 document.getElementById("knyc_high").value = knyc;
             });
         });
