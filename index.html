@@ -22,6 +22,12 @@
                     const t = 1;
                 });
             });
+            fetch("temps.json")
+            .then(response => response.json())
+            .then(async data => {
+                const knyc = data.knyc;
+                document.getElementById("knyc_high").value = knyc;
+            });
         });
     })();
     </script>
@@ -33,7 +39,7 @@
     </h1>
     <form id="tempsForm">
         What will the high temp at KNYC be today?
-        <input name="knyc_high" type="number" step="1" onkeypress="return event.charCode >= 48 && event.charCode <= 57" min="-25" max="125">
+        <input name="knyc_high" id="knyc_high" type="number" step="1" onkeypress="return event.charCode >= 48 && event.charCode <= 57" min="-25" max="125">
         <button type="submit"> Confirm Forecast </button>
     </form>
 </body>
