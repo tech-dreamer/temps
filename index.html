@@ -65,6 +65,27 @@
         </div>
 
         <div class="field">
+          <label class="label has-text-centered" for="knyc_high1">
+            11AM temperature (°F)
+          </label>
+          <div class="control has-text-centered">
+            <input class="input is-large is-rounded"
+                   name="knyc_high1"
+                   id="knyc_high1"
+                   type="number"
+                   step="1"
+                   min="-25"
+                   max="125"
+                   placeholder="e.g. 78"
+                   required
+                   autocomplete="off">
+          </div>
+          <p class="help has-text-centered mt-2">
+            Only whole numbers –25 °F to 125 °F
+          </p>
+        </div>
+
+        <div class="field">
           <div class="control">
             <button type="submit"
                     class="button is-primary is-fullwidth is-large">
