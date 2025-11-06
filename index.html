@@ -3,33 +3,110 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Temps – KNYC High Forecast</title>
+  <title>KNYC Forecast</title>
 
-  <!-- Bulma (lightweight, responsive) -->
-  <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  <!-- Bulma -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
 
   <style>
-    html, body { height: 100%; }
+    :root {
+      --bunny-pink: #ffcdd2;
+      --bunny-mint: #d1f2eb;
+      --bunny-cream: #fff8e1;
+      --bunny-gray: #b0bec5;
+    }
+
+    html, body { height: 100%; font-family: 'Comic Neue', cursive; }
     body {
-      background: linear-gradient(135deg, #e0f7fa, #80deea);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      background: linear-gradient(135deg, var(--bunny-mint), var(--bunny-cream));
+      background-attachment: fixed;
+      position: relative;
+      overflow-x: hidden;
     }
+
+    /* Bunny footprints background */
+    body::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><path fill="%23ffcdd280" d="M15 15c3 0 5.5-2 5.5-5s-2.5-5-5.5-5-5.5 2-5.5 5 2.5 5 5.5 5zm30 0c3 0 5.5-2 5.5-5s-2.5-5-5.5-5-5.5 2-5.5 5 2.5 5 5.5 5z"/></svg>') repeat;
+      opacity: 0.15;
+      z-index: -1;
+    }
+
     .card {
-      max-width: 420px;
+      max-width: 440px;
       width: 100%;
-      box-shadow: 0 8px 20px rgba(0,0,0,.12);
+      border-radius: 2rem;
+      box-shadow: 0 12px 30px rgba(0,0,0,.15);
+      background: white;
+      position: relative;
+      overflow: hidden;
+      border: 3px solid var(--bunny-pink);
     }
-    .title { color: #155a75; }
-    .subtitle { color: #555; }
-    .input.is-large { font-size: 1.75rem; text-align: center; }
-    .button.is-primary { height: 3rem; font-weight: 600; }
-    .notification { margin-top: 1rem; }
-    .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; margin-left: .5rem; }
+
+    /* Bunny ears on top */
+    .card::before {
+      content: "";
+      position: absolute;
+      top: -25px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 50px;
+      height: 50px;
+      background: var(--bunny-pink);
+      border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+      box-shadow: -25px 0 0 var(--bunny-pink), 25px 0 0 var(--bunny-pink);
+    }
+
+    .title { color: #e91e63; font-weight: 700; }
+    .subtitle { color: #555; font-style: italic; }
+
+    .input.is-large {
+      font-size: 2rem;
+      text-align: center;
+      border: 2px solid var(--bunny-gray);
+      border-radius: 1.5rem;
+      height: 3.5rem;
+    }
+
+    .button.is-primary {
+      background: linear-gradient(135deg, #ff80ab, #ff4081);
+      border: none;
+      height: 3.2rem;
+      font-weight: 700;
+      border-radius: 1.5rem;
+      box-shadow: 0 4px 15px rgba(255,64,129,.4);
+    }
+
+    .button.is-primary:hover {
+      background: linear-gradient(135deg, #ff5e92, #ff1744);
+    }
+
+    .notification {
+      border-radius: 1rem;
+      font-weight: 600;
+    }
+
+    .spinner {
+      border: 4px solid #fff;
+      border-top: 4px solid #ff80ab;
+      border-radius: 50%;
+      width: 20px; height: 20px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      margin-left: .5rem;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Bunny SVG in footer */
+    .bunny-footer {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 0.9rem;
+      color: #aaa;
+    }
   </style>
 </head>
 
@@ -37,15 +114,15 @@
 <section class="section p-0">
   <div class="container">
     <div class="card p-5">
-      <h1 class="title has-text-centered">Temps App</h1>
+      <h1 class="title has-text-centered">Bunny Temps</h1>
       <p class="subtitle has-text-centered mb-5">
-        What will the <strong>high temperature</strong> at <strong>KNYC</strong> be today?
+        Hop to your <strong>KNYC high temp</strong> forecast today!
       </p>
 
-      <form id="tempsForm" class="box">
+      <form id="tempsForm" class="box p-4" style="background: #fffaf0; border-radius: 1.5rem;">
         <div class="field">
           <label class="label has-text-centered" for="knyc_high">
-            High temperature (°F)
+            What will the high be? (°F)
           </label>
           <div class="control has-text-centered">
             <input class="input is-large is-rounded"
@@ -55,28 +132,7 @@
                    step="1"
                    min="-25"
                    max="125"
-                   placeholder="e.g. 78"
-                   required
-                   autocomplete="off">
-          </div>
-          <p class="help has-text-centered mt-2">
-            Only whole numbers –25 °F to 125 °F
-          </p>
-        </div>
-
-        <div class="field">
-          <label class="label has-text-centered" for="knyc_high1">
-            11AM temperature (°F)
-          </label>
-          <div class="control has-text-centered">
-            <input class="input is-large is-rounded"
-                   name="knyc_high1"
-                   id="knyc_high1"
-                   type="number"
-                   step="1"
-                   min="-25"
-                   max="125"
-                   placeholder="e.g. 78"
+                   placeholder="78"
                    required
                    autocomplete="off">
           </div>
@@ -97,6 +153,18 @@
       </form>
 
       <div id="toast" class="notification is-hidden"></div>
+
+      <div class="bunny-footer">
+        <svg width="30" height="30" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M32 10c-8 0-14 6-14 14 0 6 4 11 10 13v5c0 2 2 4 4 4s4-2 4-4v-5c6-2 10-7 10-13 0-8-6-14-14-14z" fill="#ff80ab"/>
+          <circle cx="24" cy="22" r="3" fill="#333"/>
+          <circle cx="40" cy="22" r="3" fill="#333"/>
+          <path d="M20 32c2-2 4-2 6 0M38 32c2-2 4-2 6 0" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+          <ellipse cx="18" cy="14" rx="6" ry="10" fill="#ff80ab" transform="rotate(-20 18 14)"/>
+          <ellipse cx="46" cy="14" rx="6" ry="10" fill="#ff80ab" transform="rotate(20 46 14)"/>
+        </svg>
+        <br>Made with love & carrots
+      </div>
     </div>
   </div>
 </section>
@@ -109,28 +177,25 @@
     const spin   = document.getElementById('spinner');
     const toast  = document.getElementById('toast');
 
-    // ---- load previous value from temps.json ----
+    // Load previous forecast
     fetch('temps.json')
       .then(r => r.ok ? r.json() : Promise.reject('Failed to load temps.json'))
       .then(data => {
         const val = data?.knyc_high ?? '';
         if (val) input.value = val;
       })
-      .catch(err => {
-        showToast(err, 'is-danger');
-      });
+      .catch(err => showToast('Could not load previous forecast', 'is-warning'));
 
-    // ---- submit handler ----
+    // Submit
     form.addEventListener('submit', e => {
       e.preventDefault();
       const temp = input.value.trim();
 
       if (!temp || temp < -25 || temp > 125) {
-        showToast('Please enter a temperature between -25 and 125.', 'is-danger');
+        showToast('Please enter a number between -25 and 125!', 'is-danger');
         return;
       }
 
-      // UI feedback
       btnTxt.classList.add('is-hidden');
       spin.classList.remove('is-hidden');
 
@@ -141,10 +206,10 @@
       })
         .then(r => r.ok ? r.json() : Promise.reject('Server error'))
         .then(data => {
-          showToast('Forecast saved! (' + temp + ' °F)', 'is-success');
+          showToast(`Forecast saved! (${temp}°F)`, 'is-success');
         })
         .catch(err => {
-          showToast(err.toString(), 'is-danger');
+          showToast('Oops! Something went wrong.', 'is-danger');
         })
         .finally(() => {
           btnTxt.classList.remove('is-hidden');
@@ -152,12 +217,11 @@
         });
     });
 
-    // ---- toast helper ----
     function showToast(msg, type) {
-      toast.textContent = msg;
+      toast.innerHTML = msg + (type === 'is-success' ? '' : '');
       toast.className = `notification ${type}`;
       toast.classList.remove('is-hidden');
-      setTimeout(() => toast.classList.add('is-hidden'), 4000);
+      setTimeout(() => toast.classList.add('is-hidden'), 4500);
     }
   });
 </script>
