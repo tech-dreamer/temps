@@ -26,7 +26,7 @@
     </h1>
     <form id="tempsForm">
         What will the high temp at KNYC be today?
-        <input name="knyc_high" type="number" step="1" onkeypress="return event.charCode >= 48 && event.charCode <= 57">
+        <input name="knyc_high" type="number" step="1" onkeypress="return event.charCode >= 48 && event.charCode <= 57" min="-50" max="150">
         <button type="submit"> Confirm Forecast </button>
     </form>
 </body>
