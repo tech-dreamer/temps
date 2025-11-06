@@ -13,7 +13,14 @@
                 e.preventDefault();
                 const formData = new FormData(this);
                 const temp = formData.get('knyc_high');
-                const t = 1;
+                fetch("https://predicttools.com/temps.php", {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(async data => {
+                    const t = 1;
+                });
             });
         });
     })();
