@@ -5,15 +5,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Temps</title>
+    <script>
+    (function () {
+        document.addEventListener("DOMContentLoaded", function() {
+            const form = document.getElementById("tempsForm");
+            form.addEventListener("submit", function(e) {
+                e.preventDefault();
+            });
+        });
+    })();
+    </script>
 </head>
 
 <body>
     <h1>
         Temps App
     </h1>
-    <form>
-        What will the high temp in KNYC be today?
-    <input type="number" step="1">
+    <form id="tempsForm">
+        What will the high temp at KNYC be today?
+        <input type="number" step="1" onkeypress="return event.charCode >= 48 && event.charCode <= 57">
     </form>
 </body>
 
