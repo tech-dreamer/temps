@@ -1,188 +1,236 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Temps – NYC Daily High (6-Hr Max)</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 500px; margin: 2rem auto; padding: 1rem; }
-    form { margin-bottom: 1rem; }
-    input { padding: 0.5rem; font-size: 1.5rem; width: 100px; }
-    button { padding: 0.5rem 1rem; font-size: 1rem; }
-    .locked { opacity: 0.5; }
-    .reveal { background: #f0f8ff; padding: 1rem; border: 1px solid #007bff; border-radius: 0.5rem; }
-    .diff { font-size: 1.2rem; font-weight: bold; }
-    .error { color: red; }
-    .success { color: green; }
-  </style>
-</head>
-<body>
-  <h1>NYC Daily High Forecast (6-Hr Max)</h1>
-  <p>Enter your forecast for today's high temp in NYC.</p>
+<script>
+  // ──────────────────────────────────────────────────────────────
+  //  CONFIG
+  // ──────────────────────────────────────────────────────────────
 
-  <form id="tempsForm">
-    <label>Your Forecast: <input name="knyc_high" id="knyc_high" type="number" step="1" min="-25" max="125" required></label>
-    <button type="submit" id="submitBtn">Confirm Forecast</button>
-  </form>
+  let GITHUB_TOKEN = localStorage.getItem('github_pat');
+  if (!GITHUB_TOKEN) {
+  GITHUB_TOKEN = prompt('GitHub PAT (repo scope):');
+  if (GITHUB_TOKEN) localStorage.setItem('github_pat', GITHUB_TOKEN);
+  }
+  
+  const GITHUB_OWNER   = 'tech-dreamer';                        // your GitHub username
+  const GITHUB_REPO    = 'tech-dreamer.github.io';              // repo name (same as user‑site)
+  const FILE_PATH      = 'forecasts.json';                     // file that will hold all forecasts
+  const STORAGE_KEY_F  = 'knyc-daily-forecast';                // localStorage key
+  const STORAGE_KEY_A  = 'knyc-actual-high-6hr';
+  const CUTOFF_HOUR    = 12;   // 12 PM EST
+  const REVEAL_HOUR    = 19;   // 7 PM EST
+  const TODAY          = '2025-11-11';   // test date (will be dynamic later)
+  const FALLBACK_HIGH  = 41;   // historical avg
 
-  <div id="status"></div>
-  <div id="reveal" style="display: none;" class="reveal"></div>
+  // ──────────────────────────────────────────────────────────────
+  //  HELPERS
+  // ──────────────────────────────────────────────────────────────
+  const getESTHour = () => {
+    const now = new Date();
+    const utc = now.getUTCHours();
+    return (utc - 5 + 24) % 24;               // EST = UTC‑5
+  };
+  const isCutoff = () => getESTHour() >= CUTOFF_HOUR;
+  const isReveal = () => getESTHour() >= REVEAL_HOUR;
 
-  <script>
-    const STORAGE_KEY_FORECAST = 'knyc-daily-forecast';
-    const STORAGE_KEY_ACTUAL = 'knyc-actual-high-6hr';
-    const CUTOFF_TIME = 13; // 1PM EST
-    const REVEAL_TIME = 19; // 7PM EST
-    const TODAY = '2025-11-11'; // Your test date
-    const FALLBACK_HIGH = 53; // Historical Nov 11 avg
+  // ──────────────────────────────────────────────────────────────
+  //  GITHUB API: read / write forecasts.json
+  // ──────────────────────────────────────────────────────────────
+  const apiBase = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FILE_PATH}`;
 
-    // EST Helpers
-    function getESTHour() {
-      const now = new Date();
-      const utcHour = now.getUTCHours();
-      return (utcHour - 5 + 24) % 24;
+  async function readForecastFile() {
+    try {
+      const r = await fetch(apiBase, {
+        headers: { Authorization: `token ${GITHUB_TOKEN}` }
+      });
+      if (!r.ok) throw new Error(r.status);
+      const data = await r.json();
+      const content = atob(data.content);          // base64 → plain text
+      return JSON.parse(content);
+    } catch (e) {
+      console.warn('No forecasts.json yet (or error) → starting fresh', e);
+      return {};                                   // empty object
     }
-    function isCutoffPassed() { return getESTHour() >= CUTOFF_TIME; }
-    function isRevealTime() { return getESTHour() >= REVEAL_TIME; }
+  }
 
-    // Load prior user forecast
-    async function loadPrior() {
-      try {
-        const res = await fetch('temps.json');
-        if (res.ok) {
-          const data = await res.json();
-          document.getElementById('knyc_high').value = data.knyc_high || '';
-        }
-      } catch (e) { console.log('No temps.json'); }
-      const saved = localStorage.getItem(STORAGE_KEY_FORECAST);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.date === TODAY) {
-          document.getElementById('knyc_high').value = parsed.forecast;
-        }
+  async function writeForecastFile(allForecasts) {
+    const content = btoa(JSON.stringify(allForecasts, null, 2));
+    const payload = { message: 'Add forecast', content };
+
+    // Get current SHA (required for update)
+    try {
+      const get = await fetch(apiBase, {
+        headers: { Authorization: `token ${GITHUB_TOKEN}` }
+      });
+      if (get.ok) {
+        const info = await get.json();
+        payload.sha = info.sha;
       }
-    }
+    } catch (_) { /* first write – no SHA */ }
 
-    // Fetch & Parse IEM 6-Hr Max High
-    async function fetchActualHigh() {
-      let high = localStorage.getItem(STORAGE_KEY_ACTUAL);
-      if (high) return parseInt(high);
+    const r = await fetch(apiBase, {
+      method: 'PUT',
+      headers: {
+        Authorization: `token ${GITHUB_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!r.ok) throw new Error(`GitHub write failed: ${r.status}`);
+  }
 
-      const params = `date=${TODAY}&sortdir=desc&station=NYC&network=NY_ASOS&metar=0&madis=0`;
-      const url = `https://mesonet.agron.iastate.edu/sites/obhistory.php?${params}`;
-      try {
-        const res = await fetch(url, { headers: { 'User-Agent': 'TempsApp/1.0' } });
-        if (!res.ok) throw new Error('Fetch failed');
-        const html = await res.text();
+  // ──────────────────────────────────────────────────────────────
+  //  LOAD USER FORECAST (from localStorage + GitHub file)
+  // ──────────────────────────────────────────────────────────────
+  async function loadUserForecast() {
+    const input = document.getElementById('knyc_high');
 
-        // Parse table: Find <tr> rows after header, extract 6-Hr Max Temp column (index 7)
-        const rows = [...html.matchAll(/<tr[^>]*>(.*?)<\/tr>/gs)].slice(1); // Skip header
-        let maxHigh = -Infinity;
-        rows.forEach(row => {
-          const cells = row[1].match(/<t[dh][^>]*>(.*?)<\/t[dh]>/gs) || [];
-          if (cells.length > 7) {
-            const cellText = cells[7].replace(/<[^>]*>/g, '').trim(); // Strip tags
-            const val = parseFloat(cellText.replace(/[^\d.-]/g, '')); // Extract number
-            if (!isNaN(val) && val > maxHigh) maxHigh = val;
-          }
-        });
-
-        if (maxHigh > -Infinity) {
-          high = Math.round(maxHigh); // e.g., 41
-        } else {
-          throw new Error('No 6-hr data found');
-        }
-      } catch (e) {
-        console.error('IEM parse error:', e);
-        high = FALLBACK_HIGH;
+    // 1. Try temps.json (your old file)
+    try {
+      const r = await fetch('temps.json');
+      if (r.ok) {
+        const d = await r.json();
+        if (d?.knyc_high) input.value = d.knyc_high;
       }
+    } catch (_) {}
 
-      localStorage.setItem(STORAGE_KEY_ACTUAL, high.toString());
-      return high;
+    // 2. localStorage (fallback)
+    const saved = localStorage.getItem(STORAGE_KEY_F);
+    if (saved) {
+      const p = JSON.parse(saved);
+      if (p.date === TODAY) input.value = p.forecast;
     }
 
-    // Show reveal
-    async function showReveal() {
-      const revealDiv = document.getElementById('reveal');
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_FORECAST) || '{}');
-      if (saved.date !== TODAY) {
-        revealDiv.innerHTML = '<p>No forecast saved for today.</p>';
-        revealDiv.style.display = 'block';
-        return;
-      }
-      try {
-        const actual = await fetchActualHigh();
-        const diff = Math.abs(saved.forecast - actual);
-        let emoji = diff === 0 ? '🥇' : diff <= 2 ? '😎' : diff <= 5 ? '👍' : '🤏';
-        revealDiv.innerHTML = `
-          <h2>Your Results for ${TODAY}</h2>
-          <p>Your Guess: <strong>${saved.forecast}°F</strong></p>
-          <p>Actual High (6-Hr Max): <strong>${actual}°F</strong></p>
-          <p class="diff">${emoji} Your forecast was off by ${diff}°</p>
-        `;
-        revealDiv.style.display = 'block';
-      } catch (e) {
-        revealDiv.innerHTML = '<p>Couldn\'t fetch 6-hr high—check back later!</p>';
-        revealDiv.style.display = 'block';
-      }
-    }
+    // 3. GitHub forecasts.json (authoritative)
+    const all = await readForecastFile();
+    if (all[TODAY]) input.value = all[TODAY];
+  }
 
-    // Status helper
-    function showStatus(msg, type) {
-      const status = document.getElementById('status');
-      status.innerHTML = `<p class="${type}">${msg}</p>`;
-      setTimeout(() => status.innerHTML = '', 5000);
-    }
+  // ──────────────────────────────────────────────────────────────
+  //  SAVE USER FORECAST (localStorage + GitHub)
+  // ──────────────────────────────────────────────────────────────
+  async function saveUserForecast(forecast) {
+    // 1. localStorage (instant)
+    localStorage.setItem(STORAGE_KEY_F, JSON.stringify({ date: TODAY, forecast }));
 
-    // Init
-    document.addEventListener('DOMContentLoaded', () => {
-      const form = document.getElementById('tempsForm');
-      const input = document.getElementById('knyc_high');
-      const btn = document.getElementById('submitBtn');
-      const status = document.getElementById('status');
+    // 2. GitHub file
+    const all = await readForecastFile();
+    all[TODAY] = forecast;                     // simple key = date
+    await writeForecastFile(all);
+  }
 
-      loadPrior();
+  // ──────────────────────────────────────────────────────────────
+  //  FETCH 6‑HR MAX HIGH (IEM obhistory)
+  // ──────────────────────────────────────────────────────────────
+  async function fetchActualHigh() {
+    const cached = localStorage.getItem(STORAGE_KEY_A);
+    if (cached) return parseInt(cached);
 
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (isCutoffPassed()) {
-          showStatus('Cutoff passed at 1PM EST!', 'error');
-          return;
-        }
-        const forecast = parseInt(input.value);
-        if (!forecast || forecast < -25 || forecast > 125) {
-          showStatus('Enter a whole number -25 to 125.', 'error');
-          return;
-        }
+    const params = `date=${TODAY}&sortdir=desc&station=NYC&network=NY_ASOS&metar=0&madis=0`;
+    const url = `https://mesonet.agron.iastate.edu/sites/obhistory.php?${params}`;
 
-        // Save locally
-        localStorage.setItem(STORAGE_KEY_FORECAST, JSON.stringify({ date: TODAY, forecast }));
+    try {
+      const r = await fetch(url, { headers: { 'User-Agent': 'TempsApp/1.0' } });
+      if (!r.ok) throw new Error('IEM fetch failed');
+      const html = await r.text();
 
-        // POST to your backend
-        const formData = new FormData(form);
-        try {
-          const res = await fetch('https://predicttools.com/temps.php', { method: 'POST', body: formData });
-          if (!res.ok) throw new Error('Server error');
-          await res.json();
-          showStatus(`Forecast saved: ${forecast}°F`, 'success');
-        } catch (e) {
-          showStatus('Save failed—try again?', 'error');
-          console.error(e);
+      const rows = [...html.matchAll(/<tr[^>]*>(.*?)<\/tr>/gs)].slice(1);
+      let max = -Infinity;
+      rows.forEach(row => {
+        const cells = row[1].match(/<t[dh][^>]*>(.*?)<\/t[dh]>/gs) || [];
+        if (cells.length > 7) {
+          const txt = cells[7].replace(/<[^>]*>/g, '').trim();
+          const val = parseFloat(txt.replace(/[^\d.-]/g, ''));
+          if (!isNaN(val) && val > max) max = val;
         }
       });
 
-      // Lock if cutoff
-      if (isCutoffPassed()) {
-        form.classList.add('locked');
-        btn.disabled = true;
-        status.innerHTML = '<p class="error">Forecast window is closed. Check after 7PM to see actual high.</p>';
+      const high = max > -Infinity ? Math.round(max) : FALLBACK_HIGH;
+      localStorage.setItem(STORAGE_KEY_A, high);
+      return high;
+    } catch (e) {
+      console.error(e);
+      const high = FALLBACK_HIGH;
+      localStorage.setItem(STORAGE_KEY_A, high);
+      return high;
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  //  REVEAL LOGIC
+  // ──────────────────────────────────────────────────────────────
+  async function showReveal() {
+    const revealDiv = document.getElementById('reveal');
+    const all = await readForecastFile();
+    const user = all[TODAY];
+
+    if (!user) {
+      revealDiv.innerHTML = '<p>No forecast saved for today.</p>';
+      revealDiv.style.display = 'block';
+      return;
+    }
+
+    const actual = await fetchActualHigh();
+    const diff = Math.abs(user - actual);
+    const emoji = diff === 0 ? 'First place medal' : diff <= 2 ? 'Sunglasses' : diff <= 5 ? 'Thumbs up' : 'Pinching hand';
+
+    revealDiv.innerHTML = `
+      <h2>Results – ${TODAY}</h2>
+      <p>Your guess: <strong>${user}°F</strong></p>
+      <p>Actual 6‑hr max: <strong>${actual}°F</strong></p>
+      <p class="diff">${emoji} Off by ${diff}°</p>
+    `;
+    revealDiv.style.display = 'block';
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  //  UI HELPERS
+  // ──────────────────────────────────────────────────────────────
+  const showStatus = (msg, type) => {
+    const s = document.getElementById('status');
+    s.innerHTML = `<p class="${type}">${msg}</p>`;
+    setTimeout(() => s.innerHTML = '', 5000);
+  };
+
+  // ──────────────────────────────────────────────────────────────
+  //  MAIN – DOM READY
+  // ──────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    const form   = document.getElementById('tempsForm');
+    const input  = document.getElementById('knyc_high');
+    const btn    = document.getElementById('submitBtn');
+    const status = document.getElementById('status');
+
+    loadUserForecast();
+
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+
+      if (isCutoff()) {
+        showStatus('Submissions closed at 1 PM EST!', 'error');
+        return;
       }
 
-      // Reveal if time
-      if (isRevealTime()) {
-        showReveal();
+      const forecast = parseInt(input.value);
+      if (!forecast || forecast < -25 || forecast > 125) {
+        showStatus('Enter a whole number –25 … 125.', 'error');
+        return;
+      }
+
+      try {
+        await saveUserForecast(forecast);
+        showStatus(`Forecast saved: ${forecast}°F`, 'success');
+      } catch (err) {
+        console.error(err);
+        showStatus('Save failed – try again?', 'error');
       }
     });
-  </script>
-</body>
-</html>
+
+    // LOCK UI after cutoff
+    if (isCutoff()) {
+      form.classList.add('locked');
+      btn.disabled = true;
+      status.innerHTML = '<p class="error">Closed – check back after 7 PM for results!</p>';
+    }
+
+    // REVEAL after 7 PM
+    if (isReveal()) showReveal();
+  });
+</script>
