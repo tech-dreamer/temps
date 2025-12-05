@@ -58,6 +58,23 @@ fetch("https://ckyqknlxmjqlkqnxhgef.supabase.co/rest/v1/user_daily_forecasts", {
 .catch(err => console.error(err));
 }
 
+async function getForecast(userId) {
+fetch("https://ckyqknlxmjqlkqnxhgef.supabase.co/rest/v1/user_daily_forecasts", {
+  method: "GET",
+  headers: {
+    "Content-Type": "application/json",
+    "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0",
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0",
+    "Prefer": "return=minimal"   // or "return=representation" if you want the new row back
+  }
+})
+.then(res => {
+  if (!res.ok) throw new Error("Error getting data");
+  document.getElementById("knyc_high").value = res.data;
+})
+.catch(err => console.error(err));
+}
+
 // Read forecasts (e.g., leaderboard)
 async function getLeaderboards() {
   const { data, error } = await supabase
