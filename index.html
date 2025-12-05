@@ -70,7 +70,7 @@ fetch("https://ckyqknlxmjqlkqnxhgef.supabase.co/rest/v1/user_daily_forecasts", {
 })
   .then(r => r.json())
   .then(data => {
-  document.getElementById("knyc_high").value = data;
+  document.getElementById("knyc_high").value = data[data.length-1].forecast; // make latest guess from db as kync input
 })
 .catch(err => console.error(err));
 }
