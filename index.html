@@ -47,7 +47,8 @@ fetch("https://ckyqknlxmjqlkqnxhgef.supabase.co/rest/v1/user_daily_forecasts", {
   },
   body: JSON.stringify({
     forecast: guess, 
-    user_id: userId
+    user_id: userId,
+    city_id: 1
   })
 })
 .then(res => {
