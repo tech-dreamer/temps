@@ -95,6 +95,7 @@ document.getElementById('submitBtn').addEventListener('click', async (e) => {
   const userId = '1';  // Replace with real auth later
   await saveForecast(userId, new Date().toISOString().split('T')[0], parseInt(guess));
 });
+    getForecast("1");
   </script>
   
 </body>
