@@ -6,10 +6,10 @@
   <title>Temps App</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    const { createClient } = Supabase;  // from the CDN
+    const { createClient } = supabase;  // from the CDN
     const SUPABASE_URL = 'https://your-project-ref.supabase.co';
     const SUPABASE_ANON_KEY = 'your-anon-key-here';
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   </script>
   <style>
     body { font-family: Arial, sans-serif; max-width: 500px; margin: 2rem auto; padding: 1rem; background: #f9f9fb; }
