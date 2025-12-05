@@ -68,9 +68,9 @@ fetch("https://ckyqknlxmjqlkqnxhgef.supabase.co/rest/v1/user_daily_forecasts", {
     "Prefer": "return=minimal"   // or "return=representation" if you want the new row back
   }
 })
-.then(res => {
-  if (!res.ok) throw new Error("Error getting data");
-  document.getElementById("knyc_high").value = res.data;
+  .then(r => r.json())
+  .then(data => {
+  document.getElementById("knyc_high").value = data;
 })
 .catch(err => console.error(err));
 }
