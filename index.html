@@ -47,8 +47,13 @@ async function saveForecast(userId, date, guess) {
     .from('forecasts')
     .insert([{ user_id: userId, date: date, guess: guess }]);
 
-  if (error) console.error('Save error:', error);
-  else console.log('Saved:', data);
+  if (error) {
+    console.error('Save error:', error);
+    showStatus('Save failed', 'error');
+  } else {
+    console.log('Saved:', data);
+    showStatus('Saved!', 'success');
+  }
 }
 
 // Read forecasts (e.g., leaderboard)
