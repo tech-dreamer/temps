@@ -3,7 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Temps – KNYC Daily High</title>
+  <title>Temps App</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const { createClient } = supabase;  // from the CDN
+    const SUPABASE_URL = 'https://your-project-ref.supabase.co';
+    const SUPABASE_ANON_KEY = 'your-anon-key-here';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  </script>
   <style>
     body { font-family: Arial, sans-serif; max-width: 500px; margin: 2rem auto; padding: 1rem; background: #f9f9fb; }
     h1 { text-align: center; color: #2c3e50; }
@@ -37,235 +44,34 @@
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
   <script>
-    // ──────────────────────────────────────────────────────────────
-    //  CONFIG
-    // ──────────────────────────────────────────────────────────────
-    const GITHUB_OWNER   = 'tech-dreamer';
-    const GITHUB_REPO    = 'tech-dreamer.github.io';
-    const FILE_PATH      = 'forecasts.json';
-    const STORAGE_KEY_F  = 'knyc-daily-forecast';
-    const STORAGE_KEY_A  = 'knyc-actual-high-6hr';
-    const CUTOFF_HOUR    = 12;
-    const REVEAL_HOUR    = 19;
-    const TODAY          = '2025-11-11';
-    const FALLBACK_HIGH  = 41;
+async function saveForecast(userId, date, guess) {
+  const { data, error } = await supabase
+    .from('forecasts')
+    .insert([{ user_id: userId, date: date, guess: guess }]);
 
-    // ──────────────────────────────────────────────────────────────
-    //  TOKEN: Prompt + localStorage
-    // ──────────────────────────────────────────────────────────────
-    let GITHUB_TOKEN = localStorage.getItem('github_pat');
-    if (!GITHUB_TOKEN) {
-      GITHUB_TOKEN = prompt('Enter GitHub PAT (repo scope):');
-      if (GITHUB_TOKEN && GITHUB_TOKEN.startsWith('ghp_')) {
-        localStorage.setItem('github_pat', GITHUB_TOKEN);
-      } else {
-        alert('Invalid or missing token. Using local-only mode.');
-        GITHUB_TOKEN = null;
-      }
-    }
+  if (error) console.error('Save error:', error);
+  else console.log('Saved:', data);
+}
 
-    // ──────────────────────────────────────────────────────────────
-    //  HELPERS
-    // ──────────────────────────────────────────────────────────────
-    const getESTHour = () => (new Date().getUTCHours() - 5 + 24) % 24;
-    const isCutoff = () => getESTHour() >= CUTOFF_HOUR;
-    const isReveal = () => getESTHour() >= REVEAL_HOUR;
-    const apiBase = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FILE_PATH}`;
+// Read forecasts (e.g., leaderboard)
+async function getLeaderboards() {
+  const { data, error } = await supabase
+    .from('forecasts')
+    .select('user_id, guess, coins')
+    .order('coins', { ascending: false })
+    .limit(10);
 
-    // ──────────────────────────────────────────────────────────────
-    //  GITHUB API
-    // ──────────────────────────────────────────────────────────────
-    async function githubRead() {
-      if (!GITHUB_TOKEN) return {};
-      try {
-        const r = await fetch(apiBase, { headers: { Authorization: `token ${GITHUB_TOKEN}` } });
-        if (!r.ok) throw new Error(r.status);
-        const d = await r.json();
-        return JSON.parse(atob(d.content));
-      } catch (e) {
-        console.warn('GitHub read failed:', e.message);
-        return {};
-      }
-    }
+  if (error) console.error('Read error:', error);
+  else console.log('Top 10:', data);
+}
 
-    async function githubWrite(all) {
-      if (!GITHUB_TOKEN) return false;
-      try {
-        const content = btoa(JSON.stringify(all, null, 2));
-        const payload = { message: `Forecast ${TODAY}`, content };
-        try {
-          const get = await fetch(apiBase, { headers: { Authorization: `token ${GITHUB_TOKEN}` } });
-          if (get.ok) payload.sha = (await get.json()).sha;
-        } catch (_) {}
-        const r = await fetch(apiBase, {
-          method: 'PUT',
-          headers: { Authorization: `token ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        return r.ok;
-      } catch (e) {
-        console.warn('GitHub write failed:', e);
-        return false;
-      }
-    }
-
-    // ──────────────────────────────────────────────────────────────
-    //  LOAD / SAVE
-    // ──────────────────────────────────────────────────────────────
-    async function loadUserForecast() {
-      const input = document.getElementById('knyc_high');
-      let val = '';
-
-      // 1. temps.json
-      try {
-        const r = await fetch('temps.json');
-        if (r.ok) {
-          const d = await r.json();
-          if (d?.knyc_high) val = d.knyc_high;
-        }
-      } catch (_) {}
-
-      // 2. localStorage
-      const local = localStorage.getItem(STORAGE_KEY_F);
-      if (local) {
-        const p = JSON.parse(local);
-        if (p.date === TODAY) val = p.forecast;
-      }
-
-      // 3. GitHub
-      if (GITHUB_TOKEN) {
-        const all = await githubRead();
-        if (all[TODAY]) val = all[TODAY];
-      }
-
-      if (val) input.value = val;
-    }
-
-    async function saveUserForecast(forecast) {
-      localStorage.setItem(STORAGE_KEY_F, JSON.stringify({ date: TODAY, forecast }));
-      if (GITHUB_TOKEN) {
-        const all = await githubRead();
-        all[TODAY] = forecast;
-        const ok = await githubWrite(all);
-        if (!ok) showStatus('Saved locally (GitHub failed)', 'warning');
-      }
-    }
-
-    // ──────────────────────────────────────────────────────────────
-    //  FETCH 6-HR MAX
-    // ──────────────────────────────────────────────────────────────
-    async function fetchActualHigh() {
-      const cached = localStorage.getItem(STORAGE_KEY_A);
-      if (cached) return parseInt(cached);
-
-      const url = `https://mesonet.agron.iastate.edu/sites/obhistory.php?date=${TODAY}&sortdir=desc&station=NYC&network=NY_ASOS&metar=0&madis=0`;
-      try {
-        const r = await fetch(url, { headers: { 'User-Agent': 'TempsApp' } });
-        if (!r.ok) throw new Error();
-        const html = await r.text();
-        const rows = [...html.matchAll(/<tr[^>]*>(.*?)<\/tr>/gs)].slice(1);
-        let max = -Infinity;
-        rows.forEach(row => {
-          const cells = row[1].match(/<t[dh][^>]*>(.*?)<\/t[dh]>/gs) || [];
-          if (cells.length > 7) {
-            const txt = cells[7].replace(/<[^>]*>/g, '').trim();
-            const val = parseFloat(txt);
-            if (!isNaN(val) && val > max) max = val;
-          }
-        });
-        const high = max > -Infinity ? Math.round(max) : FALLBACK_HIGH;
-        localStorage.setItem(STORAGE_KEY_A, high);
-        return high;
-      } catch (e) {
-        console.error(e);
-        const high = FALLBACK_HIGH;
-        localStorage.setItem(STORAGE_KEY_A, high);
-        return high;
-      }
-    }
-
-    // ──────────────────────────────────────────────────────────────
-    //  REVEAL
-    // ──────────────────────────────────────────────────────────────
-    async function showReveal() {
-      const div = document.getElementById('reveal');
-      let user = null;
-      if (GITHUB_TOKEN) {
-        const all = await githubRead();
-        user = all[TODAY];
-      }
-      if (!user) {
-        const local = localStorage.getItem(STORAGE_KEY_F);
-        if (local) {
-          const p = JSON.parse(local);
-          if (p.date === TODAY) user = p.forecast;
-        }
-      }
-      if (!user) {
-        div.innerHTML = '<p>No forecast saved.</p>';
-        div.style.display = 'block';
-        return;
-      }
-      const actual = await fetchActualHigh();
-      const diff = Math.abs(user - actual);
-      const emoji = diff === 0 ? '1st place medal' : diff <= 2 ? 'Sunglasses face' : diff <= 5 ? 'Thumbs up' : 'Pinching hand';
-      div.innerHTML = `
-        <h2>Results – ${TODAY}</h2>
-        <p>Your guess: <strong>${user}°F</strong></p>
-        <p>Actual (6-hr max): <strong>${actual}°F</strong></p>
-        <p class="diff">${emoji} Off by ${diff}°</p>
-      `;
-      div.style.display = 'block';
-      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-    }
-
-    // ──────────────────────────────────────────────────────────────
-    //  UI
-    // ──────────────────────────────────────────────────────────────
-    const showStatus = (msg, type = 'info') => {
-      const s = document.getElementById('status');
-      const color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'orange';
-      s.innerHTML = `<p style="color:${color}">${msg}</p>`;
-      setTimeout(() => s.innerHTML = '', 5000);
-    };
-
-    // ──────────────────────────────────────────────────────────────
-    //  INIT
-    // ──────────────────────────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', () => {
-      const form = document.getElementById('tempsForm');
-      const input = document.getElementById('knyc_high');
-      const btn = document.getElementById('submitBtn');
-
-      if (!form || !input || !btn) {
-        document.body.innerHTML = '<h1 style="color:red">ERROR: Missing form elements!</h1>';
-        return;
-      }
-
-      loadUserForecast();
-
-      form.addEventListener('submit', async e => {
-        e.preventDefault();
-        if (isCutoff()) return showStatus('Closed!', 'error');
-        const f = parseInt(input.value);
-        if (isNaN(f) || f < -25 || f > 125) return showStatus('–25 to 125 only', 'error');
-        try {
-          await saveUserForecast(f);
-          showStatus(`Saved: ${f}°F`, 'success');
-          confetti({ particleCount: 50, spread: 60 });
-        } catch {
-          showStatus('Saved locally', 'warning');
-        }
-      });
-
-      if (isCutoff()) {
-        form.classList.add('locked');
-        btn.disabled = true;
-        showStatus('Closed – results after 7 PM', 'info');
-      }
-
-      if (isReveal()) showReveal();
-    });
+// Example usage in your form submit
+document.getElementById('submitBtn').addEventListener('click', async () => {
+  const guess = document.getElementById('knyc_high').value;
+  const userId = 'temp-user-123';  // Replace with real auth later
+  await saveForecast(userId, new Date().toISOString().split('T')[0], parseInt(guess));
+});
   </script>
+  
 </body>
 </html>
