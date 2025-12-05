@@ -66,7 +66,9 @@ async function getLeaderboards() {
 }
 
 // Example usage in your form submit
-document.getElementById('submitBtn').addEventListener('click', async () => {
+document.getElementById('submitBtn').addEventListener('click', async (e) => {
+  e.preventDefault();        // ← THIS stops the form from submitting/reloading
+  e.stopPropagation();       // ← optional, but good practice  
   const guess = document.getElementById('knyc_high').value;
   const userId = 'temp-user-123';  // Replace with real auth later
   await saveForecast(userId, new Date().toISOString().split('T')[0], parseInt(guess));
