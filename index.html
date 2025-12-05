@@ -34,25 +34,20 @@
 
   <div id="status"></div>
   <div id="reveal" style="display:none;" class="reveal"></div>
-
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
+  
   <script>
-    const { createClient } = supabase;  // from the CDN
-    const SUPABASE_URL = 'https://your-project-ref.supabase.co';
-    const SUPABASE_ANON_KEY = 'your-anon-key-here';
-    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 async function saveForecast(userId, date, guess) {
 fetch("https://ckyqknlxmjqlkqnxhgef.supabase.co/rest/v1/user_daily_forecasts", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
-    "apikey": "sb_publishable_lQ27fzzwJf27dUWPEW8UQA_NTY7naO6",
-    "Authorization": "Bearer sb_publishable_lQ27fzzwJf27dUWPEW8UQA_NTY7naO6",
+    "apikey": "sb_secret_2lfb02Lv5hfDsIpQYZiDMw_CJbRju82",
+    "Authorization": "Bearer sb_secret_2lfb02Lv5hfDsIpQYZiDMw_CJbRju82",
     "Prefer": "return=minimal"   // or "return=representation" if you want the new row back
   },
   body: JSON.stringify({
-    forecast: guess
+    forecast: guess, 
+    user_id: userId
   })
 })
 .then(res => {
@@ -79,7 +74,7 @@ document.getElementById('submitBtn').addEventListener('click', async (e) => {
   e.preventDefault();        // ← THIS stops the form from submitting/reloading
   e.stopPropagation();       // ← optional, but good practice  
   const guess = document.getElementById('knyc_high').value;
-  const userId = 'temp-user-123';  // Replace with real auth later
+  const userId = '1';  // Replace with real auth later
   await saveForecast(userId, new Date().toISOString().split('T')[0], parseInt(guess));
 });
   </script>
