@@ -6,40 +6,48 @@
   <title>Temps App</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body {font-family:Arial,sans-serif;max-width:500px;margin:2rem auto;padding:1rem;background:#f9f9fb;}
-    h1 {text-align:center;color:#2c3e50;}
-    form {margin:2rem 0;text-align:center;}
-    input {padding:0.8rem;font-size:1.6rem;width:120px;border:2px solid #3498db;border-radius:8px;text-align:center;}
-    button {padding:0.8rem 1.4rem;background:#3498db;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-left:1rem;}
-    #status {text-align:center;margin:1rem 0;font-weight:bold;font-size:1.2rem;}
+    body { font-family: Arial, sans-serif; max-width: 500px; margin: 2rem auto; padding: 1rem; background: #f9f9fb; }
+    h1 { text-align: center; color: #2c3e50; }
+    form { margin: 1.5rem 0; text-align: center; }
+    input { padding: 0.7rem; font-size: 1.6rem; width: 100px; text-align: center; border: 2px solid #3498db; border-radius: 8px; }
+    button { padding: 0.7rem 1.2rem; font-size: 1rem; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; margin-left: 0.5rem; }
+    button:disabled { background: #95a5a6; cursor: not-allowed; }
+    .locked { opacity: 0.5; pointer-events: none; }
+    #status { text-align: center; margin: 1rem 0; font-weight: bold; }
+    .reveal { background: #e8f4fc; padding: 1.2rem; border: 1px solid #3498db; border-radius: 10px; margin-top: 1.5rem; text-align: center; }
+    .diff { font-size: 1.4rem; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
 
-  <h1>Daily High Forecast</h1>
-  <p style="text-align:center;">Forecast today’s high in NYC.</p>
+  <h1>KNYC Daily High Forecast</h1>
+  <p style="text-align:center;">Forecast today's high in NYC.</p>
 
+  <!-- REQUIRED: These IDs must exist -->
   <form id="tempsForm">
     <label>
       Your Forecast (°F):
-      <input type="number" id="knyc_high" min="-25" max="125" step="1" required placeholder="0">
+      <input type="number" id="knyc_high" name="knyc_high" min="-25" max="125" step="1" required placeholder="0">
     </label>
-    <button type="submit">Confirm</button>
+    <button type="submit" id="submitBtn">Confirm</button>
   </form>
 
   <div id="status"></div>
-
+  <div id="reveal" style="display:none;" class="reveal"></div>
+  
   <script>
-    // YOUR REAL VALUES — I just tested with these and it works
+    // ←←← REPLACE WITH YOUR REAL ANON KEY ←←←
     const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtzbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3MTU0NDYsImV4cCI6MjA0OTI5MTQ0Nn0.0v8oT8x9Q3b1b1l2r3r4t5y6u7i8o9p0'; // Your real key here
+    // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
 
     const supabase = window.Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // Load last guess
     async function loadLastGuess() {
       const today = new Date().toISOString().split('T')[0];
       const { data } = await supabase
-        .from('daily_forecasts')
+        .from('daily_forecasts')  // ← Your table name
         .select('forecast')
         .eq('user_id', 1)
         .eq('date', today)
@@ -48,25 +56,27 @@
       if (data) document.getElementById('knyc_high').value = data.forecast;
     }
 
+    // Save new guess
     async function saveForecast(guess) {
       const today = new Date().toISOString().split('T')[0];
 
       const { error } = await supabase
-        .from('daily_forecasts')
+        .from('daily_forecasts')  // ← Your table name
         .upsert({
           user_id: 1,
           date: today,
-          city_id: 1,           
+          city_id: 1,
           forecast: Number(guess)
         }, { onConflict: 'user_id,date,city_id' });
 
       if (error) {
-        document.getElementById('status').innerHTML = `<span style="color:red;">${error.message}</span>`;
+        document.getElementById('status').innerHTML = `<span style="color:red;">Error: ${error.message}</span>`;
       } else {
         document.getElementById('status').innerHTML = `<span style="color:green;">Saved! ${guess}°F</span>`;
       }
     }
 
+    // Form submit
     document.getElementById('tempsForm').addEventListener('submit', async e => {
       e.preventDefault();
       const guess = document.getElementById('knyc_high').value.trim();
@@ -74,6 +84,7 @@
       await saveForecast(guess);
     });
 
+    // Load last guess on page load
     loadLastGuess();
   </script>
 </body>
