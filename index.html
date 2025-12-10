@@ -97,6 +97,48 @@ document.getElementById('submitBtn').addEventListener('click', async (e) => {
 });
     getForecast("1");
   </script>
+
+<!-- Add this anywhere in your <body> -->
+<div style="text-align:center;margin:2rem;">
+  <h2>Guess NYC High Today</h2>
+  <input type="number" id="guessInput" placeholder="e.g. 53" style="padding:0.7rem;font-size:1.6rem;width:120px;">
+  <button id="saveBtn" style="padding:0.7rem 1.2rem;font-size:1.2rem;margin-left:1rem;">Confirm</button>
+  <p id="status" style="margin-top:1rem;font-weight:bold;"></p>
+</div>
+
+<!-- Supabase CDN (once) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
+// ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+
+const supabase = window.Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  const guess = document.getElementById('guessInput').value.trim();
+  if (!guess) {
+    document.getElementById('status').innerHTML = '<span style="color:red;">Enter a number!</span>';
+    return;
+  }
+
+  const { error } = await supabase
+    .from('daily_forecasts')
+    .insert({
+      user_id: 1,                                     // temporary user
+      date: new Date().toISOString().split('T')[0],   // today
+      city_id: 1,                                     // NYC
+      forecast: Number(guess)
+    });
+
+  if (error) {
+    document.getElementById('status').innerHTML = `<span style="color:red;">Error: ${error.message}</span>`;
+  } else {
+    document.getElementById('status').innerHTML = `<span style="color:green;">Saved! Your guess: ${guess}°F</span>`;
+  }
+});
+</script>
   
 </body>
 </html>
