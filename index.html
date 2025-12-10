@@ -36,56 +36,38 @@
   <div id="reveal" style="display:none;" class="reveal"></div>
   
   <script>
-    // ←←← REPLACE WITH YOUR REAL ANON KEY ←←←
-    const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtzbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3MTU0NDYsImV4cCI6MjA0OTI5MTQ0Nn0.0v8oT8x9Q3b1b1l2r3r4t5y6u7i8o9p0'; // Your real key here
-    // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    const supabase = window.Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+<script>
+  const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtzbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3MTU0NDYsImV4cCI6MjA0OTI5MTQ0Nn0.0v8oT8x9Q3b1b1l2r3r4t5y6u7i8o9p0';
+  // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+  const { createClient } = supabase;
+  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  console.log('Supabase client ready:', client);
 
-    // Load last guess
-    async function loadLastGuess() {
-      const today = new Date().toISOString().split('T')[0];
-      const { data } = await supabase
-        .from('daily_forecasts')  // ← Your table name
-        .select('forecast')
-        .eq('user_id', 1)
-        .eq('date', today)
-        .single();
+  document.getElementById('tempsForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const guess = document.getElementById('knyc_high').value.trim();
+    if (!guess) return;
 
-      if (data) document.getElementById('knyc_high').value = data.forecast;
+    const today = new Date().toISOString().split('T')[0];
+
+    const { error } = await client
+      .from('daily_forecasts')
+      .insert({
+        user_id: 1,
+        city_id: 1,
+        date: today,
+        forecast: Number(guess)
+      });
+
+    if (error) {
+      document.getElementById('status').innerHTML = `<span style="color:red;">${error.message}</span>`;
+    } else {
+      document.getElementById('status').innerHTML = `<span style="color:green;">Saved! ${guess}°F</span>`;
     }
-
-    // Save new guess
-    async function saveForecast(guess) {
-      const today = new Date().toISOString().split('T')[0];
-
-      const { error } = await supabase
-        .from('daily_forecasts')  // ← Your table name
-        .upsert({
-          user_id: 1,
-          date: today,
-          city_id: 1,
-          forecast: Number(guess)
-        }, { onConflict: 'user_id,date,city_id' });
-
-      if (error) {
-        document.getElementById('status').innerHTML = `<span style="color:red;">Error: ${error.message}</span>`;
-      } else {
-        document.getElementById('status').innerHTML = `<span style="color:green;">Saved! ${guess}°F</span>`;
-      }
-    }
-
-    // Form submit
-    document.getElementById('tempsForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      const guess = document.getElementById('knyc_high').value.trim();
-      if (!guess) return;
-      await saveForecast(guess);
-    });
-
-    // Load last guess on page load
-    loadLastGuess();
-  </script>
+  });
+</script>
 </body>
 </html>
