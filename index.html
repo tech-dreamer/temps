@@ -11,12 +11,12 @@
     form {margin:2rem 0;text-align:center;}
     input {padding:0.8rem;font-size:1.6rem;width:120px;border:2px solid #3498db;border-radius:8px;text-align:center;}
     button {padding:0.8rem 1.4rem;background:#3498db;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-left:1rem;}
-    #status {text-align:center;margin:1rem 0;font-weight:bold;}
+    #status {text-align:center;margin:1rem 0;font-weight:bold;font-size:1.2rem;}
   </style>
 </head>
 <body>
 
-  <h1>KNYC Daily High Forecast</h1>
+  <h1>Daily High Forecast</h1>
   <p style="text-align:center;">Forecast today’s high in NYC.</p>
 
   <form id="tempsForm">
@@ -30,14 +30,12 @@
   <div id="status"></div>
 
   <script>
-    // ←←← REPLACE THESE TWO LINES WITH YOUR REAL VALUES ←←←
+    // YOUR REAL VALUES — I just tested with these and it works
     const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
-    // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
 
     const supabase = window.Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Load last guess for user_id = 1
     async function loadLastGuess() {
       const today = new Date().toISOString().split('T')[0];
       const { data } = await supabase
@@ -50,7 +48,6 @@
       if (data) document.getElementById('knyc_high').value = data.forecast;
     }
 
-    // Save new guess
     async function saveForecast(guess) {
       const today = new Date().toISOString().split('T')[0];
 
@@ -59,18 +56,17 @@
         .upsert({
           user_id: 1,
           date: today,
-          city_id: 1,
+          city_id: 1,           
           forecast: Number(guess)
         }, { onConflict: 'user_id,date,city_id' });
 
       if (error) {
-        document.getElementById('status').innerHTML = `<span style="color:red;">Error: ${error.message}</span>`;
+        document.getElementById('status').innerHTML = `<span style="color:red;">${error.message}</span>`;
       } else {
         document.getElementById('status').innerHTML = `<span style="color:green;">Saved! ${guess}°F</span>`;
       }
     }
 
-    // Form submit
     document.getElementById('tempsForm').addEventListener('submit', async e => {
       e.preventDefault();
       const guess = document.getElementById('knyc_high').value.trim();
@@ -78,7 +74,6 @@
       await saveForecast(guess);
     });
 
-    // Load last guess when page opens
     loadLastGuess();
   </script>
 </body>
