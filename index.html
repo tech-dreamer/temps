@@ -22,7 +22,7 @@
   <form id="tempsForm">
     <label>
       Your Forecast (°F):
-      <input type="number" id="knyc_high" min="-25" max="125" step="1" required placeholder="53">
+      <input type="number" id="knyc_high" min="-25" max="125" step="1" required placeholder="0">
     </label>
     <button type="submit">Confirm</button>
   </form>
@@ -37,18 +37,17 @@
 
     const supabase = window.Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Load last guess for this user (temp user 1)
+    // Load last guess for user_id = 1
     async function loadLastGuess() {
-      const { data, error } = await supabase
+      const today = new Date().toISOString().split('T')[0];
+      const { data } = await supabase
         .from('daily_forecasts')
         .select('forecast')
         .eq('user_id', 1)
-        .order('date', { ascending: false })
-        .limit(1);
+        .eq('date', today)
+        .single();
 
-      if (data && data[0]) {
-        document.getElementById('knyc_high').value = data[0].forecast;
-      }
+      if (data) document.getElementById('knyc_high').value = data.forecast;
     }
 
     // Save new guess
@@ -58,11 +57,11 @@
       const { error } = await supabase
         .from('daily_forecasts')
         .upsert({
-          user_id: 1,           // temporary user
+          user_id: 1,
           date: today,
           city_id: 1,
           forecast: Number(guess)
-        }, { onConflict: 'user_id,date,city_id' });  // updates if same day
+        }, { onConflict: 'user_id,date,city_id' });
 
       if (error) {
         document.getElementById('status').innerHTML = `<span style="color:red;">Error: ${error.message}</span>`;
@@ -79,7 +78,7 @@
       await saveForecast(guess);
     });
 
-    // Load last guess on page load
+    // Load last guess when page opens
     loadLastGuess();
   </script>
 </body>
