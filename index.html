@@ -81,7 +81,7 @@
     });
 
     // disable form if past cutoff for selected city
-    document.getElementById('citySelect').addEventListener('change', () => {
+    document.getElementById('citySelect').addEventListener('change', async () => {
       const cityId = document.getElementById('citySelect').value;
       const cityName = _cities[cityId].name;
       const btn = document.getElementById('submitBtn');
