@@ -15,37 +15,6 @@
     button:disabled {background:#ccc;cursor:not-allowed;opacity:0.6;}
     #status {text-align:center;margin:1rem 0;font-weight:bold;font-size:1.2rem;}
   </style>
-</head>
-<body>
-
-  <h1>Daily High Forecast</h1>
-  <p style="text-align:center;">Cutoff = 12 PM local time</p>
-
-  <form id="tempsForm">
-    <div>
-      <label>
-        City:<br>
-        <select id="citySelect" required>
-          <option value="">Choose city</option>
-          <option value="1">New York City</option>
-          <option value="2">Los Angeles</option>
-          <option value="3">Austin</option>
-        </select>
-      </label>
-    </div>
-
-    <div style="margin-top:1rem;">
-      <label>
-        Your Forecast (°F):<br>
-        <input type="number" id="high" min="-25" max="125" step="1" required placeholder="0">
-      </label>
-    </div>
-
-    <button type="submit" id="submitBtn">Confirm</button>
-  </form>
-
-  <div id="status"></div>
-
   <script>
     const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
@@ -53,7 +22,7 @@
     const { createClient } = supabase;
     const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const cityNames = { 1: 'New York City', 2: 'Los Angeles', 3: 'Austin' };
+    let _cities = []; // doesnt really matter, but typically global variables are noted with _. constants are all caps
 
     // returns true if past noon in the selected city's time zone
     function isPastLocalNoon(cityId) {
@@ -80,6 +49,7 @@
       e.preventDefault();
 
       const cityId = document.getElementById('citySelect').value;
+      const cityName = _cities[cityId].name;
       const guess  = document.getElementById('high').value.trim();
 
       if (!cityId || !guess) {
@@ -88,7 +58,7 @@
       }
 
       if (isPastLocalNoon(cityId)) {
-        document.getElementById('status').innerHTML = `<span style="color:#e74c3c;">Too late! Cutoff was noon local time in ${cityNames[cityId]}.</span>`;
+        document.getElementById('status').innerHTML = `<span style="color:#e74c3c;">Too late! Cutoff was noon local time in ${cityName}.</span>`;
         return;
       }
 
@@ -106,22 +76,71 @@
       if (error) {
         document.getElementById('status').innerHTML = `<span style="color:red;">${error.message}</span>`;
       } else {
-        document.getElementById('status').innerHTML = `<span style="color:green;">Saved! ${guess}°F for ${cityNames[cityId]}</span>`;
+        document.getElementById('status').innerHTML = `<span style="color:green;">Saved! ${guess}°F for ${cityName}</span>`;
       }
     });
 
     // disable form if past cutoff for selected city
     document.getElementById('citySelect').addEventListener('change', () => {
       const cityId = document.getElementById('citySelect').value;
+      const cityName = _cities[cityId].name;
       const btn = document.getElementById('submitBtn');
       if (cityId && isPastLocalNoon(cityId)) {
         btn.disabled = true;
-        document.getElementById('status').innerHTML = `<span style="color:#e74c3c;">Forecasting closed for ${cityNames[cityId]} (after noon local time)</span>`;
+        document.getElementById('status').innerHTML = `<span style="color:#e74c3c;">Forecasting closed for ${cityName} (after noon local time)</span>`;
       } else {
         btn.disabled = false;
         document.getElementById('status').innerHTML = '';
       }
     });
+    // this listener makes the page finish loading first. 90% of the pages will need it
+    document.addEventListener("DOMContentLoaded", () => {
+      cities = await client
+        .from("cities")
+        .select();
+      cities.sort(c => c.name);
+      const citySelect = document.getElementById("citySelect");
+      citySelect.innerHTML = "";
+      var placeholder = document.createElement("option");
+      placeholder.setAttribute("selected");
+      placeholder.setAttribute("disabled");
+      placeholder.innerHTML = "Select city...";
+      citySelect.appendChild(placeholder);
+      cities.forEach(c => {
+        var option = document.createElement("option");
+        option.value =  c.id;
+        option.innerHTML = c.name;
+        citySelect.appendChild(option);
+      });
+      citySelect.value = cities[0].id;
+    });
   </script>
+</head>
+<body>
+
+  <h1>Daily High Forecast</h1>
+  <p style="text-align:center;">Cutoff = 12 PM local time</p>
+
+  <form id="tempsForm">
+    <div>
+      <label>
+        City:<br>
+        <select id="citySelect" required>
+          <option value="" disabled selected>Loading cities...</option>
+        </select>
+      </label>
+    </div>
+
+    <div style="margin-top:1rem;">
+      <label>
+        Your Forecast (°F):<br>
+        <input type="number" id="high" min="-25" max="125" step="1" required placeholder="0">
+      </label>
+    </div>
+
+    <button type="submit" id="submitBtn">Confirm</button>
+  </form>
+
+  <div id="status"></div>
 </body>
 </html>
