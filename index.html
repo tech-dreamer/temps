@@ -41,6 +41,32 @@
     <button type="submit" id="submitBtn">Confirm</button>
   </form>
 
+  <button id="revealBtn" style="background:#e74c3c;margin-top:1rem;">Reveal Today's Actual Temps</button>
+  <div id="revealResults"></div>
+
+  document.getElementById('revealBtn').addEventListener('click', async () => {
+  const today = new Date().toISOString().split('T')[0];
+  const { data: actuals } = await client.from('daily_actuals').select('*').eq('date', today);
+  const { data: predictions } = await client.from('daily_forecasts').select('*').eq('user_id', 1).eq('date', today);
+
+  if (!actuals || actuals.length === 0) {
+    document.getElementById('revealResults').innerHTML = '<span style="color:orange;">Actuals not ready yet, check at 12 AM local</span>';
+    return;
+  }
+
+  let results = '<h3>Your Forecasts vs Actual</h3>';
+  actuals.forEach(actual => {
+    const cityName = cities.find(c => c.id === actual.city_id)?.name || 'Unknown';
+    const pred = predictions.find(p => p.city_id === actual.city_id);
+    const diff = pred ? Math.abs(pred.forecast - actual.high_temp) : 'N/A';
+    const emoji = diff === 0 ? '🥇' : diff <= 2 ? '😎' : diff <= 5 ? '👍' : '🤏';
+
+    results += `<p>${cityName}: <strong>${pred ? pred.forecast : 'N/A'}°F</strong> (you) vs <strong>${actual.high_temp}°F</strong> (actual) ${emoji} Off by ${diff}</p>`;
+  });
+
+  document.getElementById('revealResults').innerHTML = results;
+});
+
   <div id="status"></div>
 
   <script>
