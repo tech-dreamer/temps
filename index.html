@@ -14,6 +14,8 @@
     button {padding:0.8rem 1.4rem;background:#3498db;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-left:1rem;}
     button:disabled {background:#ccc;cursor:not-allowed;opacity:0.6;}
     #status {text-align:center;margin:1rem 0;font-weight:bold;font-size:1.2rem;}
+    #revealBtn {padding:1rem 2rem;background:#e74c3c;color:#fff;border:none;border-radius:12px;font-size:1.2rem;cursor:pointer;margin:2rem 0;}
+    #revealResults {margin:2rem 0;padding:1rem;background:#fffaf0;border-radius:12px;}
   </style>
 </head>
 <body>
@@ -41,31 +43,12 @@
     <button type="submit" id="submitBtn">Confirm</button>
   </form>
 
-  <button id="revealBtn" style="background:#e74c3c;margin-top:1rem;">Reveal Today's Actual Temps</button>
+  <!-- Reveal Button -->
+  <div style="text-align:center;">
+    <button id="revealBtn">🐰 Reveal Today's Actuals 🐰</button>
+  </div>
+
   <div id="revealResults"></div>
-
-  document.getElementById('revealBtn').addEventListener('click', async () => {
-  const today = new Date().toISOString().split('T')[0];
-  const { data: actuals } = await client.from('daily_actuals').select('*').eq('date', today);
-  const { data: predictions } = await client.from('daily_forecasts').select('*').eq('user_id', 1).eq('date', today);
-
-  if (!actuals || actuals.length === 0) {
-    document.getElementById('revealResults').innerHTML = '<span style="color:orange;">Actuals not ready yet, check at 12 AM local</span>';
-    return;
-  }
-
-  let results = '<h3>Your Forecasts vs Actual</h3>';
-  actuals.forEach(actual => {
-    const cityName = cities.find(c => c.id === actual.city_id)?.name || 'Unknown';
-    const pred = predictions.find(p => p.city_id === actual.city_id);
-    const diff = pred ? Math.abs(pred.forecast - actual.high_temp) : 'N/A';
-    const emoji = diff === 0 ? '🥇' : diff <= 2 ? '😎' : diff <= 5 ? '👍' : '🤏';
-
-    results += `<p>${cityName}: <strong>${pred ? pred.forecast : 'N/A'}°F</strong> (you) vs <strong>${actual.high_temp}°F</strong> (actual) ${emoji} Off by ${diff}</p>`;
-  });
-
-  document.getElementById('revealResults').innerHTML = results;
-});
 
   <div id="status"></div>
 
@@ -78,14 +61,14 @@
 
     let cities = [];
 
-    // load cities from DB
+    // Load cities from DB
     async function loadCities() {
       const { data, error } = await client
         .from('cities')
         .select('id, name')
         .order('name');
 
-      if (error) {
+      if (error || !data) {
         document.getElementById('status').innerHTML = '<span style="color:red;">Failed to load cities</span>';
         return;
       }
@@ -102,7 +85,7 @@
       });
     }
 
-    // save forecast, server will reject if past cutoff
+    // Save forecast
     document.getElementById('tempsForm').addEventListener('submit', async e => {
       e.preventDefault();
 
@@ -126,7 +109,6 @@
         }, { onConflict: 'user_id,city_id,date' });
 
       if (error) {
-        // catch cutoff errors from the server
         document.getElementById('status').innerHTML = `<span style="color:red;">${error.message}</span>`;
       } else {
         const cityName = cities.find(c => c.id == cityId)?.name || 'Unknown';
@@ -134,7 +116,56 @@
       }
     });
 
-    // load cities on page load
+    // Reveal actuals
+    document.getElementById('revealBtn').addEventListener('click', async () => {
+      const today = new Date().toISOString().split('T')[0];
+
+      const { data: actuals } = await client
+        .from('daily_actuals')
+        .select('city_id, high')
+        .eq('date', today);
+
+      const { data: predictions } = await client
+        .from('daily_forecasts')
+        .select('city_id, forecast')
+        .eq('user_id', 1)
+        .eq('date', today);
+
+      if (!actuals || actuals.length === 0) {
+        document.getElementById('revealResults').innerHTML = `
+          <p style="color:#e67e22;text-align:center;">🌤️ Actuals not ready yet — check after 8 PM EST!</p>
+        `;
+        return;
+      }
+
+      let results = '<h3 style="text-align:center;color:#2c3e50;">🐰 Today\'s Reveal 🐰</h3>';
+
+      actuals.forEach(actual => {
+        const cityName = cities.find(c => c.id === actual.city_id)?.name || 'Unknown City';
+        const pred = predictions.find(p => p.city_id === actual.city_id);
+        const guess = pred ? pred.forecast : null;
+        const diff = guess !== null ? Math.abs(guess - actual.high) : null;
+
+        let reaction = '';
+        if (diff === 0) reaction = '🥇 Perfect! Your bunny earned 5 Bun Coins! :D';
+        else if (diff <= 1) reaction = '😎 So close! Your bunny earned 3 Bun Coins!';
+        else if (diff <= 3) reaction = '👍 Good try! You'll get it next time';
+        else reaction = 'Quite a bit off ... Your bunny lost 1 Happy :(';
+
+        results += `
+          <div style="background:#ffffff;padding:1rem;margin:0.5rem 0;border-radius:10px;border-left:5px solid #3498db;">
+            <p><strong>${cityName}</strong></p>
+            <p>Your guess: <strong>${guess !== null ? guess + '°F' : 'No guess'}</strong></p>
+            <p>Actual high: <strong>${actual.high}°F</strong></p>
+            <p>${reaction}</p>
+          </div>
+        `;
+      });
+
+      document.getElementById('revealResults').innerHTML = results;
+    });
+
+    // Load cities on page load
     loadCities();
   </script>
 </body>
