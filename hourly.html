@@ -9,8 +9,8 @@
 </head>
 <body>
 
-  <h1>Daily High Forecast</h1>
-  <p style="text-align:center;">Cutoff = noon local time</p>
+  <h1>Hourly Forecasts</h1>
+  <p style="text-align:center;">Cutoff = 30 mins before each hour local time</p>
 
   <form id="tempsForm">
     <div>
@@ -22,19 +22,19 @@
       </label>
     </div>
 
-    <div style="margin-top:1rem;">
+    <template id="hourlyForecast" style="margin-top:1rem;">
       <label>
-        Your Forecast (°F):<br>
-        <input type="number" id="high" min="-25" max="125" step="1" required placeholder="0">
+        Your <span></span> Forecast (°F):<br>
+        <input type="number" id="hourly" min="-25" max="125" step="1" required placeholder="0">
       </label>
-    </div>
+    </template>
 
     <button type="submit" id="submitBtn">Confirm</button>
   </form>
 
   <!-- Reveal Button -->
   <div style="text-align:center;">
-    <button id="revealBtn">🐰 Reveal Today's Actuals 🐰</button>
+    <button id="revealBtn">🐰 Reveal Hourly Actuals 🐰</button>
   </div>
 
   <div id="revealResults"></div>
