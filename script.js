@@ -95,7 +95,7 @@ document.getElementById('revealBtn').addEventListener('click', async () => {
     if (diff === 0) reaction = '🥇 Perfect! Your bunny earned 10 Bun Coins! :D';
     else if (diff <= 1) reaction = '😎 So close! Your bunny earned 5 Bun Coins!';
     else if (diff <= 2) reaction = '😎 So close! Your bunny earned 2 Bun Coins!';
-    else if (diff <= 3) reaction = '👍 Good try! You'll get it next time';
+    else if (diff <= 3) reaction = '👍 Good try! You will get it next time.';
     else reaction = 'Quite a bit off ... Your bunny lost 1 Happy :(';
 
     results += `
