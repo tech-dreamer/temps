@@ -9,7 +9,7 @@ let cities = [];
 
 // Load cities from DB
 function buildHourlies() {
-  const template = document.getElementById("hourly");
+  const template = document.getElementById("hourlyForecast");
   for (let i=0; i<8; i++){
     const clone = template.content.cloneNode(true);
     const span = document.getElementsByTagName("span")[0];
