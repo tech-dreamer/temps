@@ -12,8 +12,8 @@ function buildHourlies() {
   const template = document.getElementById("hourlyForecast");
   for (let i=0; i<8; i++){
     const clone = template.content.cloneNode(true);
-    const span = clone.getElementsByTagName("span")[0];
-    span.innerText = i+"AM";
+    const span = clone.querySelector("span");
+    span.innerText = i + "AM";
     document.body.appendChild(clone);
   }
 }
