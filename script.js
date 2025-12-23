@@ -125,5 +125,8 @@ document.getElementById('revealBtn').addEventListener('click', async () => {
 });
 
 // Load cities on page load
-buildHourlies();
+const isHourly = document.getElementById('forecastType').value === FORECAST_TYPES.HOURLY;
+if(isHourly){
+  buildHourlies();
+}
 loadCities();
