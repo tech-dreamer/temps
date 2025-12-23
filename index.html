@@ -5,23 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Temps App</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body {font-family:Arial,sans-serif;max-width:500px;margin:2rem auto;padding:1rem;background:#f9f9fb;}
-    h1 {text-align:center;color:#2c3e50;}
-    form {margin:2rem 0;text-align:center;}
-    select, input {padding:0.8rem;font-size:1.6rem;border:2px solid #3498db;border-radius:8px;margin:0.5rem;}
-    input {width:120px;text-align:center;}
-    button {padding:0.8rem 1.4rem;background:#3498db;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-left:1rem;}
-    button:disabled {background:#ccc;cursor:not-allowed;opacity:0.6;}
-    #status {text-align:center;margin:1rem 0;font-weight:bold;font-size:1.2rem;}
-    #revealBtn {padding:1rem 2rem;background:#e74c3c;color:#fff;border:none;border-radius:12px;font-size:1.2rem;cursor:pointer;margin:2rem 0;}
-    #revealResults {margin:2rem 0;padding:1rem;background:#fffaf0;border-radius:12px;}
-  </style>
+  <link href="style.css"/>
 </head>
 <body>
 
   <h1>Daily High Forecast</h1>
-  <p style="text-align:center;">Cutoff = 12 PM local time</p>
+  <p style="text-align:center;">Cutoff = noon local time</p>
 
   <form id="tempsForm">
     <div>
@@ -52,121 +41,6 @@
 
   <div id="status"></div>
 
-  <script>
-    const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
-
-    const { createClient } = supabase;
-    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    let cities = [];
-
-    // Load cities from DB
-    async function loadCities() {
-      const { data, error } = await client
-        .from('cities')
-        .select('id, name')
-        .order('name');
-
-      if (error || !data) {
-        document.getElementById('status').innerHTML = '<span style="color:red;">Failed to load cities</span>';
-        return;
-      }
-
-      cities = data;
-      const select = document.getElementById('citySelect');
-      select.innerHTML = '<option value="" disabled selected>Select city...</option>';
-
-      data.forEach(city => {
-        const opt = document.createElement('option');
-        opt.value = city.id;
-        opt.textContent = city.name;
-        select.appendChild(opt);
-      });
-    }
-
-    // Save forecast
-    document.getElementById('tempsForm').addEventListener('submit', async e => {
-      e.preventDefault();
-
-      const cityId = document.getElementById('citySelect').value;
-      const guess = document.getElementById('high').value.trim();
-
-      if (!cityId || !guess) {
-        document.getElementById('status').innerHTML = '<span style="color:red;">Pick a city and make your forecast!</span>';
-        return;
-      }
-
-      const today = new Date().toISOString().split('T')[0];
-
-      const { error } = await client
-        .from('daily_forecasts')
-        .upsert({
-          user_id: 1,
-          city_id: Number(cityId),
-          date: today,
-          forecast: Number(guess)
-        }, { onConflict: 'user_id,city_id,date' });
-
-      if (error) {
-        document.getElementById('status').innerHTML = `<span style="color:red;">${error.message}</span>`;
-      } else {
-        const cityName = cities.find(c => c.id == cityId)?.name || 'Unknown';
-        document.getElementById('status').innerHTML = `<span style="color:green;">Saved! ${guess}°F for ${cityName}</span>`;
-      }
-    });
-
-    // Reveal actuals
-    document.getElementById('revealBtn').addEventListener('click', async () => {
-      const today = new Date().toISOString().split('T')[0];
-
-      const { data: actuals } = await client
-        .from('daily_actuals')
-        .select('city_id, high')
-        .eq('date', today);
-
-      const { data: predictions } = await client
-        .from('daily_forecasts')
-        .select('city_id, forecast')
-        .eq('user_id', 1)
-        .eq('date', today);
-
-      if (!actuals || actuals.length === 0) {
-        document.getElementById('revealResults').innerHTML = `
-          <p style="color:#e67e22;text-align:center;">🌤️ Actuals not ready yet — check after 8 PM EST!</p>
-        `;
-        return;
-      }
-
-      let results = '<h3 style="text-align:center;color:#2c3e50;">🐰 Today\'s Reveal 🐰</h3>';
-
-      actuals.forEach(actual => {
-        const cityName = cities.find(c => c.id === actual.city_id)?.name || 'Unknown City';
-        const pred = predictions.find(p => p.city_id === actual.city_id);
-        const guess = pred ? pred.forecast : null;
-        const diff = guess !== null ? Math.abs(guess - actual.high) : null;
-
-        let reaction = '';
-        if (diff === 0) reaction = '🥇 Perfect! Your bunny earned 5 Bun Coins! :D';
-        else if (diff <= 1) reaction = '😎 So close! Your bunny earned 3 Bun Coins!';
-        else if (diff <= 3) reaction = '👍 Good try! You'll get it next time';
-        else reaction = 'Quite a bit off ... Your bunny lost 1 Happy :(';
-
-        results += `
-          <div style="background:#ffffff;padding:1rem;margin:0.5rem 0;border-radius:10px;border-left:5px solid #3498db;">
-            <p><strong>${cityName}</strong></p>
-            <p>Your guess: <strong>${guess !== null ? guess + '°F' : 'No guess'}</strong></p>
-            <p>Actual high: <strong>${actual.high}°F</strong></p>
-            <p>${reaction}</p>
-          </div>
-        `;
-      });
-
-      document.getElementById('revealResults').innerHTML = results;
-    });
-
-    // Load cities on page load
-    loadCities();
-  </script>
+  <script src="script.js"/>
 </body>
 </html>
