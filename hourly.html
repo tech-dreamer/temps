@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Temps App</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+  <h1>Daily High Forecast</h1>
+  <p style="text-align:center;">Cutoff = noon local time</p>
+
+  <form id="tempsForm">
+    <div>
+      <label>
+        City:<br>
+        <select id="citySelect" required>
+          <option value="" disabled selected>Loading cities...</option>
+        </select>
+      </label>
+    </div>
+
+    <div style="margin-top:1rem;">
+      <label>
+        Your Forecast (°F):<br>
+        <input type="number" id="high" min="-25" max="125" step="1" required placeholder="0">
+      </label>
+    </div>
+
+    <button type="submit" id="submitBtn">Confirm</button>
+  </form>
+
+  <!-- Reveal Button -->
+  <div style="text-align:center;">
+    <button id="revealBtn">🐰 Reveal Today's Actuals 🐰</button>
+  </div>
+
+  <div id="revealResults"></div>
+
+  <div id="status"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
