@@ -1,10 +1,22 @@
 const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
+const FORECAST_TYPES = {DAILY: "daily", HOURLY: "hourly, SIXHR: "6hr"};
 
 const { createClient } = supabase;
 const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let cities = [];
+
+// Load cities from DB
+function buildHourlies() {
+  const template = document.getElementById("hourly");
+  for (let i=0; i<8; i++){
+    const clone = template.content.cloneNode(true);
+    const span = document.getElementsByTagName("span")[0];
+    span.innerText = i+"AM";
+    document.body.appendChild(clone);
+  }
+}
 
 // Load cities from DB
 async function loadCities() {
@@ -35,7 +47,8 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
   e.preventDefault();
 
   const cityId = document.getElementById('citySelect').value;
-  const guess = document.getElementById('high').value.trim();
+  const isHourly = document.getElementById('forecastType').value === FORECAST_TYPES.HOURLY;
+  const guess = document.getElementById(isHourly ? FORECAST_TYPES.HOURLY : 'high').value.trim();
 
   if (!cityId || !guess) {
     document.getElementById('status').innerHTML = '<span style="color:red;">Pick a city and make your forecast!</span>';
@@ -45,7 +58,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
   const today = new Date().toISOString().split('T')[0];
 
   const { error } = await client
-    .from('daily_forecasts')
+    .from('hourly_forecasts')
     .upsert({
       user_id: 1,
       city_id: Number(cityId),
@@ -112,4 +125,5 @@ document.getElementById('revealBtn').addEventListener('click', async () => {
 });
 
 // Load cities on page load
+buildHourlies();
 loadCities();
