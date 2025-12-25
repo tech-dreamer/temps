@@ -7,15 +7,61 @@ const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let cities = [];
 
-// Load cities from DB
 function buildHourlies() {
+  const container = document.querySelector('#tempsForm');
   const template = document.getElementById("hourlyForecast");
-  for (let i=0; i<8; i++){
+
+  const cityId = document.getElementById('citySelect').value;
+  if (!cityId) return;
+
+  const city = cities.find(c => c.id == cityId);
+  if (!city || !city.timezone) return;
+
+  const tz = city.timezone;
+  const estStart = new Date();
+  estStart.setHours(11, 0, 0, 0);  // 11 AM EST
+  estStart.setMinutes(estStart.getTimezoneOffset());  // adjust for local offset
+  
+  // convert to city's local time for display
+  const localFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+
+  // clear old inputs
+  container.querySelectorAll('[id^="hour-"]').forEach(el => el.parentElement.parentElement.remove());
+
+  for (let i = 0; i < 8; i++) {
+    const estHourDate = new Date(estStart);
+    estHourDate.setHours(estStart.getHours() + i);
+
+    const localTime = localFormatter.format(estHourDate);
+
     const clone = template.content.cloneNode(true);
     const span = clone.querySelector("span");
-    span.innerText = i + "AM";
-    document.body.appendChild(clone);
+    const input = clone.querySelector("input");
+
+    span.innerText = localTime;  // e.g., "8 AM" for LA, "10 AM" for Austin
+
+    const utcHour = estHourDate.getUTCHours();  // store in UTC for consistency
+    input.id = `hour-${utcHour}`;
+
+    // Disable if past cutoff (30 mins before)
+    input.disabled = isHourPastCutoff(estHourDate, tz);
+
+    container.insertBefore(clone, document.getElementById('submitBtn'));
   }
+}
+
+function isHourPastCutoff(estHourDate, tz) {
+  const now = new Date();
+  const localNow = new Date(now.toLocaleString("en-US", { timeZone: tz }));
+  const cutoff = new Date(estHourDate);
+  cutoff.setMinutes(cutoff.getMinutes() - 30);
+
+  return localNow > cutoff;
 }
 
 // Load cities from DB
