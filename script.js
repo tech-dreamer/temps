@@ -75,7 +75,7 @@ function buildHourlies() {
     get('year'),
     get('month') - 1,
     get('day'),
-    11, 0, 0, 0
+    16, 0, 0, 0
   ));
 
   const localFormatter = new Intl.DateTimeFormat('en-US', {
