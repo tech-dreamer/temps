@@ -11,7 +11,7 @@ let cities = [];
 async function loadCities() {
   const { data, error } = await client
     .from('cities')
-    .select('id, name, timezone')
+    .select('id, name, timezone_id')
     .order('name');
 
   if (error || !data) {
