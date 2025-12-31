@@ -109,9 +109,28 @@ function buildHourlies() {
 
 function isHourPastCutoff(estHourDate, tz) {
   const now = new Date();
-  const localNow = new Date(now.toLocaleString("en-US", { timeZone: tz }));
-  const cutoff = new Date(estHourDate);
-  cutoff.setMinutes(cutoff.getMinutes() - 30);
+
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric'
+  }).formatToParts(now);
+
+  const get = t => parts.find(p => p.type === t).value;
+
+  const localNow = new Date(Date.UTC(
+    get('year'),
+    get('month') - 1,
+    get('day'),
+    get('hour'),
+    get('minute')
+  ));
+
+  const cutoff = new Date(estHourDate.getTime() - 30 * 60 * 1000);
+
   return localNow > cutoff;
 }
 
