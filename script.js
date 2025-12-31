@@ -61,7 +61,7 @@ function buildHourlies() {
   container.querySelectorAll('.hourly-input').forEach(el => el.remove());
 
   const estBase = new Date();
-  estBase.setHours(11, 0, 0, 0);  // 11 AM today EST (approximate — good enough for display)
+  estBase.setUTCHours(16, 0, 0, 0); // 11 AM EST = UTC-5
 
   const localFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
