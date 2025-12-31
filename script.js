@@ -15,9 +15,13 @@ async function loadCities() {
     .order('name');
 
   if (error || !data) {
-    document.getElementById('status').innerHTML = '<span style="color:red;">Failed to load cities</span>';
+    document.getElementById('status').innerHTML = '<span style="color:red;">Failed to load cities.</span>';
     return;
   }
+
+  data.timezone = data.timezones[0].name;
+  delete data.timezones;
+  delete data.timezone_id;
 
   cities = data;
   const select = document.getElementById('citySelect');
