@@ -53,9 +53,9 @@ function buildHourlies() {
   if (!cityId) return;
 
   const city = cities.find(c => c.id == cityId);
-  if (!city || !city.timezone_id) return;
+  if (!city || !city.timezone) return;
 
-  const tz = city.timezone_id;
+  const tz = city.timezone;
 
   // Clear old hourly inputs
   container.querySelectorAll('.hourly-input').forEach(el => el.remove());
