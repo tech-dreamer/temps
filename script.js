@@ -20,7 +20,7 @@ async function loadCities() {
   }
 
   for (const datum of data) {
-    datum.timezone = datum.timezones[0].name;
+    datum.timezone = datum.timezones.name;
     delete datum.timezones;
     delete datum.timezone_id;
   }
