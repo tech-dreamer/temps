@@ -19,9 +19,11 @@ async function loadCities() {
     return;
   }
 
-  data.timezone = data.timezones[0].name;
-  delete data.timezones;
-  delete data.timezone_id;
+  for (const datum of data) {
+    datum.timezone = datum.timezones[0].name;
+    delete datum.timezones;
+    delete datum.timezone_id;
+  }
 
   cities = data;
   const select = document.getElementById('citySelect');
