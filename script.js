@@ -60,8 +60,23 @@ function buildHourlies() {
   // Clear old hourly inputs
   container.querySelectorAll('.hourly-input').forEach(el => el.remove());
 
-  const estBase = new Date();
-  estBase.setUTCHours(16, 0, 0, 0); // 11 AM EST = UTC-5
+  
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  }).formatToParts(now);
+
+  const get = t => parts.find(p => p.type === t).value;
+
+  const estBase = new Date(Date.UTC(
+    get('year'),
+    get('month') - 1,
+    get('day'),
+    11, 0, 0, 0
+  ));
 
   const localFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
@@ -70,9 +85,7 @@ function buildHourlies() {
   });
 
   for (let i = 0; i < 8; i++) {
-    const estHourDate = new Date(estBase);
-    estHourDate.setHours(estBase.getHours() + i);
-
+    const estHourDate = new Date(estBase.getTime() + i * 60 * 60 * 1000);
     const localTime = localFormatter.format(estHourDate);
 
     const clone = template.content.cloneNode(true);
