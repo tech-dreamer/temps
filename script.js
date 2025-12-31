@@ -198,12 +198,13 @@ document.getElementById('revealBtn').addEventListener('click', async () => {
         <p>Actual high: <strong>${actual.high}°F</strong></p>
         <p>${reaction}</p>
       </div>
-    `;  });  document.getElementById('revealResults').innerHTML = results;
-    
-    // Load on start
-    const isHourly = document.getElementById('forecastType').value === FORECAST_TYPES.HOURLY;
-    loadCities();
-    if (isHourly) {
-      document.getElementById('citySelect').addEventListener('change', buildHourlies);
-    }
+    `;  
+  });
+  document.getElementById('revealResults').innerHTML = results;
 });
+// Load on start
+const isHourly = document.getElementById('forecastType').value === FORECAST_TYPES.HOURLY;
+loadCities();
+if (isHourly) {
+  document.getElementById('citySelect').addEventListener('change', buildHourlies);
+}
