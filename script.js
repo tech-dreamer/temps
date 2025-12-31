@@ -174,7 +174,7 @@ document.getElementById('revealBtn').addEventListener('click', async () => {
     .select('city_id, forecast')
     .eq('user_id', 1)
     .eq('date', today);  if (!actuals || actuals.length === 0) {
-    document.getElementById('revealResults').innerHTML =       <p style="color:#e67e22;text-align:center;"> Actuals not ready yet — check tomorrow!</p>    ;
+    document.getElementById('revealResults').innerHTML = '<p style="color:#e67e22;text-align:center;"> Actuals not ready yet — check tomorrow!</p>';
     return;
   }  let results = '<h3 style="text-align:center;color:#2c3e50;"> Today\'s Reveal </h3>';  actuals.forEach(actual => {
     const cityName = cities.find(c => c.id === actual.city_id)?.name || 'Unknown City';
