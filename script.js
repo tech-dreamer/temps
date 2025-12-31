@@ -166,7 +166,8 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
 
 // Reveal actuals
 document.getElementById('revealBtn').addEventListener('click', async () => {
-  const today = new Date().toISOString().split('T')[0];  const { data: actuals } = await client
+  const today = new Date().toISOString().split('T')[0];
+  const { data: actuals } = await client
     .from('daily_actuals')
     .select('city_id, high')
     .eq('date', today);  const { data: predictions } = await client
@@ -176,29 +177,33 @@ document.getElementById('revealBtn').addEventListener('click', async () => {
     .eq('date', today);  if (!actuals || actuals.length === 0) {
     document.getElementById('revealResults').innerHTML = '<p style="color:#e67e22;text-align:center;"> Actuals not ready yet — check tomorrow!</p>';
     return;
-  }  let results = '<h3 style="text-align:center;color:#2c3e50;"> Today\'s Reveal </h3>';  actuals.forEach(actual => {
+  }  
+  let results = '<h3 style="text-align:center;color:#2c3e50;"> Today\'s Reveal </h3>';
+  actuals.forEach(actual => {
     const cityName = cities.find(c => c.id === actual.city_id)?.name || 'Unknown City';
     const pred = predictions.find(p => p.city_id === actual.city_id);
     const guess = pred ? pred.forecast : null;
-    const diff = guess !== null ? Math.abs(guess - actual.high) : null;let reaction = '';
-if (diff === 0) reaction = ' Perfect! Your bun earned 10 Bun Coins & gained 1 Happy! :D';
-else if (diff <= 1) reaction = ' So close! Your bunny earned 5 Bun Coins!';
-else if (diff <= 2) reaction = ' Close! Your bunny earned 2 Bun Coins!';
-else if (diff <= 3) reaction = ' Good try! You will get it next time.';
-else reaction = 'Quite a bit off ... Your bunny lost 1 Happy :(';
+    const diff = guess !== null ? Math.abs(guess - actual.high) : null;
+    let reaction = '';
+    if (diff === 0) reaction = ' Perfect! Your bun earned 10 Bun Coins & gained 1 Happy! :D';
+    else if (diff <= 1) reaction = ' So close! Your bunny earned 5 Bun Coins!';
+    else if (diff <= 2) reaction = ' Close! Your bunny earned 2 Bun Coins!';
+    else if (diff <= 3) reaction = ' Good try! You will get it next time.';
+    else reaction = 'Quite a bit off ... Your bunny lost 1 Happy :(';
 
-results += `
-  <div style="background:#ffffff;padding:1rem;margin:0.5rem 0;border-radius:10px;border-left:5px solid #3498db;">
-    <p><strong>${cityName}</strong></p>
-    <p>Your guess: <strong>${guess !== null ? guess + '°F' : 'No guess'}</strong></p>
-    <p>Actual high: <strong>${actual.high}°F</strong></p>
-    <p>${reaction}</p>
-  </div>
-`;  });  document.getElementById('revealResults').innerHTML = results;
-
-// Load on start
-const isHourly = document.getElementById('forecastType').value === FORECAST_TYPES.HOURLY;
-loadCities();
-if (isHourly) {
-  document.getElementById('citySelect').addEventListener('change', buildHourlies);
-}
+    results += `
+      <div style="background:#ffffff;padding:1rem;margin:0.5rem 0;border-radius:10px;border-left:5px solid #3498db;">
+        <p><strong>${cityName}</strong></p>
+        <p>Your guess: <strong>${guess !== null ? guess + '°F' : 'No guess'}</strong></p>
+        <p>Actual high: <strong>${actual.high}°F</strong></p>
+        <p>${reaction}</p>
+      </div>
+    `;  });  document.getElementById('revealResults').innerHTML = results;
+    
+    // Load on start
+    const isHourly = document.getElementById('forecastType').value === FORECAST_TYPES.HOURLY;
+    loadCities();
+    if (isHourly) {
+      document.getElementById('citySelect').addEventListener('change', buildHourlies);
+    }
+});
