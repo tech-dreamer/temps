@@ -118,10 +118,10 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
   if (forecastType === FORECAST_TYPES.DAILY) {
     const highGuess = document.getElementById('high').value.trim();
     const lowGuess = document.getElementById('low').value.trim();
-    if (!guess) {
-      document.getElementById('status').innerHTML = '<span style="color:red;"> Enter a guess! </span>';
+    if (!highGuess && !lowGuess) {
+      document.getElementById('status').innerHTML = '<span style="color:red;">Enter high or low forecast!</span>';
       return;
-    }
+  }
 
     const { error } = await client
       .from('daily_forecasts')
