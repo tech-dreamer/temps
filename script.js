@@ -145,7 +145,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
   }
 
   // Hourly: Save any number of hours & update forecasts if edited
-  } else if (forecastType === FORECAST_TYPES.HOURLY) {
+  else if (forecastType === FORECAST_TYPES.HOURLY) {
     const hourlyGuesses = [];
     const inputs = document.querySelectorAll('input[id^="hour-"]');
     inputs.forEach(input => {
