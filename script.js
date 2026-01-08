@@ -116,7 +116,8 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
   const today = new Date().toISOString().split('T')[0];
 
   if (forecastType === FORECAST_TYPES.DAILY) {
-    const guess = document.getElementById('high').value.trim();
+    const highGuess = document.getElementById('high').value.trim();
+    const lowGuess = document.getElementById('low').value.trim();
     if (!guess) {
       document.getElementById('status').innerHTML = '<span style="color:red;"> Enter a guess! </span>';
       return;
@@ -128,7 +129,8 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
         user_id: 1,
         city_id: Number(cityId),
         date: today,
-        forecast: Number(guess)
+        high: Number(highGuess)
+        low: Number(lowGuess)
       }, { onConflict: 'user_id,city_id,date' });
 
     if (error) {
