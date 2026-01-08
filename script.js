@@ -139,16 +139,17 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
     }
   } else if (forecastType === FORECAST_TYPES.HOURLY) {
     const hourlyGuesses = [];
-    for (let i = 0; i < 8; i++) {
-      const input = document.querySelector(`input[id^="hour-"]:nth-child(${i + 1})`);
-      if (input && input.value.trim()) {
-        const utcHour = parseInt(input.id.split('-')[1]);
+    const inputs = document.querySelectorAll('input[id^="hour-"]');  // All hourly inputs by ID pattern
+
+    inputs.forEach(input => {
+      if (input.value.trim()) {
+        const utcHour = parseInt(input.id.split('-')[1]);  // e.g., "hour-16" → 16
         hourlyGuesses.push({
           hour: utcHour,
           forecast: Number(input.value.trim())
         });
       }
-    }
+    });
 
     if (hourlyGuesses.length === 0) {
       document.getElementById('status').innerHTML = '<span style="color:red;">Enter at least one hourly forecast!</span>';
@@ -167,7 +168,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       .single();
 
     if (setError) {
-      document.getElementById('status').innerHTML = `<span style="color:red;">${setError.message}</span>`;
+      document.getElementById('status').innerHTML = `<span style="color:red;">${setError.message}</span>';
       return;
     }
 
@@ -180,7 +181,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       .eq('set_id', setId);
 
     if (deleteError) {
-      document.getElementById('status').innerHTML = `<span style="color:red;">${deleteError.message}</span>`;
+      document.getElementById('status').innerHTML = `<span style="color:red;">${deleteError.message}</span>';
       return;
     }
 
