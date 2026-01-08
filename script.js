@@ -109,7 +109,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
   const forecastType = document.getElementById('forecastType').value;
 
   if (!cityId) {
-    document.getElementById('status').innerHTML = '<span style="color:red;">Pick a city!</span>';
+    document.getElementById('status').innerHTML = '<span style="color:red;"> Choose a city! </span>';
     return;
   }
 
@@ -118,7 +118,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
   if (forecastType === FORECAST_TYPES.DAILY) {
     const guess = document.getElementById('high').value.trim();
     if (!guess) {
-      document.getElementById('status').innerHTML = '<span style="color:red;">Enter a guess!</span>';
+      document.getElementById('status').innerHTML = '<span style="color:red;"> Enter a guess! </span>';
       return;
     }
 
@@ -135,8 +135,10 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       document.getElementById('status').innerHTML = `<span style="color:red;">${error.message}</span>`;
     } else {
       const cityName = cities.find(c => c.id == cityId)?.name || 'Unknown';
-      document.getElementById('status').innerHTML = `<span style="color:green;">Saved daily forecast for ${cityName}!</span>`;
+      document.getElementById('status').innerHTML = `<span style="color:green;"> Saved daily forecast for ${cityName}! </span>`;
     }
+
+  // Hourly: Save any number of hours & update forecasts if edited
   } else if (forecastType === FORECAST_TYPES.HOURLY) {
     const hourlyGuesses = [];
     const inputs = document.querySelectorAll('input[id^="hour-"]');
@@ -151,7 +153,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
     });
 
     if (hourlyGuesses.length === 0) {
-      document.getElementById('status').innerHTML = '<span style="color:red;">Enter at least one hourly forecast!</span>';
+      document.getElementById('status').innerHTML = '<span style="color:red;"> Enter at least 1 hourly forecast! </span>';
       return;
     }
 
@@ -215,14 +217,14 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
     if (hourlyError) {
       document.getElementById('status').innerHTML = `<span style="color:red;">${hourlyError.message}</span>`;
     } else {
-      document.getElementById('status').innerHTML = `<span style="color:green;">Saved ${hourlyGuesses.length} hourly forecasts!</span>`;
+      document.getElementById('status').innerHTML = `<span style="color:green;"> Saved ${hourlyGuesses.length} hourly forecasts! </span>`;
     }
   }
 });
 
 // Reveal placeholder
 document.getElementById('revealBtn').addEventListener('click', async () => {
-  document.getElementById('revealResults').innerHTML = '<p style="text-align:center;">🌤️ Reveal coming soon!</p>';
+  document.getElementById('revealResults').innerHTML = '<p style="text-align:center;"> 🌤️ Reveal coming soon! </p>';
 });
 
 // Load on start
