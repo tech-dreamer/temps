@@ -197,9 +197,9 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       .insert(hourlyInserts);
 
     if (hourlyError) {
-      document.getElementById('status').innerHTML = `<span style="color:red;">${hourlyError.message}</span>`;
+      document.getElementById('status').innerHTML = `<span style="color:red;">${hourlyError.message}</span>';
     } else {
-      document.getElementById('status').innerHTML = `<span style="color:green;">Saved ${hourlyGuesses.length} hourly forecasts!</span>`;
+      document.getElementById('status').innerHTML = `<span style="color:green;">Saved ${hourlyGuesses.length} hourly forecasts!</span>';
     }
   }
 });
