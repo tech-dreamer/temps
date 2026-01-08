@@ -62,7 +62,7 @@ function buildHourlies() {
 
   // Fixed EST window: 11 AM – 7 PM EST
   const estBase = new Date();
-  estBase.setHours(11, 0, 0, 0);  // approximate — good enough for display
+  estBase.setHours(11, 0, 0, 0);  // 
 
   const localFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
@@ -183,7 +183,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
 
     const { error: hourlyError } = await client
       .from('hourly_forecasts')
-      .upsert(hourlyInserts, { onConflict: 'hour, set_id' });
+      .upsert(hourlyInserts, { onConflict: 'hour,set_id' });
 
     if (hourlyError) {
       document.getElementById('status').innerHTML = `<span style="color:red;">${hourlyError.message}</span>`;
