@@ -151,7 +151,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
     });
 
     if (hourlyGuesses.length === 0) {
-      document.getElementById('status').innerHTML = '<span style="color:red;">Enter at least one hourly forecast!</span>';
+      document.getElementById('status').innerHTML = `<span style="color:red;">Enter at least one hourly forecast!</span>`;
       return;
     }
 
