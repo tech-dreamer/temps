@@ -60,9 +60,8 @@ function buildHourlies() {
   // Clear old hourly inputs
   container.querySelectorAll('.hourly-input').forEach(el => el.remove());
 
-  // Fixed EST window: 11 AM – 7 PM EST
   const estBase = new Date();
-  estBase.setHours(11, 0, 0, 0);  // 
+  estBase.setHours(11, 0, 0, 0);
 
   const localFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
@@ -156,41 +155,34 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       return;
     }
 
-    // Get or create parent set
-    let setId;
-    const { data: existingSet } = await client
+    // Create or get the parent set
+    const { data: setData, error: setError } = await client
       .from('hourly_forecasts_sets')
-      .select('id')
-      .eq('user_id', 1)
-      .eq('city_id', Number(cityId))
-      .eq('date', today)
-      .maybeSingle();
+      .upsert({
+        user_id: 1,
+        city_id: Number(cityId),
+        date: today
+      }, { onConflict: 'user_id,city_id,date' })
+      .select()
+      .single();
 
-    if (existingSet) {
-      setId = existingSet.id;
-    } else {
-      const { data: newSet, error: insertError } = await client
-        .from('hourly_forecasts_sets')
-        .insert({
-          user_id: 1,
-          city_id: Number(cityId),
-          date: today
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        document.getElementById('status').innerHTML = `<span style="color:red;">${insertError.message}</span>`;
-        return;
-      }
-      setId = newSet.id;
+    if (setError) {
+      document.getElementById('status').innerHTML = `<span style="color:red;">${setError.message}</span>`;
+      return;
     }
 
-    // Delete old hourly guesses
-    await client
+    const setId = setData.id;
+
+    // Delete old hourly guesses for this set
+    const { error: deleteError } = await client
       .from('hourly_forecasts')
       .delete()
       .eq('set_id', setId);
+
+    if (deleteError) {
+      document.getElementById('status').innerHTML = `<span style="color:red;">${deleteError.message}</span>`;
+      return;
+    }
 
     // Insert new hourly guesses
     const hourlyInserts = hourlyGuesses.map(guess => ({
