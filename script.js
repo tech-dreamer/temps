@@ -183,7 +183,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
 
     const { error: hourlyError } = await client
       .from('hourly_forecasts')
-      .upsert(hourlyInserts, { onConflict: 'set_id,hour' });
+      .upsert(hourlyInserts, { onConflict: 'hour, set_id' });
 
     if (hourlyError) {
       document.getElementById('status').innerHTML = `<span style="color:red;">${hourlyError.message}</span>`;
