@@ -174,16 +174,21 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
 
     const setId = setData.id;
 
-    // Upsert hourly guesses
-    const hourlyInserts = hourlyGuesses.map(guess => ({
-      set_id: setId,
-      hour: guess.hour,
-      forecast: guess.forecast
-    }));
+    // Delete old hourly guesses for this set
+    const { error: deleteError } = await client
+      .from('hourly_forecasts')
+      .delete()
+      .eq('set_id', setId);
 
+    if (deleteError) {
+      document.getElementById('status').innerHTML = `<span style="color:red;">${deleteError.message}</span>`;
+      return;
+    }
+
+    // Insert new hourly guesses
     const { error: hourlyError } = await client
       .from('hourly_forecasts')
-      .upsert(hourlyInserts, { onConflict: 'hour,set_id' });
+      .insert(hourlyInserts);
 
     if (hourlyError) {
       document.getElementById('status').innerHTML = `<span style="color:red;">${hourlyError.message}</span>`;
