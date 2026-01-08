@@ -151,29 +151,46 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
     });
 
     if (hourlyGuesses.length === 0) {
-      document.getElementById('status').innerHTML = `<span style="color:red;">Enter at least one hourly forecast!</span>`;
+      document.getElementById('status').innerHTML = '<span style="color:red;">Enter at least one hourly forecast!</span>';
       return;
     }
 
     // Create or get parent set
-    const { data: setData, error: setError } = await client
+    let setId;
+    const { data: existingSet, error: fetchError } = await client
       .from('hourly_forecasts_sets')
-      .upsert({
-        user_id: 1,
-        city_id: Number(cityId),
-        date: today
-      }, { onConflict: 'user_id,city_id,date' })
-      .select()
-      .single();
+      .select('id')
+      .eq('user_id', 1)
+      .eq('city_id', Number(cityId))
+      .eq('date', today)
+      .maybeSingle();
 
-    if (setError) {
-      document.getElementById('status').innerHTML = `<span style="color:red;">${setError.message}</span>`;
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      document.getElementById('status').innerHTML = `<span style="color:red;">${fetchError.message}</span>`;
       return;
     }
 
-    const setId = setData.id;
+    if (existingSet) {
+      setId = existingSet.id;
+    } else {
+      const { data: newSet, error: insertError } = await client
+        .from('hourly_forecasts_sets')
+        .insert({
+          user_id: 1,
+          city_id: Number(cityId),
+          date: today
+        })
+        .select()
+        .single();
 
-    // Delete old hourly forecasts
+      if (insertError) {
+        document.getElementById('status').innerHTML = `<span style="color:red;">${insertError.message}</span>`;
+        return;
+      }
+      setId = newSet.id;
+    }
+
+    // Delete old forecasts
     const { error: deleteError } = await client
       .from('hourly_forecasts')
       .delete()
@@ -184,7 +201,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       return;
     }
 
-    // Insert new hourly forecasts
+    // Insert new forecasts
     const hourlyInserts = hourlyGuesses.map(guess => ({
       set_id: setId,
       hour: guess.hour,
