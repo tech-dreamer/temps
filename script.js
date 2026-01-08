@@ -156,36 +156,49 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       return;
     }
 
-    // Create or get the parent set
-    const { data: setData, error: setError } = await client
+    // Get or create parent set
+    let setId;
+    const { data: existingSet } = await client
       .from('hourly_forecasts_sets')
-      .upsert({
-        user_id: 1,
-        city_id: Number(cityId),
-        date: today
-      }, { onConflict: 'user_id,city_id,date' })
-      .select()
-      .single();
+      .select('id')
+      .eq('user_id', 1)
+      .eq('city_id', Number(cityId))
+      .eq('date', today)
+      .maybeSingle();
 
-    if (setError) {
-      document.getElementById('status').innerHTML = `<span style="color:red;">${setError.message}</span>`;
-      return;
+    if (existingSet) {
+      setId = existingSet.id;
+    } else {
+      const { data: newSet, error: insertError } = await client
+        .from('hourly_forecasts_sets')
+        .insert({
+          user_id: 1,
+          city_id: Number(cityId),
+          date: today
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        document.getElementById('status').innerHTML = `<span style="color:red;">${insertError.message}</span>`;
+        return;
+      }
+      setId = newSet.id;
     }
 
-    const setId = setData.id;
-
-    // Delete old hourly guesses for this set
-    const { error: deleteError } = await client
+    // Delete old hourly guesses
+    await client
       .from('hourly_forecasts')
       .delete()
       .eq('set_id', setId);
 
-    if (deleteError) {
-      document.getElementById('status').innerHTML = `<span style="color:red;">${deleteError.message}</span>`;
-      return;
-    }
-
     // Insert new hourly guesses
+    const hourlyInserts = hourlyGuesses.map(guess => ({
+      set_id: setId,
+      hour: guess.hour,
+      forecast: guess.forecast
+    }));
+
     const { error: hourlyError } = await client
       .from('hourly_forecasts')
       .insert(hourlyInserts);
