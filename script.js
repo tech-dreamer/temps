@@ -119,19 +119,22 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
     const highGuess = document.getElementById('high').value.trim();
     const lowGuess = document.getElementById('low').value.trim();
     if (!highGuess && !lowGuess) {
-      document.getElementById('status').innerHTML = '<span style="color:red;">Enter high or low forecast!</span>';
+      document.getElementById('status').innerHTML = '<span style="color:red;"> Enter at least 1 forecast (high or low)! </span>';
       return;
   }
 
+    const payload = {
+      user_id: 1,
+      city_id: Number(cityId),
+      date: today
+    };
+
+    if (highGuess) payload.high = Number(highGuess);
+    if (lowGuess) payload.low = Number(lowGuess);
+
     const { error } = await client
       .from('daily_forecasts')
-      .upsert({
-        user_id: 1,
-        city_id: Number(cityId),
-        date: today,
-        high: Number(highGuess)
-        low: Number(lowGuess)
-      }, { onConflict: 'user_id,city_id,date' });
+      .upsert(payload, { onConflict: 'user_id,city_id,date' });
 
     if (error) {
       document.getElementById('status').innerHTML = `<span style="color:red;">${error.message}</span>`;
@@ -139,6 +142,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       const cityName = cities.find(c => c.id == cityId)?.name || 'Unknown';
       document.getElementById('status').innerHTML = `<span style="color:green;"> Saved daily forecast for ${cityName}! </span>`;
     }
+  }
 
   // Hourly: Save any number of hours & update forecasts if edited
   } else if (forecastType === FORECAST_TYPES.HOURLY) {
