@@ -1,6 +1,6 @@
 const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
-const FORECAST_TYPES = {DAILY: "daily", HOURLY: "hourly", SIXHR: "6hr"};
+const FORECAST_TYPES = { DAILY: "daily", HOURLY: "hourly", SIXHR: "6hr" };
 
 const { createClient } = supabase;
 const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -60,23 +60,9 @@ function buildHourlies() {
   // Clear old hourly inputs
   container.querySelectorAll('.hourly-input').forEach(el => el.remove());
 
-  
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz,
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric'
-  }).formatToParts(now);
-
-  const get = t => parts.find(p => p.type === t).value;
-
-  const estBase = new Date(Date.UTC(
-    get('year'),
-    get('month') - 1,
-    get('day'),
-    16, 0, 0, 0
-  ));
+  // Fixed EST window: 11 AM – 7 PM EST
+  const estBase = new Date();
+  estBase.setHours(11, 0, 0, 0);  // approximate — good enough for display
 
   const localFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
@@ -85,12 +71,14 @@ function buildHourlies() {
   });
 
   for (let i = 0; i < 8; i++) {
-    const estHourDate = new Date(estBase.getTime() + i * 60 * 60 * 1000);
+    const estHourDate = new Date(estBase);
+    estHourDate.setHours(estBase.getHours() + i);
+
     const localTime = localFormatter.format(estHourDate);
 
     const clone = template.content.cloneNode(true);
     const div = clone.querySelector('div');
-    div.classList.add('hourly-input');  // for clearing later
+    div.classList.add('hourly-input');
     const span = clone.querySelector("span");
     const input = clone.querySelector("input");
 
@@ -100,7 +88,6 @@ function buildHourlies() {
     input.id = `hour-${utcHour}`;
     input.name = `hour-${utcHour}`;
 
-    // Disable if past 30-min cutoff
     input.disabled = isHourPastCutoff(estHourDate, tz);
 
     container.insertBefore(clone, document.getElementById('submitBtn'));
@@ -109,28 +96,9 @@ function buildHourlies() {
 
 function isHourPastCutoff(estHourDate, tz) {
   const now = new Date();
-
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz,
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric'
-  }).formatToParts(now);
-
-  const get = t => parts.find(p => p.type === t).value;
-
-  const localNow = new Date(Date.UTC(
-    get('year'),
-    get('month') - 1,
-    get('day'),
-    get('hour'),
-    get('minute')
-  ));
-
-  const cutoff = new Date(estHourDate.getTime() - 30 * 60 * 1000);
-
+  const localNow = new Date(now.toLocaleString("en-US", { timeZone: tz }));
+  const cutoff = new Date(estHourDate);
+  cutoff.setMinutes(cutoff.getMinutes() - 30);
   return localNow > cutoff;
 }
 
@@ -147,7 +115,6 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
   }
 
   const today = new Date().toISOString().split('T')[0];
-  const inserts = [];
 
   if (forecastType === FORECAST_TYPES.DAILY) {
     const guess = document.getElementById('high').value.trim();
@@ -156,14 +123,15 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       return;
     }
 
-    inserts.push({
-      user_id: 1,
-      city_id: Number(cityId),
-      date: today,
-      forecast: Number(guess)
-    });
+    const { error } = await client
+      .from('daily_forecasts')
+      .upsert({
+        user_id: 1,
+        city_id: Number(cityId),
+        date: today,
+        forecast: Number(guess)
+      }, { onConflict: 'user_id,city_id,date' });
 
-    const { error } = await client.from('daily_forecasts').upsert(inserts, { onConflict: 'user_id,city_id,date' });
     if (error) {
       document.getElementById('status').innerHTML = `<span style="color:red;">${error.message}</span>`;
     } else {
@@ -171,48 +139,65 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       document.getElementById('status').innerHTML = `<span style="color:green;">Saved daily forecast for ${cityName}!</span>`;
     }
   } else if (forecastType === FORECAST_TYPES.HOURLY) {
-    // Collect all filled hourly inputs
+    const hourlyGuesses = [];
     for (let i = 0; i < 8; i++) {
-      const estHour = 11 + i;
-      const input = document.querySelector(`input[id^="hour-"]:nth-child(${i + 1})`);  // rough selector, improve if needed
+      const input = document.querySelector(`input[id^="hour-"]:nth-child(${i + 1})`);
       if (input && input.value.trim()) {
-        const utcHour = new Date().setHours(estHour);  // approximate UTC
-        inserts.push({
-          user_id: 1,
-          city_id: Number(cityId),
-          date: today,
-          hour: utcHour,  // or use estHour if storing EST
+        const utcHour = parseInt(input.id.split('-')[1]);
+        hourlyGuesses.push({
+          hour: utcHour,
           forecast: Number(input.value.trim())
         });
       }
     }
 
-    if (inserts.length === 0) {
+    if (hourlyGuesses.length === 0) {
       document.getElementById('status').innerHTML = '<span style="color:red;">Enter at least one hourly forecast!</span>';
       return;
     }
 
-    const { error } = await client.from('hourly_forecasts').upsert(inserts, { onConflict: 'user_id,city_id,date,hour' });
+    // Create or get the parent set
+    const { data: setData, error: setError } = await client
+      .from('hourly_forecasts_sets')
+      .upsert({
+        user_id: 1,
+        city_id: Number(cityId),
+        date: today
+      }, { onConflict: 'user_id,city_id,date' })
+      .select()
+      .single();
 
-    if (error) {
-      document.getElementById('status').innerHTML = `<span style="color:red;">${error.message}</span>`;
+    if (setError) {
+      document.getElementById('status').innerHTML = `<span style="color:red;">${setError.message}</span>`;
+      return;
+    }
+
+    const setId = setData.id;
+
+    // Upsert hourly guesses
+    const hourlyInserts = hourlyGuesses.map(guess => ({
+      set_id: setId,
+      hour: guess.hour,
+      forecast: guess.forecast
+    }));
+
+    const { error: hourlyError } = await client
+      .from('hourly_forecasts')
+      .upsert(hourlyInserts, { onConflict: 'set_id,hour' });
+
+    if (hourlyError) {
+      document.getElementById('status').innerHTML = `<span style="color:red;">${hourlyError.message}</span>`;
     } else {
-      document.getElementById('status').innerHTML = `<span style="color:green;">Saved ${inserts.length} hourly forecasts!</span>`;
+      document.getElementById('status').innerHTML = `<span style="color:green;">Saved ${hourlyGuesses.length} hourly forecasts!</span>`;
     }
   }
 });
 
-// Reveal actuals
+// Reveal actuals (placeholder for now)
 document.getElementById('revealBtn').addEventListener('click', async () => {
-  const today = new Date().toISOString().split('T')[0];
-  const { data: predictions } = await client
-    .from('daily_forecasts')
-    .select('city_id, high, low')
-    .eq('user_id', 1)
-    .eq('date', today); 
-  let results = '<h3 style="text-align:center;color:#2c3e50;"> Today\'s Reveal </h3>';
-  document.getElementById('revealResults').innerHTML = results;
+  document.getElementById('revealResults').innerHTML = '<p style="text-align:center;">🌤️ Reveal coming soon!</p>';
 });
+
 // Load on start
 const isHourly = document.getElementById('forecastType').value === FORECAST_TYPES.HOURLY;
 loadCities();
