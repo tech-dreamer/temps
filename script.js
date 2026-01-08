@@ -44,7 +44,7 @@ document.getElementById('citySelect').addEventListener('change', () => {
   }
 });
 
-// Build 8 hourly inputs (11 AM – 7 PM EST, shown in local time)
+// Build 8 hourly inputs
 function buildHourlies() {
   const container = document.querySelector('#tempsForm');
   const template = document.getElementById("hourlyForecast");
@@ -57,7 +57,7 @@ function buildHourlies() {
 
   const tz = city.timezone;
 
-  // Clear old hourly inputs
+  // Clear old
   container.querySelectorAll('.hourly-input').forEach(el => el.remove());
 
   const estBase = new Date();
@@ -101,7 +101,7 @@ function isHourPastCutoff(estHourDate, tz) {
   return localNow > cutoff;
 }
 
-// Save forecast
+// Save forecasts
 document.getElementById('tempsForm').addEventListener('submit', async e => {
   e.preventDefault();
 
@@ -139,11 +139,10 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
     }
   } else if (forecastType === FORECAST_TYPES.HOURLY) {
     const hourlyGuesses = [];
-    const inputs = document.querySelectorAll('input[id^="hour-"]');  // All hourly inputs by ID pattern
-
+    const inputs = document.querySelectorAll('input[id^="hour-"]');
     inputs.forEach(input => {
       if (input.value.trim()) {
-        const utcHour = parseInt(input.id.split('-')[1]);  // e.g., "hour-16" → 16
+        const utcHour = parseInt(input.id.split('-')[1]);
         hourlyGuesses.push({
           hour: utcHour,
           forecast: Number(input.value.trim())
@@ -156,7 +155,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       return;
     }
 
-    // Create or get the parent set
+    // Create or get parent set
     const { data: setData, error: setError } = await client
       .from('hourly_forecasts_sets')
       .upsert({
@@ -168,24 +167,24 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       .single();
 
     if (setError) {
-      document.getElementById('status').innerHTML = `<span style="color:red;">${setError.message}</span>';
+      document.getElementById('status').innerHTML = `<span style="color:red;">${setError.message}</span>`;
       return;
     }
 
     const setId = setData.id;
 
-    // Delete old hourly guesses for this set
+    // Delete old hourly forecasts
     const { error: deleteError } = await client
       .from('hourly_forecasts')
       .delete()
       .eq('set_id', setId);
 
     if (deleteError) {
-      document.getElementById('status').innerHTML = `<span style="color:red;">${deleteError.message}</span>';
+      document.getElementById('status').innerHTML = `<span style="color:red;">${deleteError.message}</span>`;
       return;
     }
 
-    // Insert new hourly guesses
+    // Insert new hourly forecasts
     const hourlyInserts = hourlyGuesses.map(guess => ({
       set_id: setId,
       hour: guess.hour,
@@ -197,14 +196,14 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       .insert(hourlyInserts);
 
     if (hourlyError) {
-      document.getElementById('status').innerHTML = `<span style="color:red;">${hourlyError.message}</span>';
+      document.getElementById('status').innerHTML = `<span style="color:red;">${hourlyError.message}</span>`;
     } else {
-      document.getElementById('status').innerHTML = `<span style="color:green;">Saved ${hourlyGuesses.length} hourly forecasts!</span>';
+      document.getElementById('status').innerHTML = `<span style="color:green;">Saved ${hourlyGuesses.length} hourly forecasts!</span>`;
     }
   }
 });
 
-// Reveal actuals (placeholder for now)
+// Reveal placeholder
 document.getElementById('revealBtn').addEventListener('click', async () => {
   document.getElementById('revealResults').innerHTML = '<p style="text-align:center;">🌤️ Reveal coming soon!</p>';
 });
