@@ -9,6 +9,8 @@
 </head>
 <body>
 
+<body>
+
   <div style="text-align:center;margin:1rem 0;">
     <a href="hourly.html">
       <button style="padding:0.8rem 1.4rem;background:#9b59b6;color:#fff;border:none;border-radius:8px;cursor:pointer;">
@@ -18,15 +20,15 @@
   </div>
   
   <input id="forecastType" type="hidden" value="daily">
-  <h1> Daily High Forecast </h1>
-  <p style="text-align:center;"> Cutoff = noon local time </p>
+  <h1>Daily Forecast</h1>
+  <p style="text-align:center;">Cutoff = noon local time</p>
 
   <form id="tempsForm">
     <div>
       <label>
         City:<br>
         <select id="citySelect" required>
-          <option value="" disabled selected> Loading cities... </option>
+          <option value="" disabled selected>Loading cities...</option>
         </select>
       </label>
     </div>
@@ -34,29 +36,24 @@
     <div style="margin-top:1rem;">
       <label>
         Your High Forecast (°F):<br>
-        <input type="number" id="high" min="-25" max="125" step="1" required placeholder="0">
+        <input type="number" id="high" min="-25" max="125" step="1" placeholder="0">
       </label>
     </div>
-
-    <button type="submit" id="submitBtn"> Save </button>
-  </form>
-
-  <input id="forecastType" type="hidden" value="daily">
-  <h1> Daily Low Forecast </h1>
-  <p style="text-align:center;"> Cutoff = noon local time </p>
 
     <div style="margin-top:1rem;">
       <label>
         Your Low Forecast (°F):<br>
-        <input type="number" id="low" min="-50" max="100" step="1" required placeholder="0">
+        <input type="number" id="low" min="-50" max="100" step="1" placeholder="0">
       </label>
     </div>
 
-    <button type="submit" id="submitBtn"> Save </button>
+    <div style="text-align:center;margin-top:2rem;">
+      <button type="submit" id="submitBtn">Save Forecast</button>
+    </div>
   </form>
 
   <!-- Reveal Button -->
-  <div style="text-align:center;">
+  <div style="text-align:center;margin:2rem 0;">
     <button id="revealBtn"> 🐰 Reveal Today's Actuals 🐰 </button>
   </div>
 
