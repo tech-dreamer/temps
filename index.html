@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Temps App</title>
+  <title> Temps App </title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="style.css"/>
 </head>
@@ -21,40 +21,40 @@
   
   <input id="forecastType" type="hidden" value="daily">
   <h1>Daily Forecast</h1>
-  <p style="text-align:center;">Cutoff = noon local time</p>
+  <p style="text-align:center;"> Cutoff = noon local time </p>
 
   <form id="tempsForm">
     <div>
       <label>
         City:<br>
         <select id="citySelect" required>
-          <option value="" disabled selected>Loading cities...</option>
+          <option value="" disabled selected> Loading cities... </option>
         </select>
       </label>
     </div>
 
     <div style="margin-top:1rem;">
       <label>
-        Your High Forecast (°F):<br>
+        My High Forecast (°F):<br>
         <input type="number" id="high" min="-25" max="125" step="1" placeholder="0">
       </label>
     </div>
 
     <div style="margin-top:1rem;">
       <label>
-        Your Low Forecast (°F):<br>
+        My Low Forecast (°F):<br>
         <input type="number" id="low" min="-50" max="100" step="1" placeholder="0">
       </label>
     </div>
 
     <div style="text-align:center;margin-top:2rem;">
-      <button type="submit" id="submitBtn">Save Forecast</button>
+      <button type="submit" id="submitBtn"> SAVE </button>
     </div>
   </form>
 
   <!-- Reveal Button -->
   <div style="text-align:center;margin:2rem 0;">
-    <button id="revealBtn"> 🐰 Reveal Today's Actuals 🐰 </button>
+    <button id="revealBtn"> 🐰 Reveal Daily Actuals 🐰 </button>
   </div>
 
   <div id="revealResults"></div>
