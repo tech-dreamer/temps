@@ -31,14 +31,22 @@
       </label>
     </div>
 
-    <template id="hourlyForecast">
-      <div style="margin-top:1rem;">
+  <template id="hourlyForecast">
+    <div style="margin-top:1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+      <div>
         <label>
-          Your <span></span> Forecast (°F):<br>
-          <input type="number" id="hourly" min="-25" max="125" step="1" placeholder="0">
+          <span></span> Hourly (°F):<br>
+          <input type="number" class="hourly-input" min="-25" max="125" step="1" placeholder="0">
+          </label>
+      </div>
+      <div class="sixhr-container" style="display:none;">
+        <label>
+          6-hr High (°F):<br>
+          <input type="number" class="sixhr-input" min="-25" max="125" step="1" placeholder="0">
         </label>
-      </div> 
-    </template>
+      </div>
+    </div>
+  </template>
 
     <button type="submit" id="submitBtn"> Save </button>
   </form>
