@@ -115,18 +115,19 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
 
   const today = new Date().toISOString().split('T')[0];
 
-  if (forecastType === FORECAST_TYPES.DAILY) {
+    if (forecastType === FORECAST_TYPES.DAILY) {
     const highGuess = document.getElementById('high').value.trim();
     const lowGuess = document.getElementById('low').value.trim();
     if (!highGuess && !lowGuess) {
-      document.getElementById('status').innerHTML = '<span style="color:red;"> Enter at least 1 forecast (high or low)! </span>';
+      document.getElementById('status').innerHTML = '<span style="color:red;"> Enter at least one forecast (high or low)! </span>';
       return;
-  }
+    }
 
     const payload = {
       user_id: 1,
       city_id: Number(cityId),
-      date: today
+      date: today,
+      updated_at: new Date().toISOString()  // force update trigger
     };
 
     if (highGuess) payload.high = Number(highGuess);
