@@ -1,6 +1,6 @@
 const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
-const FORECAST_TYPES = { DAILY: "daily", HOURLY: "hourly", SIXHR: "6hr" };
+const FORECAST_TYPES = { DAILY: "daily", HOURLY: "hourly"};
 
 const { createClient } = supabase;
 const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -67,12 +67,12 @@ function buildHourlies() {
   const now = new Date();
   const localNow = new Date(now.toLocaleString("en-US", { timeZone: tz }));
 
-  // Check if past today's last hourly option
+  // Check if past today's last hourly time
   const todayLastSlot = new Date(estBase);
   todayLastSlot.setHours(19, 0, 0, 0);  // 7 PM EST
   const isPastToday = localNow > todayLastSlot;
 
-  // If past today, shift to tomorrow
+  // If past today, forecast for tomorrow
   if (isPastToday) {
     estBase.setDate(estBase.getDate() + 1);
   }
@@ -105,7 +105,7 @@ function buildHourlies() {
     // Disable if past cutoff for that hourly
     input.disabled = isHourPastCutoff(estHourDate, tz);
 
-    // Show 6-hr high options
+    // Show 6-hr highs
     if (i === 2 || i === 8) {
       sixhrContainer.style.display = 'block';
       const sixhrInput = sixhrContainer.querySelector('.sixhr-input');
@@ -165,7 +165,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       document.getElementById('status').innerHTML = `<span style="color:red;">${error.message}</span>`;
     } else {
       const cityName = cities.find(c => c.id == cityId)?.name || 'Unknown';
-      document.getElementById('status').innerHTML = `<span style="color:green;"> Saved daily forecast for ${cityName}! </span>`;
+      document.getElementById('status').innerHTML = `<span style="color:green;"> Saved daily forecast for ${cityName}! Good luck :) </span>`;
     }
   }
 
@@ -229,14 +229,14 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
 
     if (sixhrAfternoon) {
       hourlyGuesses.push({
-        hour: 13.5,  // afternoon 6-hr (7AM–1PM EST)
+        hour: 13.5,  // afternoon 6-hr (to 1PM EST)
         forecast: Number(sixhrAfternoon)
       });
     }
 
     if (sixhrEvening) {
       hourlyGuesses.push({
-        hour: 19.5,  // evening 6-hr (1–7PM EST)
+        hour: 19.5,  // evening 6-hr (to 7PM EST)
         forecast: Number(sixhrEvening)
       });
     }
@@ -268,7 +268,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
     } else {
       const numRegular = hourlyGuesses.filter(g => Number.isInteger(g.hour)).length;
       const numSixhr = hourlyGuesses.length - numRegular;
-      document.getElementById('status').innerHTML = `<span style="color:green;">Saved ${numRegular} hourly + ${numSixhr} 6-hr forecasts!</span>`;
+      document.getElementById('status').innerHTML = `<span style="color:green;"> Saved ${numRegular} hourly + ${numSixhr} six-hr forecasts! </span>`;
     }
   }
 });
