@@ -68,7 +68,7 @@ function buildHourlies() {
     hour: 'numeric',
     hour12: true
   });
-
+  
   for (let i = 0; i < 8; i++) {
     const estHourDate = new Date(estBase);
     estHourDate.setHours(estBase.getHours() + i);
@@ -80,6 +80,7 @@ function buildHourlies() {
     div.classList.add('hourly-input');
     const span = clone.querySelector("span");
     const input = clone.querySelector("input");
+    const sixhrContainer = clone.querySelector(".sixhr-container");
 
     span.innerText = localTime;
 
@@ -89,8 +90,15 @@ function buildHourlies() {
 
     input.disabled = isHourPastCutoff(estHourDate, tz);
 
-    container.insertBefore(clone, document.getElementById('submitBtn'));
-  }
+    // Show 6-hr forecast options
+    if (i === 2 || i === 6) {
+      sixhrContainer.style.display = 'block';
+      const sixhrInput = sixhrContainer.querySelector('.sixhr-input');
+      sixhrInput.id = `sixhr-${i === 2 ? 'afternoon' : 'evening'}`;
+      sixhrInput.name = `sixhr-${i === 2 ? 'afternoon' : 'evening'}`;
+    }
+
+  container.insertBefore(clone, document.getElementById('submitBtn'));
 }
 
 function isHourPastCutoff(estHourDate, tz) {
@@ -199,6 +207,24 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       setId = newSet.id;
     }
 
+    // Save 6-hr high forecasts
+    const sixhrAfternoon = document.getElementById('sixhr-afternoon')?.value.trim();
+    const sixhrEvening = document.getElementById('sixhr-evening')?.value.trim();
+
+    if (sixhrAfternoon) {
+      hourlyGuesses.push({
+        hour: 13,
+        forecast: Number(sixhrAfternoon)
+      });
+    }
+
+    if (sixhrEvening) {
+      hourlyGuesses.push({
+        hour: 19,
+        forecast: Number(sixhrEvening)
+      });
+    }
+
     // Delete old forecasts
     const { error: deleteError } = await client
       .from('hourly_forecasts')
@@ -224,7 +250,9 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
     if (hourlyError) {
       document.getElementById('status').innerHTML = `<span style="color:red;">${hourlyError.message}</span>`;
     } else {
-      document.getElementById('status').innerHTML = `<span style="color:green;"> Saved ${hourlyGuesses.length} hourly forecasts! </span>`;
+      const numRegular = hourlyGuesses.filter(g => g.hour !== 13 && g.hour !== 19).length;
+      const numSixhr = hourlyGuesses.length - numRegular;
+      document.getElementById('status').innerHTML = `<span style="color:green;">Saved ${numRegular} hourly + ${numSixhr} 6-hr forecasts!</span>`;
     }
   }
 });
