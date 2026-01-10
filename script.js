@@ -223,20 +223,20 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       setId = newSet.id;
     }
 
-    // Save 6-hr high forecasts
+    // Save 6-hr high forecasts as separate hourly entries
     const sixhrAfternoon = document.getElementById('sixhr-afternoon')?.value.trim();
     const sixhrEvening = document.getElementById('sixhr-evening')?.value.trim();
 
     if (sixhrAfternoon) {
       hourlyGuesses.push({
-        hour: 13,
+        hour: 13.5,  // afternoon 6-hr (7AM–1PM EST)
         forecast: Number(sixhrAfternoon)
       });
     }
 
     if (sixhrEvening) {
       hourlyGuesses.push({
-        hour: 19,
+        hour: 19.5,  // evening 6-hr (1–7PM EST)
         forecast: Number(sixhrEvening)
       });
     }
