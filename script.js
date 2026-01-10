@@ -83,7 +83,7 @@ function buildHourlies() {
     hour12: true
   });
 
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 9; i++) {
     const estHourDate = new Date(estBase);
     estHourDate.setHours(estBase.getHours() + i);
 
