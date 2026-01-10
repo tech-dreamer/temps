@@ -98,7 +98,7 @@ function buildHourlies() {
       sixhrInput.name = `sixhr-${i === 2 ? 'afternoon' : 'evening'}`;
     }
 
-  container.insertBefore(clone, document.getElementById('submitBtn'));
+    container.insertBefore(clone, document.getElementById('submitBtn'));
 }
 
 function isHourPastCutoff(estHourDate, tz) {
