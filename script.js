@@ -57,18 +57,32 @@ function buildHourlies() {
 
   const tz = city.timezone;
 
-  // Clear old
+  // Clear old inputs
   container.querySelectorAll('.hourly-input').forEach(el => el.remove());
 
-  const estBase = new Date();
+  // Fixed window start: 11 AM EST
+  let estBase = new Date();
   estBase.setHours(11, 0, 0, 0);
+
+  const now = new Date();
+  const localNow = new Date(now.toLocaleString("en-US", { timeZone: tz }));
+
+  // Check if past today's last hourly option
+  const todayLastSlot = new Date(estBase);
+  todayLastSlot.setHours(19, 0, 0, 0);  // 7 PM EST
+  const isPastToday = localNow > todayLastSlot;
+
+  // If past today, shift to tomorrow
+  if (isPastToday) {
+    estBase.setDate(estBase.getDate() + 1);
+  }
 
   const localFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
     hour: 'numeric',
     hour12: true
   });
-  
+
   for (let i = 0; i < 8; i++) {
     const estHourDate = new Date(estBase);
     estHourDate.setHours(estBase.getHours() + i);
@@ -88,9 +102,10 @@ function buildHourlies() {
     input.id = `hour-${utcHour}`;
     input.name = `hour-${utcHour}`;
 
+    // Disable if past cutoff for that hourly
     input.disabled = isHourPastCutoff(estHourDate, tz);
 
-    // Show 6-hr forecast options
+    // Show 6-hr high options
     if (i === 2 || i === 8) {
       sixhrContainer.style.display = 'block';
       const sixhrInput = sixhrContainer.querySelector('.sixhr-input');
