@@ -266,7 +266,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
     if (hourlyError) {
       document.getElementById('status').innerHTML = `<span style="color:red;">${hourlyError.message}</span>`;
     } else {
-      const numRegular = hourlyGuesses.filter(g => g.hour !== 13 && g.hour !== 19).length;
+      const numRegular = hourlyGuesses.filter(g => Number.isInteger(g.hour)).length;
       const numSixhr = hourlyGuesses.length - numRegular;
       document.getElementById('status').innerHTML = `<span style="color:green;">Saved ${numRegular} hourly + ${numSixhr} 6-hr forecasts!</span>`;
     }
