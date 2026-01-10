@@ -44,7 +44,7 @@ document.getElementById('citySelect').addEventListener('change', () => {
   }
 });
 
-// Build 8 hourly inputs
+// Build hourly inputs
 function buildHourlies() {
   const container = document.querySelector('#tempsForm');
   const template = document.getElementById("hourlyForecast");
@@ -99,6 +99,7 @@ function buildHourlies() {
     }
 
     container.insertBefore(clone, document.getElementById('submitBtn'));
+  }
 }
 
 function isHourPastCutoff(estHourDate, tz) {
