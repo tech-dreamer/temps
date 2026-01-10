@@ -91,7 +91,7 @@ function buildHourlies() {
     input.disabled = isHourPastCutoff(estHourDate, tz);
 
     // Show 6-hr forecast options
-    if (i === 2 || i === 6) {
+    if (i === 2 || i === 8) {
       sixhrContainer.style.display = 'block';
       const sixhrInput = sixhrContainer.querySelector('.sixhr-input');
       sixhrInput.id = `sixhr-${i === 2 ? 'afternoon' : 'evening'}`;
