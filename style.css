@@ -1,87 +1,27 @@
-body {
-font-family: Arial, sans-serif;
-max-width: 1000px;
-margin: 2rem auto;
-padding: 1rem;
-background: #f9f9fb;
-}
+body {font-family:Arial,sans-serif;max-width:1000px;margin:2remauto;padding:1rem;background:#f9f9fb;}
+h1 {text-align:center;color:#2c3e50;}
+form {margin:2rem 0;text-align:center;}
+select, input {padding:0.8rem;font-size:1.6rem;border:2px solid #3498db;border-radius:8px;margin:0.5rem;}
+input {width:120px;text-align:center;}
+button {padding:0.8rem 1.4rem;background:#3498db;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-left:1rem;}
+button:disabled {background:#ccc;cursor:not-allowed;opacity:0.6;}
+#status {text-align:center;margin:1rem 0;font-weight:bold;font-size:1.2rem;}
+#revealBtn {padding:1rem 2rem;background:#e74c3c;color:#fff;border:none;border-radius:12px;font-size:1.2rem;cursor:pointer;margin:2rem 0;}
+#revealResults {margin:2rem 0;padding:1rem;background:#fffaf0;border-radius:12px;}
 
-h1 {
-text-align: center;
-color: #2c3e50;
-}
-
-form {
-margin: 2rem 0;
-text-align: center;
-}
-
-select, input {
-padding: 0.8rem;
-font-size: 1.6rem;
-border: 2px solid #3498db;
-border-radius: 8px;
-margin: 0.5rem;
-}
-
-input {
-width: 120px;
-text-align: center;
-}
-
-button {
-padding: 0.8rem 1.4rem;
-background: #3498db;
-color: #fff;
-border: none;
-border-radius: 8px;
-cursor: pointer;
-margin-left: 1rem;
-}
-
-button:disabled {
-background: #ccc;
-cursor: not-allowed;
-opacity: 0.6;
-}
-
-#status {
-text-align: center;
-margin: 1rem 0;
-font-weight: bold;
-font-size: 1.2rem;
-min-height: 1.5rem;
-}
-
-#revealBtn {
-padding: 1rem 2rem;
-background: #e74c3c;
-color: #fff;
-border: none;
-border-radius: 12px;
-font-size: 1.2rem;
-cursor: pointer;
-margin: 2rem 0;
-}
-
-#revealResults {
-margin: 2rem 0;
-padding: 1rem;
-background: #fffaf0;
-border-radius: 12px;
-}
-
-/* --- Daily grid container --- */
+/* Daily grid container */
 .city-grid {
 display: grid;
 grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 gap: 1.5rem;
-margin: 1.5rem auto;
+margin: 1.5rem 0;
 padding: 0 1rem;
 max-width: 1200px;
+margin-left: auto;
+margin-right: auto;
 }
 
-/* --- Individual city card --- /
+/* Individual city card */
 .city-card {
 background: #ffffff;
 border: 1px solid #e0e0e0;
@@ -89,7 +29,6 @@ border-radius: 12px;
 padding: 1.2rem;
 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 transition: transform 0.15s ease, box-shadow 0.15s ease;
-cursor: pointer; / Makes the whole card feel interactive */
 }
 
 .city-card:hover {
@@ -98,43 +37,11 @@ box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .city-card h3 {
-margin: 0; /* Removed margin so it looks centered when collapsed */
+margin: 0 0 0.8rem 0;
 font-size: 1.35rem;
 color: #333;
-display: flex;
-justify-content: space-between;
-align-items: center;
 }
 
-/* Arrow indicator */
-.city-card h3::after {
-content: '▼';
-font-size: 0.8rem;
-color: #9b59b6;
-transition: transform 0.3s ease;
-}
-
-.city-card.expanded h3::after {
-transform: rotate(180deg);
-}
-
-/* --- Expand/Collapse Logic --- */
-.city-card .card-content {
-max-height: 0;
-overflow: hidden;
-opacity: 0;
-transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.3s ease;
-pointer-events: none;
-}
-
-.city-card.expanded .card-content {
-max-height: 500px; /* High enough to contain inputs */
-opacity: 1;
-padding-top: 1rem;
-pointer-events: auto;
-}
-
-/* --- Inner Elements --- */
 .city-card p small {
 color: #666;
 font-size: 0.95rem;
@@ -158,8 +65,52 @@ font-size: 1rem;
 box-sizing: border-box;
 }
 
+/* Optional: make inputs look focused/active */
 .city-card input:focus {
 outline: none;
 border-color: #9b59b6;
 box-shadow: 0 0 0 3px rgba(155, 89, 182, 0.2);
+}
+
+/* Status message styling (already exists, but enhance if you want) */
+#status {
+min-height: 1.5rem;
+font-weight: 500;
+}
+
+/* Hide content by default /
+.city-card .card-content {
+max-height: 0;
+overflow: hidden;
+opacity: 0;
+transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.3s ease;
+pointer-events: none; / Prevent clicking hidden inputs */
+}
+
+/* Show content when card has 'expanded' class /
+.city-card.expanded .card-content {
+max-height: 500px; / Large enough to fit content */
+opacity: 1;
+padding-top: 1rem;
+pointer-events: auto;
+}
+
+/* Style the city name to look clickable */
+.city-card h3 {
+margin: 0;
+cursor: pointer;
+display: flex;
+justify-content: space-between;
+align-items: center;
+}
+
+/* Add a small arrow indicator */
+.city-card h3::after {
+content: '▼';
+font-size: 0.8rem;
+transition: transform 0.3s;
+}
+
+.city-card.expanded h3::after {
+transform: rotate(180deg);
 }
