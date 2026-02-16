@@ -50,40 +50,48 @@ async function loadDailyData() {
 }
 
 // Build the multi-city daily grid
-async function buildDailyGrid() {
+  async function buildDailyGrid() {
   const grid = document.getElementById('dailyGrid');
   if (!grid) return;
-
-  grid.innerHTML = '<p>Loading cities...</p>';
-
+  
+  grid.innerHTML = '<p style="text-align:center;">Loading cities...</p>';
+  
   const { actuals, guesses } = await loadDailyData();
-
   grid.innerHTML = '';
-
+  
   cities.forEach(city => {
-    // Find yesterday's high/low (simple max/min for demo)
-    const cityActuals = actuals.filter(a => a.city_id === city.id);
-    const yesterdayHigh = cityActuals.length ? Math.max(...cityActuals.map(a => a.temp)) : '?';
-    const yesterdayLow = cityActuals.length ? Math.min(...cityActuals.map(a => a.temp)) : '?';
-
-    const prevGuess = guesses.find(g => g.city_id === city.id) || {};
-
-    const card = document.createElement('div');
-    card.className = 'city-card';
-    card.innerHTML = `
-      <h3>${city.name}</h3>
-      <p><small>Yesterday: H ${yesterdayHigh}° / L ${yesterdayLow}°</small></p>
-      <p><small>Your last guess: H ${prevGuess.high ?? '-'}° / L ${prevGuess.low ?? '-'}°</small></p>
-      <label>High °F:
-        <input type="number" class="daily-high" data-city-id="${city.id}" min="-25" max="125" step="1" placeholder="High">
-      </label>
-      <label>Low °F:
-        <input type="number" class="daily-low" data-city-id="${city.id}" min="-50" max="100" step="1" placeholder="Low">
-      </label>
-    `;
-    grid.appendChild(card);
+  const cityActuals = actuals.filter(a => a.city_id === city.id);
+  const yesterdayHigh = cityActuals.length ? Math.max(...cityActuals.map(a => a.temp)) : '?';
+  const yesterdayLow = cityActuals.length ? Math.min(...cityActuals.map(a => a.temp)) : '?';
+  const prevGuess = guesses.find(g => g.city_id === city.id) || {};
+  
+  const card = document.createElement('div');
+  card.className = 'city-card';
+  
+  // Wrap everything except the H3 in a "card-content" div
+  card.innerHTML = `
+  <h3>${city.name}</h3>
+  <div class="card-content">
+  <p><small>Yesterday: H ${yesterdayHigh}° / L ${yesterdayLow}°</small></p>
+  <p><small>Your last guess: H ${prevGuess.high ?? '-'}° / L ${prevGuess.low ?? '-'}°</small></p>
+  <label>High °F:
+  <input type="number" class="daily-high" data-city-id="${city.id}" min="-25" max="125" step="1" placeholder="High">
+  </label>
+  <label>Low °F:
+  <input type="number" class="daily-low" data-city-id="${city.id}" min="-50" max="100" step="1" placeholder="Low">
+  </label>
+  </div>
+  `;
+  
+  // Add toggle logic
+  card.addEventListener('click', (e) => {
+  // Don't collapse if the user is clicking inside an input box
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL') return;
+  
+  card.classList.toggle('expanded');
   });
-}
+  
+  grid.appendChild(card);
 
 // Batch save daily guesses on form submit
 document.getElementById('tempsForm').addEventListener('submit', async e => {
