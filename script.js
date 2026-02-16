@@ -127,9 +127,9 @@ const { error } = await client
 .upsert(payload, { onConflict: 'user_id,city_id,date' });
 
 if (error) {
-document.getElementById('status').innerHTML = <span style="color:red;">Save failed: ${error.message}</span>;
+document.getElementById('status').innerHTML = `<span style="color:red;">Save failed: ${error.message}</span>`;
 } else {
-document.getElementById('status').innerHTML = <span style="color:green;">Saved ${payload.length} city forecasts! 🐰 Good luck!</span>;
+document.getElementById('status').innerHTML = `<span style="color:green;">Saved ${payload.length} city forecasts! 🐰 Good luck!</span>`;
 }
 });
 
