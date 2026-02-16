@@ -24,33 +24,19 @@
   <p style="text-align:center;"> Cutoff = noon local time </p>
 
   <form id="tempsForm">
-    <div>
-      <label>
-        City:<br>
-        <select id="citySelect" required>
-          <option value="" disabled selected> Loading cities... </option>
-        </select>
-      </label>
+    <h2>Daily Forecasts – All Cities</h2>
+    <p>Cutoff = noon local time | Yesterday's actuals shown for reference</p>
+  
+    <div id="dailyGrid" class="city-grid">
+      <!-- JS will fill with city cards -->
     </div>
-
-    <div style="margin-top:1rem;">
-      <label>
-        My High Forecast (°F):<br>
-        <input type="number" id="high" min="-25" max="125" step="1" placeholder="0">
-      </label>
-    </div>
-
-    <div style="margin-top:1rem;">
-      <label>
-        My Low Forecast (°F):<br>
-        <input type="number" id="low" min="-50" max="100" step="1" placeholder="0">
-      </label>
-    </div>
-
-    <div style="text-align:center;margin-top:2rem;">
-      <button type="submit" id="submitBtn"> SAVE </button>
+  
+    <div style="text-align:center; margin: 2rem 0;">
+      <button type="submit" id="submitDailyBtn">Save All Daily Forecasts 🐰</button>
     </div>
   </form>
+  
+  <div id="status" style="text-align:center; margin-top:1rem;"></div>
 
   <!-- Reveal Button -->
   <div style="text-align:center;margin:2rem 0;">
