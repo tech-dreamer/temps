@@ -78,18 +78,18 @@ min-height: 1.5rem;
 font-weight: 500;
 }
 
-/* Hide content by default /
+/* Hide content by default */
 .city-card .card-content {
 max-height: 0;
 overflow: hidden;
 opacity: 0;
 transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.3s ease;
-pointer-events: none; / Prevent clicking hidden inputs */
+pointer-events: none;
 }
 
-/* Show content when card has 'expanded' class /
+/* Show content when card has 'expanded' class */
 .city-card.expanded .card-content {
-max-height: 500px; / Large enough to fit content */
+max-height: 500px;
 opacity: 1;
 padding-top: 1rem;
 pointer-events: auto;
