@@ -26,7 +26,17 @@
   <form id="tempsForm">
     <h2>Daily Forecasts – All Cities</h2>
     <p>Cutoff = noon local time | Yesterday's actuals shown for reference</p>
-  
+
+  <div style="text-align:center; margin:1rem 0;">
+    <label>
+      Forecast for:
+      <select id="forecastDay">
+        <option value="today">Today</option>
+        <option value="tomorrow">Tomorrow</option>
+      </select>
+    </label>
+  </div>
+    
     <div id="dailyGrid" class="city-grid">
       <!-- JS will fill with city cards -->
     </div>
