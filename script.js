@@ -5,7 +5,7 @@ const { createClient } = supabase;
 const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let cities = [];
-let isExpandedAll = false;  // track global expand state
+let isExpandedAll = false;  // start collapsed
 
 // Load cities from DB
 async function loadCities() {
@@ -30,14 +30,14 @@ async function loadCities() {
   updateCurrentDate();
 }
 
-// Show current date in PST at the top
+// Show current date in PST (label always says PST, even during PDT)
 function updateCurrentDate() {
   const now = new Date();
   const pstDate = now.toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" });
   document.getElementById('currentDate').textContent = `Today: ${pstDate} (PST)`;
 }
 
-// Fetch yesterday's actuals & today's/tomorrow's previous guesses
+// Fetch yesterday's actuals + today's & tomorrow's previous guesses
 async function loadDailyData() {
   const today = new Date().toISOString().split('T')[0];
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
@@ -57,7 +57,7 @@ async function loadDailyData() {
   return { actuals: actuals || [], guesses: guesses || [] };
 }
 
-// Build collapsible city grid
+// Build collapsible city grid (all start collapsed)
 async function buildDailyGrid() {
   const grid = document.getElementById('dailyGrid');
   if (!grid) return;
@@ -89,7 +89,7 @@ async function buildDailyGrid() {
     const isPastCutoff = localNow > cutoff && forecastDay === 'today';
 
     const card = document.createElement('div');
-    card.className = 'city-card ' + (isExpandedAll ? 'expanded' : 'collapsed');
+    card.className = 'city-card collapsed';  // start collapsed
     card.innerHTML = `
       <div class="city-card-header">${city.name}</div>
       <div class="city-card-content">
@@ -101,15 +101,15 @@ async function buildDailyGrid() {
         <label>Low °F:
           <input type="number" class="daily-low" data-city-id="${city.id}" min="-50" max="100" step="1" placeholder="Low" ${isPastCutoff ? 'disabled' : ''}>
         </label>
+        ${isPastCutoff ? '<small style="color:#e74c3c; display:block; margin-top:0.5rem;">Past cutoff (noon local) — switch to Tomorrow</small>' : ''}
       </div>
     `;
 
-    // No per-card click listener anymore — expand/collapse is global
     grid.appendChild(card);
   });
 }
 
-// Toggle expand/collapse ALL cards on header click (any header)
+// Toggle expand/collapse ALL cards on ANY header click
 document.addEventListener('click', (e) => {
   if (e.target.classList.contains('city-card-header')) {
     isExpandedAll = !isExpandedAll;
