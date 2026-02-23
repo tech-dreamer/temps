@@ -3,17 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title> Temps App </title>
+  <title>Temps App</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
 
-<body>
-
-  <div style="text-align:center;margin:1rem 0;">
+  <div style="text-align:center; margin:1rem 0;">
     <a href="hourly.html">
-      <button style="padding:0.8rem 1.4rem;background:#9b59b6;color:#fff;border:none;border-radius:8px;cursor:pointer;">
+      <button style="padding:0.8rem 1.4rem; background:#9b59b6; color:#fff; border:none; border-radius:8px; cursor:pointer;">
         Go to Hourly Forecasts
       </button>
     </a>
@@ -21,22 +19,22 @@
   
   <input id="forecastType" type="hidden" value="daily">
   <h1>Daily Forecast</h1>
-  <p style="text-align:center;"> Cutoff = noon local time </p>
 
   <form id="tempsForm">
     <h2>Daily Forecasts – All Cities</h2>
-    <p id="currentDate" style="font-size:1.1rem; color:#555; margin:0.5rem 0;"></p>
-    <p>Cutoff = noon local time | Yesterday's actuals shown for reference</p>
 
-  <div style="text-align:center; margin:1rem 0;">
-    <label>
-      Forecast for:
-      <select id="forecastDay">
-        <option value="today">Today</option>
-        <option value="tomorrow">Tomorrow</option>
-      </select>
-    </label>
-  </div>
+    <div style="text-align:center; margin:1rem 0;">
+      <label>
+        Forecast for:
+        <select id="forecastDay">
+          <option value="today">Today</option>
+          <option value="tomorrow">Tomorrow</option>
+        </select>
+      </label>
+      <p id="currentDate" style="font-size:1.1rem; color:#555; margin:0.5rem 0;"></p>
+    </div>
+
+    <p style="text-align:center; margin:1rem 0;">Cutoff = noon local time | Yesterday's actuals shown for reference</p>
     
     <div id="dailyGrid" class="city-grid">
       <!-- JS will fill with city cards -->
@@ -47,16 +45,35 @@
     </div>
   </form>
   
-  <div id="status" style="text-align:center; margin-top:1rem;"></div>
+  <div id="status" style="text-align:center; margin-top:1rem; min-height:1.5rem;"></div>
 
   <!-- Reveal Button -->
-  <div style="text-align:center;margin:2rem 0;">
+  <div style="text-align:center; margin:2rem 0;">
     <button id="revealBtn"> 🐰 Reveal Daily Actuals 🐰 </button>
   </div>
 
   <div id="revealResults"></div>
 
-  <div id="status"></div>
+  <!-- Commented out old single-city form (keep for reference) -->
+  <!--
+  <div style="margin-top:1rem;">
+    <label>
+      My High Forecast (°F):<br>
+      <input type="number" id="high" min="-25" max="125" step="1" placeholder="0">
+    </label>
+  </div>
+
+  <div style="margin-top:1rem;">
+    <label>
+      My Low Forecast (°F):<br>
+      <input type="number" id="low" min="-50" max="100" step="1" placeholder="0">
+    </label>
+  </div>
+
+  <div style="text-align:center;margin-top:2rem;">
+    <button type="submit" id="submitBtn"> SAVE </button>
+  </div>
+  -->
 
   <script src="script.js"></script>
 
