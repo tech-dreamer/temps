@@ -27,14 +27,29 @@ async function loadCities() {
 
   cities = data;
   buildDailyGrid();
-  updateCurrentDate();
+  updateForecastDayLabels();
 }
 
-// Show current date in PST (label always says PST, even during PDT)
-function updateCurrentDate() {
+// Update "Today" and "Tomorrow" labels with PST dates
+function updateForecastDayLabels() {
   const now = new Date();
-  const pstDate = now.toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" });
-  document.getElementById('currentDate').textContent = `Today: ${pstDate} (PST)`;
+  const pstToday = now.toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" });
+  const tomorrow = new Date(now.getTime() + 86400000);
+  const pstTomorrow = tomorrow.toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" });
+
+  const todayOption = document.querySelector('#forecastDay option[value="today"]');
+  const tomorrowOption = document.querySelector('#forecastDay option[value="tomorrow"]');
+
+  todayOption.textContent = `Today (${pstToday})`;
+  tomorrowOption.textContent = `Tomorrow (${pstTomorrow})`;
+
+  // Auto-switch to Tomorrow if past noon PST
+  const pstNow = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+  const cutoff = new Date(pstNow);
+  cutoff.setHours(12, 0, 0, 0);
+  if (pstNow > cutoff) {
+    document.getElementById('forecastDay').value = 'tomorrow';
+  }
 }
 
 // Fetch yesterday's actuals + today's & tomorrow's previous guesses
