@@ -27,7 +27,7 @@ async function loadCities() {
 
   cities = data;
   buildDailyGrid();
-  updateForecastDayLabels();
+  updateForecastDayLabels();  // Set dynamic dates on load
 }
 
 // Update "Today" and "Tomorrow" labels with PST dates
@@ -40,8 +40,8 @@ function updateForecastDayLabels() {
   const todayOption = document.querySelector('#forecastDay option[value="today"]');
   const tomorrowOption = document.querySelector('#forecastDay option[value="tomorrow"]');
 
-  todayOption.textContent = `Today (${pstToday})`;
-  tomorrowOption.textContent = `Tomorrow (${pstTomorrow})`;
+  if (todayOption) todayOption.textContent = `Today (${pstToday})`;
+  if (tomorrowOption) tomorrowOption.textContent = `Tomorrow (${pstTomorrow})`;
 
   // Auto-switch to Tomorrow if past noon PST
   const pstNow = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
@@ -50,6 +50,9 @@ function updateForecastDayLabels() {
   if (pstNow > cutoff) {
     document.getElementById('forecastDay').value = 'tomorrow';
   }
+
+  // Re-build grid after possible switch
+  buildDailyGrid();
 }
 
 // Fetch yesterday's actuals + today's & tomorrow's previous guesses
@@ -104,7 +107,7 @@ async function buildDailyGrid() {
     const isPastCutoff = localNow > cutoff && forecastDay === 'today';
 
     const card = document.createElement('div');
-    card.className = 'city-card collapsed';  // start collapsed
+    card.className = 'city-card collapsed';  // always start collapsed
     card.innerHTML = `
       <div class="city-card-header">${city.name}</div>
       <div class="city-card-content">
