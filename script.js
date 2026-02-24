@@ -30,31 +30,39 @@ async function loadCities() {
   updateCurrentDate();
 }
 
-// Show current date in PST next to dropdown (full month name format)
+// Update date label next to dropdown (full month name, PST)
 function updateCurrentDate() {
   const now = new Date();
   const pstToday = now.toLocaleDateString("en-US", {
     timeZone: "America/Los_Angeles",
     month: "long",
-    day: "numeric",
-    year: "numeric"
+    day: "numeric"
   });
 
   const tomorrow = new Date(now.getTime() + 86400000);
   const pstTomorrow = tomorrow.toLocaleDateString("en-US", {
     timeZone: "America/Los_Angeles",
     month: "long",
-    day: "numeric",
-    year: "numeric"
+    day: "numeric"
   });
 
-  document.getElementById('currentDate').textContent = `(${pstToday})`;
+  const todayOption = document.querySelector('#forecastDay option[value="today"]');
+  const tomorrowOption = document.querySelector('#forecastDay option[value="tomorrow"]');
+
+  if (todayOption) todayOption.textContent = `Today`;
+  if (tomorrowOption) tomorrowOption.textContent = `Tomorrow`;
+
+  // Show date next to dropdown
+  const dateDisplay = document.getElementById('currentDate');
+  if (dateDisplay) {
+    dateDisplay.textContent = forecastDay === 'today' ? pstToday : pstTomorrow;
+  }
 
   // Auto-switch to Tomorrow if past noon PST
   const pstNow = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
   const cutoff = new Date(pstNow);
   cutoff.setHours(12, 0, 0, 0);
-  if (pstNow > cutoff) {
+  if (pstNow > cutoff && document.getElementById('forecastDay').value === 'today') {
     document.getElementById('forecastDay').value = 'tomorrow';
   }
 
@@ -98,13 +106,10 @@ async function buildDailyGrid() {
     ? new Date().toISOString().split('T')[0]
     : new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
-  // Hide "Yesterday" actuals when Tomorrow is selected
-  const showYesterday = forecastDay === 'today';
-
   cities.forEach(city => {
     const cityActuals = actuals.filter(a => a.city_id === city.id);
-    const yesterdayHigh = showYesterday && cityActuals.length ? Math.max(...cityActuals.map(a => a.temp)) : '?';
-    const yesterdayLow = showYesterday && cityActuals.length ? Math.min(...cityActuals.map(a => a.temp)) : '?';
+    const yesterdayHigh = cityActuals.length ? Math.max(...cityActuals.map(a => a.temp)) : '?';
+    const yesterdayLow = cityActuals.length ? Math.min(...cityActuals.map(a => a.temp)) : '?';
 
     const prevGuess = guesses.find(g => g.city_id === city.id && g.date === targetDate) || {};
     const hasPrevGuess = prevGuess.high !== undefined || prevGuess.low !== undefined;
@@ -121,7 +126,7 @@ async function buildDailyGrid() {
     card.innerHTML = `
       <div class="city-card-header">${city.name}</div>
       <div class="city-card-content">
-        ${showYesterday ? `<p><small>Yesterday: H ${yesterdayHigh}° / L ${yesterdayLow}°</small></p>` : ''}
+        <p><small>Yesterday: H ${yesterdayHigh}° / L ${yesterdayLow}°</small></p>
         ${hasPrevGuess ? `<p><small>Your last guess: H ${prevGuess.high ?? '-'}° / L ${prevGuess.low ?? '-'}°</small></p>` : ''}
         <label>High °F:
           <input type="number" class="daily-high" data-city-id="${city.id}" min="-25" max="125" step="1" placeholder="High" ${isPastCutoff ? 'disabled' : ''}>
@@ -192,6 +197,7 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
 
 // Update grid when Today/Tomorrow dropdown changes
 document.getElementById('forecastDay').addEventListener('change', () => {
+  updateCurrentDate();  // update date label
   buildDailyGrid();
 });
 
