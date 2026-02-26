@@ -32,15 +32,15 @@ async function loadCities() {
 
 // Update date label next to dropdown (full month name, PST)
 function updateCurrentDate() {
-  const now = new Date();
-  const pstToday = now.toLocaleDateString("en-US", {
-    timeZone: "America/Los_Angeles",
-    month: "long",
-    day: "numeric"
-  });
+  const forecastDay = document.getElementById('forecastDay')?.value || 'today';
 
-  const tomorrow = new Date(now.getTime() + 86400000);
-  const pstTomorrow = tomorrow.toLocaleDateString("en-US", {
+  const now = new Date();
+  let displayDate = now;
+  if (forecastDay === 'tomorrow') {
+    displayDate = new Date(now.getTime() + 86400000);
+  }
+
+  const pstDate = displayDate.toLocaleDateString("en-US", {
     timeZone: "America/Los_Angeles",
     month: "long",
     day: "numeric"
@@ -48,20 +48,10 @@ function updateCurrentDate() {
 
   const dateDisplay = document.getElementById('currentDate');
   if (dateDisplay) {
-    const forecastDay = document.getElementById('forecastDay')?.value || 'today';
-    dateDisplay.textContent = forecastDay === 'today' ? pstToday : pstTomorrow;
+    dateDisplay.textContent = pstDate;
   }
 
-  // Auto-default to Tomorrow if past noon PST (but Today stays selectable)
-  const pstNow = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-  const cutoff = new Date(pstNow);
-  cutoff.setHours(12, 0, 0, 0);
-  if (pstNow > cutoff && document.getElementById('forecastDay').value === 'today') {
-    document.getElementById('forecastDay').value = 'tomorrow';
-    updateCurrentDate();  // refresh date display
-  }
-
-  // Re-build grid after possible switch
+  // Re-build grid after date change
   buildDailyGrid();
 }
 
