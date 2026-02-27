@@ -1,27 +1,24 @@
-// script.js
-// Supabase config (unchanged)
+// script.js (corrected)
+// NOTE: This file intentionally avoids changing any page-level styles or classes.
+// It only updates content and rebuilds the city cards like your original script.
+
+// Supabase config (keep yours)
 const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
 
 const { createClient } = supabase;
 const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// App state (unchanged semantics)
 let cities = [];
-let isExpandedAll = false; // start collapsed
+let isExpandedAll = false;  // start collapsed
 
 /* ------------------------
-   Small helpers (pure functions only)
+   Helper utilities
    ------------------------ */
-function formatDateYMD(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
 
-// Return a Date object that represents the current wall-clock time in given IANA tz
 function nowInZone(tz) {
+  // Produce a Date representing the local wall-clock time in the given IANA timezone.
+  // Construct via Intl.formatToParts to avoid timezone offsets/ambiguity.
   const now = new Date();
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
@@ -42,9 +39,27 @@ function nowInZone(tz) {
   );
 }
 
+function formatDateYMD(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function escapeHtml(unsafe) {
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 /* ------------------------
-   DB loaders (kept as in your original)
+   Original app functions (kept behavior)
    ------------------------ */
+
+// Load cities from DB
 async function loadCities() {
   const { data, error } = await client
     .from('cities')
@@ -68,6 +83,7 @@ async function loadCities() {
   updateCurrentDate();
 }
 
+// Update date label next to dropdown (full month name, PST)
 function updateCurrentDate() {
   const forecastDay = document.getElementById('forecastDay')?.value || 'today';
 
@@ -88,10 +104,11 @@ function updateCurrentDate() {
     dateDisplay.textContent = pstDate;
   }
 
-  // Re-build grid after date change
+  // Re-build grid after date change (keeps inputs in initial state)
   buildDailyGrid();
 }
 
+// Fetch yesterday's actuals + today's & tomorrow's previous guesses
 async function loadDailyData() {
   const today = new Date().toISOString().split('T')[0];
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
@@ -105,13 +122,13 @@ async function loadDailyData() {
   const { data: guesses } = await client
     .from('daily_forecasts')
     .select('city_id, high, low, date')
-    .eq('user_id', 1) // TODO: replace with real user ID
+    .eq('user_id', 1) // TODO: replace with real user ID from auth
     .in('date', [today, tomorrow]);
 
   return { actuals: actuals || [], guesses: guesses || [] };
 }
 
-// Keep city rendering exactly as your original logic (no style changes)
+// Build collapsible city grid (all start collapsed)
 async function buildDailyGrid() {
   const grid = document.getElementById('dailyGrid');
   if (!grid) return;
@@ -145,7 +162,7 @@ async function buildDailyGrid() {
     const isPastCutoff = localNow > cutoff && forecastDay === 'today';
 
     const card = document.createElement('div');
-    card.className = 'city-card collapsed'; // match original behavior
+    card.className = 'city-card collapsed';  // keep collapsed on creation
     card.innerHTML = `
       <div class="city-card-header">${escapeHtml(city.name)}</div>
       <div class="city-card-content">
@@ -165,23 +182,17 @@ async function buildDailyGrid() {
   });
 }
 
-/* Small helper to avoid HTML injection */
-function escapeHtml(unsafe) {
-  return String(unsafe)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
 /* ------------------------
-   PST noon cutoff logic (no DOM style changes)
+   PST noon auto-switch (safe)
    ------------------------ */
 
 let pstCutoffLastTriggeredDate = null;
 
 function pstCutoffCheck() {
+  // Only schedule/switch if there's a forecastDay select present
+  const sel = document.getElementById('forecastDay');
+  if (!sel) return;
+
   const nowPST = nowInZone('America/Los_Angeles');
   const minutes = nowPST.getMinutes();
   const hours = nowPST.getHours();
@@ -196,92 +207,97 @@ function pstCutoffCheck() {
     if (pstCutoffLastTriggeredDate !== todayKey) {
       pstCutoffLastTriggeredDate = todayKey;
 
-      const secsNow = nowPST.getSeconds();
-      const msToNoon = ((windowEnd * 60) - (mmTotal * 60 + secsNow)) * 1000 - nowPST.getMilliseconds();
+      const secsPast = nowPST.getSeconds();
+      const msToNoon = ((windowEnd * 60) - (hours * 3600 + minutes * 60 + secsPast)) * 1000 - nowPST.getMilliseconds();
 
       if (msToNoon <= 0) {
         doPstNoonSwitch();
       } else {
-        setTimeout(() => doPstNoonSwitch(), msToNoon + 50);
+        setTimeout(() => {
+          doPstNoonSwitch();
+        }, msToNoon + 50);
       }
     }
   }
 }
 
 function doPstNoonSwitch() {
-  // Do not modify styles. Only change the forecastDay select (if present).
+  // Only change the dropdown if it exists and is currently 'today'.
   const sel = document.getElementById('forecastDay');
-  if (sel) {
-    sel.value = 'tomorrow';
-    sel.dispatchEvent(new Event('change', { bubbles: true }));
-  } else {
-    window.dispatchEvent(new CustomEvent('pstNoonAutoSwitch', { detail: { at: new Date().toISOString() } }));
+  if (!sel) return;
+
+  try {
+    const cur = sel.value;
+    if (cur === 'today') {
+      sel.value = 'tomorrow';
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  } catch (err) {
+    console.error('doPstNoonSwitch error', err);
   }
 }
 
-// start periodic PST check (as before)
+// Start periodic PST check (run on load and every 5 minutes)
 pstCutoffCheck();
 setInterval(pstCutoffCheck, 5 * 60 * 1000);
 
 /* ------------------------
-   Correct EST-midnight updater (fixed)
-   - Immediately updates UI to EST local date (so at 1:48am EST it shows Feb 26)
-   - Schedules next exact EST midnight update
+   EST midnight updater (fixes "still says Feb 25" issue)
+   - Ensures the UI reflects America/New_York current date at load time
+   - Schedules next update at the next EST midnight
    ------------------------ */
 
-function updateDropdownDatesNow() {
-  // Determine "today" and "tomorrow" in America/New_York
+function updateDropdownDatesForEstNow() {
+  // Get current date in America/New_York
   const nowEST = nowInZone('America/New_York');
 
   const todayEST = new Date(nowEST.getFullYear(), nowEST.getMonth(), nowEST.getDate());
   const tomorrowEST = new Date(todayEST);
   tomorrowEST.setDate(todayEST.getDate() + 1);
 
-  // Compute YMD strings
-  const todayYMD = formatDateYMD(todayEST);
-  const tomorrowYMD = formatDateYMD(tomorrowEST);
-
-  // Update existing UI pieces without changing any styles
-  // 1) If you have #currentDate (used elsewhere), update it to match forecastDay value
+  // Update the #currentDate (keeps PST display per earlier behavior)
   const forecastDayEl = document.getElementById('forecastDay');
-  const displayEl = document.getElementById('currentDate');
-  if (displayEl) {
-    const curVal = forecastDayEl?.value || 'today';
-    // Display as long month/day but ensure it's the EST day converted to PST display (to match prior behavior)
-    const whichDate = curVal === 'today' ? todayEST : tomorrowEST;
-    const pstDisplay = whichDate.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', month: 'long', day: 'numeric' });
-    displayEl.textContent = pstDisplay;
-  }
+  const dateDisplay = document.getElementById('currentDate');
 
-  // 2) If forecastDay is a <select>, update option labels if present (non-destructive)
+  // If forecastDay select exists, update its option text (non-destructive)
   if (forecastDayEl && forecastDayEl.tagName === 'SELECT') {
     const optToday = forecastDayEl.querySelector('option[value="today"]');
     const optTmr = forecastDayEl.querySelector('option[value="tomorrow"]');
-    if (optToday) optToday.textContent = `Today — ${todayYMD}`;
-    if (optTmr) optTmr.textContent = `Tomorrow — ${tomorrowYMD}`;
+    if (optToday) optToday.textContent = `Today — ${formatDateYMD(todayEST)}`;
+    if (optTmr) optTmr.textContent = `Tomorrow — ${formatDateYMD(tomorrowEST)}`;
   }
 
-  // 3) Custom label element: #date-label (safe update if exists)
-  const dateLabel = document.getElementById('date-label');
-  if (dateLabel) {
-    dateLabel.textContent = `Today: ${todayYMD} • Tomorrow: ${tomorrowYMD}`;
+  // Update visible date display using PST formatting like original app
+  if (dateDisplay) {
+    const curVal = forecastDayEl?.value || 'today';
+    const displayDate = curVal === 'today' ? todayEST : tomorrowEST;
+    // Show display in PST month/day format (matching original)
+    dateDisplay.textContent = displayDate.toLocaleDateString("en-US", {
+      timeZone: "America/Los_Angeles",
+      month: "long",
+      day: "numeric"
+    });
   }
+
+  // Rebuild grid to ensure city cutoffs reflect the new day boundaries
+  buildDailyGrid();
 }
 
 function scheduleNextEstMidnightUpdate() {
-  // Compute next midnight in America/New_York and schedule an update at that exact wall-clock time.
+  // Compute the next 00:00 in America/New_York and schedule updateDropdownDatesForEstNow() for that instant.
   const now = new Date();
-  // Build next-midnight EST wall-clock components
+  // Build the next midnight EST as a wall-clock using Intl parts for tomorrow 00:00 America/New_York
   const nowEST = nowInZone('America/New_York');
   const todayEST = new Date(nowEST.getFullYear(), nowEST.getMonth(), nowEST.getDate());
   const nextMidnightEST = new Date(todayEST);
   nextMidnightEST.setDate(nextMidnightEST.getDate() + 1);
 
-  // Convert the nextMidnightEST wall-clock to epoch ms via Intl (ensures DST-safe)
+  // Use Intl to get the components of that midnight in EST and convert to UTC epoch
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
     year: 'numeric', month: 'numeric', day: 'numeric',
-    hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false
+    hour: 'numeric', minute: 'numeric', second: 'numeric',
+    hour12: false
   }).formatToParts(nextMidnightEST).reduce((acc, p) => {
     if (p.type !== 'literal') acc[p.type] = p.value;
     return acc;
@@ -296,40 +312,46 @@ function scheduleNextEstMidnightUpdate() {
     Number(parts.second)
   );
 
-  const delay = Math.max(0, targetUTCms - Date.now());
+  const msUntil = Math.max(0, targetUTCms - Date.now());
 
   setTimeout(() => {
-    // On EST midnight, update UI and rebuild grid (but do not reset input values)
-    updateDropdownDatesNow();
-    try { buildDailyGrid(); } catch (e) { console.warn('buildDailyGrid failed on EST midnight update', e); }
-    // Schedule the following midnight
-    scheduleNextEstMidnightUpdate();
-  }, delay + 100); // slight buffer
+    try {
+      updateDropdownDatesForEstNow();
+    } catch (e) {
+      console.error('EST midnight update error', e);
+    } finally {
+      // schedule next one recursively
+      scheduleNextEstMidnightUpdate();
+    }
+  }, msUntil + 100);
 }
 
-// Run immediate EST update now (fixes your reported Feb25->Feb26 problem)
-updateDropdownDatesNow();
-// Schedule next ones
+// Run once at load
+updateDropdownDatesForEstNow();
+// Schedule subsequent updates
 scheduleNextEstMidnightUpdate();
 
 /* ------------------------
-   Expand/collapse behavior (keeps original semantics)
-   - Clicking a .city-card-header toggles that card only
-   - If you want the old "toggle ALL", you can still click a global button (not added here)
+   UI interactions: expand/collapse
+   - Keep the behavior simple and non-destructive
    ------------------------ */
+
 document.addEventListener('click', (e) => {
+  // If user clicked a city-card-header, toggle that card only.
   const hdr = e.target.closest && e.target.closest('.city-card-header');
   if (hdr) {
     const card = hdr.closest('.city-card');
     if (card) {
       card.classList.toggle('collapsed');
+      return;
     }
   }
 });
 
 /* ------------------------
-   Save handler (kept exactly as your original)
+   Batch save daily guesses (unchanged behavior)
    ------------------------ */
+
 const tempsForm = document.getElementById('tempsForm');
 if (tempsForm) {
   tempsForm.addEventListener('submit', async e => {
@@ -373,13 +395,14 @@ if (tempsForm) {
     } else {
       const st = document.getElementById('status');
       if (st) st.innerHTML = `<span style="color:green;">Saved ${payload.length} city forecasts for ${forecastDay}! 🐰 Good luck!</span>`;
+      // Optionally refresh grid so last guesses are visible
       buildDailyGrid();
     }
   });
 }
 
 /* ------------------------
-   Wire up dropdown change (unchanged)
+   Hook dropdown change to update grid + date label (keeps original)
    ------------------------ */
 const forecastDayEl = document.getElementById('forecastDay');
 if (forecastDayEl) {
@@ -390,12 +413,6 @@ if (forecastDayEl) {
 }
 
 /* ------------------------
-   Start: load cities (unchanged)
+   Initial load
    ------------------------ */
 loadCities();
-
-// Expose a couple hooks (non-visual)
-window.myApp = window.myApp || {};
-window.myApp.doPstNoonSwitch = doPstNoonSwitch;
-window.myApp.pstCutoffCheck = pstCutoffCheck;
-window.myApp.updateDropdownDatesNow = updateDropdownDatesNow;
