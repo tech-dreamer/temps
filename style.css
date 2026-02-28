@@ -82,12 +82,13 @@ button:disabled {
 }
 
 #revealResults {
-  margin: 2rem 0;
+  margin-top: 1.5rem;
   padding: 1.5rem;
   background: #ffffff;
   border-radius: 18px;
   box-shadow: 0 6px 20px rgba(0,0,0,0.08);
   font-size: 1.1rem;
+  display: none; /* hide until reveal */
 }
 
 /* GRID */
