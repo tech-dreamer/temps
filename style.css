@@ -114,3 +114,36 @@ transition: transform 0.3s;
 .city-card.expanded h3::after {
 transform: rotate(180deg);
 }
+
+#currentDateWrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pt-info {
+  position: relative;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #777;
+}
+
+.pt-tooltip {
+  position: absolute;
+  bottom: 130%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: white;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.pt-info:hover .pt-tooltip {
+  opacity: 1;
+}
