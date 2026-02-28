@@ -4,14 +4,16 @@ body {
   margin: 2rem auto;
   padding: 1rem;
   background: #f4f6fb;
+  font-size: 1.15rem;
 }
 
 /* HEADER */
 h1 {
   text-align: center;
   color: #1f2937;
-  font-size: 2rem;
-  margin-bottom: 1rem;
+  font-size: 2.3rem;
+  margin-bottom: 1.2rem;
+  font-weight: 700;
 }
 
 /* FORM WRAPPER */
@@ -22,33 +24,38 @@ form {
 
 /* DROPDOWN + INPUTS */
 select, input {
-  padding: 0.8rem;
-  font-size: 1.1rem;
+  padding: 0.9rem;
+  font-size: 1.15rem;
   border: 2px solid #4f46e5;
-  border-radius: 10px;
-  margin: 0.5rem;
+  border-radius: 12px;
+  margin: 0.6rem;
 }
 
 input {
-  width: 120px;
+  width: 130px;
   text-align: center;
 }
 
-/* BUTTONS */
+/* PRIMARY BUTTONS */
 button {
-  padding: 0.9rem 1.6rem;
+  padding: 1rem 2.2rem;
   background: #4f46e5;
   color: #fff;
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   cursor: pointer;
-  font-weight: 600;
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  font-weight: 700;
+  font-size: 1.15rem;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
 button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.3);
+}
+
+button:active {
+  transform: scale(0.97);
 }
 
 button:disabled {
@@ -57,55 +64,57 @@ button:disabled {
   opacity: 0.6;
 }
 
+/* Reveal button same size, different color */
 #revealBtn {
   background: #10b981;
 }
 
 #revealBtn:hover {
-  box-shadow: 0 6px 14px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 8px 18px rgba(16, 185, 129, 0.3);
 }
 
 #status {
   text-align: center;
-  margin: 1rem 0;
+  margin: 1.2rem 0;
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   min-height: 1.5rem;
 }
 
 #revealResults {
   margin: 2rem 0;
-  padding: 1rem;
+  padding: 1.5rem;
   background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  border-radius: 18px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  font-size: 1.1rem;
 }
 
 /* GRID */
 .city-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.5rem;
-  margin: 2rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.8rem;
+  margin: 2.5rem 0;
 }
 
 /* CARD */
 .city-card {
   background: #ffffff;
-  border-radius: 16px;
-  padding: 1.3rem;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  border-radius: 18px;
+  padding: 1.6rem;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .city-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
 }
 
-/* COLLAPSE LOGIC */
+/* COLLAPSE */
 .city-card.collapsed .city-card-content {
-  padding-bottom: 0.8rem;
+  display: none;
 }
 
 .city-card.expanded .city-card-content {
@@ -116,7 +125,7 @@ button:disabled {
 .city-card-header {
   cursor: pointer;
   font-weight: 700;
-  font-size: 1.2rem;
+  font-size: 1.35rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -125,7 +134,7 @@ button:disabled {
 /* ARROW */
 .city-card-header::after {
   content: '▼';
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   transition: transform 0.3s ease;
 }
 
@@ -136,24 +145,25 @@ button:disabled {
 /* CARD TEXT */
 .city-card p small {
   color: #6b7280;
-  font-size: 0.9rem;
+  font-size: 1rem;
   display: block;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.8rem;
 }
 
 .city-card label {
   display: block;
-  margin: 0.9rem 0 0.4rem;
+  margin: 1rem 0 0.5rem;
   font-weight: 600;
   color: #374151;
+  font-size: 1.05rem;
 }
 
 .city-card input {
   width: 100%;
-  padding: 0.7rem;
+  padding: 0.9rem;
   border: 2px solid #e5e7eb;
-  border-radius: 10px;
-  font-size: 1rem;
+  border-radius: 12px;
+  font-size: 1.1rem;
   box-sizing: border-box;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -168,15 +178,16 @@ button:disabled {
 #currentDateWrapper {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   margin-left: 0.6rem;
+  font-size: 1.1rem;
 }
 
 /* TOOLTIP */
 .pt-info {
   position: relative;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 1rem;
   color: #6b7280;
 }
 
@@ -187,9 +198,9 @@ button:disabled {
   transform: translateX(-50%);
   background: #111827;
   color: white;
-  padding: 0.3rem 0.5rem;
-  border-radius: 6px;
-  font-size: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
