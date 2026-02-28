@@ -1,3 +1,10 @@
+// - Global day boundary and display use PST (Pacific Time)
+// - Auto-switch to "Tomorrow" occurs at PST noon (no auto-expand)
+// - Per-city cutoff still uses each city's local noon to disable inputs for "Today"
+// - Cards start collapsed. Clicking any card header expands all cards. They do not collapse on click
+// - All cards collapse only after a successful Save Forecast submission
+// - Adds a small expand/collapse animation and a "Dates shown in Pacific Time (PT)" info hint by currentDate
+
 const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
 
@@ -5,7 +12,35 @@ const { createClient } = supabase;
 const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let cities = [];
-let isExpandedAll = false; // track whether we should open all cards after EST rollover
+let allExpanded = false; // global expansion state — false = collapsed start
+
+/* ------------------------
+   Inject minimal styles for animation + info hint
+   ------------------------ */
+(function injectStyles() {
+  const css = `
+    /* City card basics (assumes .city-card exists in markup) */
+    .city-card { border: 1px solid #ddd; border-radius: 6px; margin: 8px 0; overflow: visible; background: #fff; }
+    .city-card-header { padding: 12px; cursor: pointer; font-weight: 600; user-select: none; }
+    .city-card-content { padding: 0 12px; max-height: 0; overflow: hidden; transition: max-height 260ms ease, padding 180ms ease; }
+    .city-card.expanded .city-card-content { padding: 12px; }
+    /* We'll animate max-height; to be safe choose a generous value */
+    .city-card.expanded .city-card-content { max-height: 380px; }
+    .city-card.collapsed .city-card-content { max-height: 0; padding-top: 0; padding-bottom: 0; }
+
+    /* small info-circle hint next to currentDate */
+    .pt-hint { display: inline-block; vertical-align: middle; margin-left: 8px; position: relative; width: 18px; height: 18px; border-radius: 50%; background: #2d8cf0; color: white; text-align: center; font-size: 12px; line-height: 18px; cursor: default; }
+    .pt-hint .pt-tooltip { display: none; position: absolute; left: 110%; top: 50%; transform: translateY(-50%); background: #222; color: #fff; padding: 6px 8px; border-radius: 4px; font-size: 12px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.15); z-index: 1000; }
+    .pt-hint:hover .pt-tooltip { display: block; }
+    @media (max-width: 520px) {
+      .pt-hint .pt-tooltip { left: 0; top: 110%; transform: translateY(0); }
+    }
+  `;
+  const s = document.createElement('style');
+  s.setAttribute('data-injected-by', 'script.js');
+  s.appendChild(document.createTextNode(css));
+  document.head.appendChild(s);
+})();
 
 /* ------------------------
    Utilities
@@ -68,38 +103,62 @@ async function loadCities() {
   }
 
   cities = data;
-  buildDailyGrid(); // first build
-  refreshCurrentDateDisplay(); // and update date label
+  insertPtHintIfMissing();
+  buildDailyGrid();
+  refreshCurrentDateDisplay();
 }
 
 /* ------------------------
-   Date / display management
+   Insert PT hint near #currentDate
    ------------------------ */
 
-// Returns a Date object representing "today" in America/New_York (wall-clock)
-function getEstTodayStart() {
-  const nowEST = nowInZone('America/New_York');
-  return new Date(nowEST.getFullYear(), nowEST.getMonth(), nowEST.getDate());
+function insertPtHintIfMissing() {
+  const dateDisplay = document.getElementById('currentDate');
+  if (!dateDisplay) return;
+
+  // If already added, skip
+  if (dateDisplay.dataset.ptHint === '1') return;
+
+  const span = document.createElement('span');
+  span.className = 'pt-hint';
+  span.setAttribute('aria-label', 'Dates shown in Pacific Time (PT)');
+  span.innerHTML = 'i';
+
+  const tooltip = document.createElement('span');
+  tooltip.className = 'pt-tooltip';
+  tooltip.textContent = 'Dates shown in Pacific Time (PT)';
+  span.appendChild(tooltip);
+
+  // place after the dateDisplay
+  dateDisplay.parentNode && dateDisplay.parentNode.insertBefore(span, dateDisplay.nextSibling);
+
+  dateDisplay.dataset.ptHint = '1';
 }
 
-// Returns 'YYYY-MM-DD' for EST-today or EST-tomorrow depending on forecastDay select
+/* ------------------------
+   PST day boundary & display management
+   ------------------------ */
+
+function getPstTodayStart() {
+  const nowPST = nowInZone('America/Los_Angeles');
+  return new Date(nowPST.getFullYear(), nowPST.getMonth(), nowPST.getDate());
+}
+
 function targetDateForForecastDay(forecastDay) {
-  const estToday = getEstTodayStart();
+  const pstToday = getPstTodayStart();
   if (forecastDay === 'today') {
-    return formatDateYMD(estToday);
+    return formatDateYMD(pstToday);
   } else {
-    const t = new Date(estToday);
+    const t = new Date(pstToday);
     t.setDate(t.getDate() + 1);
     return formatDateYMD(t);
   }
 }
 
-// Update the small #currentDate element (PST-style) and ensure options remain "Today"/"Tomorrow"
 function refreshCurrentDateDisplay() {
   const forecastDayEl = document.getElementById('forecastDay');
   const dateDisplay = document.getElementById('currentDate');
 
-  // Keep options text exactly "Today" and "Tomorrow" — DO NOT append dates
   if (forecastDayEl && forecastDayEl.tagName === 'SELECT') {
     const optToday = forecastDayEl.querySelector('option[value="today"]');
     const optTmr = forecastDayEl.querySelector('option[value="tomorrow"]');
@@ -107,19 +166,19 @@ function refreshCurrentDateDisplay() {
     if (optTmr) optTmr.textContent = 'Tomorrow';
   }
 
-  // For the visible date label, show month/day in PST like the original UI.
   if (dateDisplay) {
     const curVal = (forecastDayEl && forecastDayEl.value) || 'today';
-    // Determine the EST-based date for the selected value, but format it in PST month/day
-    const estToday = getEstTodayStart();
-    const displayDate = curVal === 'today' ? estToday : new Date(estToday.getFullYear(), estToday.getMonth(), estToday.getDate() + 1);
+    const pstToday = getPstTodayStart();
+    const displayDate = curVal === 'today' ? pstToday : new Date(pstToday.getFullYear(), pstToday.getMonth(), pstToday.getDate() + 1);
 
-    // Format using PST timezone so the UI keeps the old behavior
     dateDisplay.textContent = displayDate.toLocaleDateString("en-US", {
       timeZone: "America/Los_Angeles",
       month: "long",
       day: "numeric"
     });
+
+    // ensure the pt hint exists
+    insertPtHintIfMissing();
   }
 }
 
@@ -128,47 +187,43 @@ function refreshCurrentDateDisplay() {
    ------------------------ */
 
 async function loadDailyData() {
-  const todayEST = getEstTodayStart();
-  const todayISO = formatDateYMD(todayEST);
-  const tomorrow = new Date(todayEST);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowISO = formatDateYMD(tomorrow);
+  const pstToday = getPstTodayStart();
+  const pstTodayISO = formatDateYMD(pstToday);
+  const pstTomorrow = new Date(pstToday);
+  pstTomorrow.setDate(pstTomorrow.getDate() + 1);
+  const pstTomorrowISO = formatDateYMD(pstTomorrow);
 
-  const yesterday = new Date(todayEST);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayISO = formatDateYMD(yesterday);
+  const pstYesterday = new Date(pstToday);
+  pstYesterday.setDate(pstYesterday.getDate() - 1);
+  const pstYesterdayISO = formatDateYMD(pstYesterday);
 
   const { data: actuals } = await client
     .from('hourly_actuals')
     .select('city_id, temp')
-    .eq('date', yesterdayISO);
+    .eq('date', pstYesterdayISO);
 
   const { data: guesses } = await client
     .from('daily_forecasts')
     .select('city_id, high, low, date')
     .eq('user_id', 1)
-    .in('date', [todayISO, tomorrowISO]);
+    .in('date', [pstTodayISO, pstTomorrowISO]);
 
   return { actuals: actuals || [], guesses: guesses || [] };
 }
 
 /* ------------------------
-   Build grid
+   Build grid & per-city cutoff
    ------------------------ */
 
 function enableOrDisableInputsForCity(card, city, targetIsoDate, showYesterday) {
-  // Determine per-city whether inputs should be disabled based on local noon cutoff.
-  // If local time is past noon and the forecastDay is today (targetIsoDate === EST-today), disable inputs.
-  // If the targetIsoDate is EST-tomorrow, inputs should be enabled regardless of current local time (tomorrow's forecasts allowed until next day's cutoff).
   const inputs = card.querySelectorAll('input.daily-high, input.daily-low');
   if (!inputs) return;
 
-  // If target date equals EST today, we may disable if city local time is past noon.
-  const estTodayIso = formatDateYMD(getEstTodayStart());
-  const isTargetToday = targetIsoDate === estTodayIso;
+  const pstTodayIso = formatDateYMD(getPstTodayStart());
+  const isTargetToday = targetIsoDate === pstTodayIso;
 
   if (isTargetToday) {
-    // get city's local wall-clock time now
+    // Use city's local time to determine noon cutoff
     const localNow = nowInZone(city.timezone);
     const cutoff = new Date(localNow);
     cutoff.setHours(12, 0, 0, 0);
@@ -193,10 +248,20 @@ function enableOrDisableInputsForCity(card, city, targetIsoDate, showYesterday) 
       if (notice) notice.remove();
     }
   } else {
-    // target is tomorrow => inputs enabled (tomorrow's forecasts allowed)
+    // Target is tomorrow -> inputs enabled
     inputs.forEach(inp => inp.disabled = false);
     const notice = card.querySelector('.cutoff-note');
     if (notice) notice.remove();
+  }
+}
+
+function setCardExpandedState(card, expanded) {
+  if (expanded) {
+    card.classList.remove('collapsed');
+    card.classList.add('expanded');
+  } else {
+    card.classList.remove('expanded');
+    card.classList.add('collapsed');
   }
 }
 
@@ -214,7 +279,7 @@ async function buildDailyGrid() {
   const targetIsoDate = targetDateForForecastDay(forecastDay);
 
   const showYesterday = forecastDay === 'today';
-  const estTodayIso = formatDateYMD(getEstTodayStart());
+  const pstTodayIso = formatDateYMD(getPstTodayStart());
 
   cities.forEach(city => {
     const cityActuals = actuals.filter(a => a.city_id === city.id);
@@ -225,56 +290,58 @@ async function buildDailyGrid() {
     const hasPrevGuess = prevGuess.high !== undefined || prevGuess.low !== undefined;
 
     const card = document.createElement('div');
-    card.className = 'city-card' + (isExpandedAll ? ' expanded' : ' collapsed');
-    // preserve header + content structure you expect
+    // start collapsed by default
+    card.className = 'city-card collapsed';
+
     card.innerHTML = `
       <div class="city-card-header">${escapeHtml(city.name)}</div>
       <div class="city-card-content">
         ${showYesterday ? `<p><small>Yesterday: H ${yesterdayHigh}° / L ${yesterdayLow}°</small></p>` : ''}
         ${hasPrevGuess ? `<p><small>Your last guess: H ${prevGuess.high ?? '-'}° / L ${prevGuess.low ?? '-'}°</small></p>` : ''}
-        <label>High °F:
+        <label style="display:block;margin-top:8px;">High °F:
           <input type="number" class="daily-high" data-city-id="${city.id}" min="-25" max="125" step="1" placeholder="High">
         </label>
-        <label>Low °F:
+        <label style="display:block;margin-top:6px;">Low °F:
           <input type="number" class="daily-low" data-city-id="${city.id}" min="-50" max="100" step="1" placeholder="Low">
         </label>
       </div>
     `;
     grid.appendChild(card);
 
-    // Set enabled/disabled state according to per-city cutoff logic
+    // set inputs enabled/disabled according to cutoff logic
     enableOrDisableInputsForCity(card, city, targetIsoDate, showYesterday);
+
+    // apply global expansion state
+    setCardExpandedState(card, allExpanded);
   });
 
-  // After building the grid, reset isExpandedAll so future builds respect user toggles
-  if (isExpandedAll) {
-    // ensure cards are expanded; then clear the flag so we don't auto-expand again
-    document.querySelectorAll('#dailyGrid .city-card').forEach(c => c.classList.remove('collapsed'));
-    isExpandedAll = false;
+  // ensure collapsed start after build if needed
+  if (!allExpanded) {
+    document.querySelectorAll('#dailyGrid .city-card').forEach(c => setCardExpandedState(c, false));
   }
 }
 
 /* ------------------------
-   PST noon auto-switch
+   PST noon auto-switch (no auto-expand behavior now)
    ------------------------ */
 
-let pstCutoffLastTriggeredDate = null;
+let pstNoonTriggerKey = null;
 
-function pstCutoffCheck() {
+function pstNoonCheck() {
   const sel = document.getElementById('forecastDay');
   if (!sel) return;
 
   const nowPST = nowInZone('America/Los_Angeles');
   const secondsOfDay = nowPST.getHours() * 3600 + nowPST.getMinutes() * 60 + nowPST.getSeconds();
 
-  const windowStart = (11 * 3600) + (45 * 60); // 11:45:00
-  const windowEnd = 12 * 3600; // 12:00:00
+  const windowStart = (11 * 3600) + (45 * 60); // 11:45:00 PST
+  const windowEnd = 12 * 3600; // 12:00:00 PST
 
   const todayKey = formatDateYMD(nowPST);
 
   if (secondsOfDay >= windowStart && secondsOfDay < windowEnd) {
-    if (pstCutoffLastTriggeredDate !== todayKey) {
-      pstCutoffLastTriggeredDate = todayKey;
+    if (pstNoonTriggerKey !== todayKey) {
+      pstNoonTriggerKey = todayKey;
 
       const msToNoon = ((windowEnd) - secondsOfDay) * 1000 - nowPST.getMilliseconds();
 
@@ -291,52 +358,52 @@ function doPstNoonSwitch() {
   const sel = document.getElementById('forecastDay');
   if (!sel) return;
   try {
+    // No auto-expand on PST noon; simply switch the dropdown to tomorrow if currently today
     if (sel.value === 'today') {
       sel.value = 'tomorrow';
       sel.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+      // if already tomorrow, still rebuild to refresh cutoff notes
+      refreshCurrentDateDisplay();
+      buildDailyGrid();
     }
   } catch (err) {
     console.error('doPstNoonSwitch error', err);
   }
 }
 
-pstCutoffCheck();
-setInterval(pstCutoffCheck, 5 * 60 * 1000);
+// run initial check and poll every 2 minutes
+pstNoonCheck();
+setInterval(pstNoonCheck, 2 * 60 * 1000);
 
 /* ------------------------
-   EST midnight updater and auto-expand behavior
+   Day rollover scheduler (PST midnight) — ensures display refreshes at PST midnight
    ------------------------ */
 
-// Called at EST midnight (wall-clock) to advance the app's concept of "today"
-function handleEstMidnight() {
+function handlePstMidnight() {
   try {
-    // When day advances at EST midnight, make all city cards open for forecasts for that new day
-    isExpandedAll = true;
-
-    // Update display and rebuild grid so per-city cutoffs re-evaluate w/ new EST day
+    // Refresh display and rebuild grid so PST-day-based data reloads
     refreshCurrentDateDisplay();
     buildDailyGrid();
   } catch (e) {
-    console.error('handleEstMidnight error', e);
+    console.error('handlePstMidnight error', e);
   }
 }
 
-function scheduleNextEstMidnightUpdate() {
-  // Compute the next midnight in America/New_York (wall clock), convert to UTC epoch ms and schedule.
+function scheduleNextPstMidnightUpdate() {
   const now = new Date();
 
-  // Build the next midnight EST as wall-clock using Intl parts for tomorrow 00:00 America/New_York
-  const nowEST = nowInZone('America/New_York');
-  const todayEST = new Date(nowEST.getFullYear(), nowEST.getMonth(), nowEST.getDate());
-  const nextMidnightEST = new Date(todayEST);
-  nextMidnightEST.setDate(nextMidnightEST.getDate() + 1);
+  const nowPST = nowInZone('America/Los_Angeles');
+  const todayPST = new Date(nowPST.getFullYear(), nowPST.getMonth(), nowPST.getDate());
+  const nextMidnightPST = new Date(todayPST);
+  nextMidnightPST.setDate(nextMidnightPST.getDate() + 1);
 
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
+    timeZone: 'America/Los_Angeles',
     year: 'numeric', month: 'numeric', day: 'numeric',
     hour: 'numeric', minute: 'numeric', second: 'numeric',
     hour12: false
-  }).formatToParts(nextMidnightEST).reduce((acc, p) => {
+  }).formatToParts(nextMidnightPST).reduce((acc, p) => {
     if (p.type !== 'literal') acc[p.type] = p.value;
     return acc;
   }, {});
@@ -354,19 +421,17 @@ function scheduleNextEstMidnightUpdate() {
 
   setTimeout(() => {
     try {
-      handleEstMidnight();
+      handlePstMidnight();
     } catch (e) {
-      console.error('EST midnight handler failed', e);
+      console.error('PST midnight handler failed', e);
     } finally {
-      // schedule next midnight
-      scheduleNextEstMidnightUpdate();
+      scheduleNextPstMidnightUpdate();
     }
   }, msUntil + 100);
 }
 
-// Run once at load to ensure displays reflect current EST day
 refreshCurrentDateDisplay();
-scheduleNextEstMidnightUpdate();
+scheduleNextPstMidnightUpdate();
 
 /* ------------------------
    UI interactions
@@ -375,11 +440,17 @@ scheduleNextEstMidnightUpdate();
 document.addEventListener('click', (e) => {
   const hdr = e.target.closest && e.target.closest('.city-card-header');
   if (hdr) {
-    const card = hdr.closest('.city-card');
-    if (card) {
-      card.classList.toggle('collapsed');
-      return;
+    // Expand all cards (do not collapse on second click)
+    if (!allExpanded) {
+      allExpanded = true;
+      document.querySelectorAll('#dailyGrid .city-card').forEach(c => setCardExpandedState(c, true));
+      // Small focus behavior: move first input into view
+      const firstInput = document.querySelector('#dailyGrid .city-card.expanded input:not([disabled])');
+      if (firstInput) {
+        setTimeout(() => firstInput.focus(), 220);
+      }
     }
+    return;
   }
 });
 
@@ -418,28 +489,32 @@ if (tempsForm) {
       return;
     }
 
+    const st = document.getElementById('status');
+    if (st) st.innerHTML = '<span style="color:#444;">Saving…</span>';
+
     const { error } = await client
       .from('daily_forecasts')
       .upsert(payload, { onConflict: 'user_id,city_id,date' });
 
     if (error) {
-      const st = document.getElementById('status');
-      if (st) st.innerHTML = `<span style="color:red;">Save failed: ${error.message}</span>`;
+      if (st) st.innerHTML = `<span style="color:red;">Save failed: ${escapeHtml(error.message || 'unknown')}</span>`;
     } else {
-      const st = document.getElementById('status');
       if (st) st.innerHTML = `<span style="color:green;">Saved ${payload.length} city forecasts for ${forecastDay}! 🐰 Good luck!</span>`;
-      buildDailyGrid();
+      // After successful save, collapse all cards (with animation) and reset global state
+      allExpanded = false;
+      document.querySelectorAll('#dailyGrid .city-card').forEach(c => setCardExpandedState(c, false));
+      // rebuild grid after small delay so collapse animation completes for UX
+      setTimeout(buildDailyGrid, 320);
     }
   });
 }
 
 /* ------------------------
-   Hook dropdown change
+   Dropdown hook
    ------------------------ */
 const forecastDayEl = document.getElementById('forecastDay');
 if (forecastDayEl) {
   forecastDayEl.addEventListener('change', () => {
-    // When user manually changes the dropdown, refresh the date display and grid
     refreshCurrentDateDisplay();
     buildDailyGrid();
   });
