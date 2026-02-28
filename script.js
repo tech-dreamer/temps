@@ -5,6 +5,7 @@ const { createClient } = supabase;
 const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let cities = [];
+let hasSavedForecast = false;
 let isExpandedAll = false;  // start collapsed
 
 // Load cities from DB
@@ -119,7 +120,7 @@ async function buildDailyGrid() {
     const isPastCutoff = localNow > cutoff && forecastDay === 'today';
 
     const card = document.createElement('div');
-    card.className = 'city-card collapsed';  // force collapsed on creation
+    card.className = hasSavedForecast ? 'city-card expanded' : 'city-card collapsed';
     card.innerHTML = `
       <div class="city-card-header">${city.name}</div>
       <div class="city-card-content">
@@ -139,14 +140,14 @@ async function buildDailyGrid() {
   });
 }
 
-// Toggle expand/collapse ALL cards on ANY header click
 document.addEventListener('click', (e) => {
   if (e.target.classList.contains('city-card-header')) {
-    isExpandedAll = !isExpandedAll;
-    document.querySelectorAll('.city-card').forEach(card => {
-      card.classList.toggle('collapsed', !isExpandedAll);
-      card.classList.toggle('expanded', isExpandedAll);
-    });
+    if (!hasSavedForecast) {
+      document.querySelectorAll('.city-card').forEach(card => {
+        card.classList.remove('collapsed');
+        card.classList.add('expanded');
+      });
+    }
   }
 });
 
@@ -188,7 +189,9 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
   if (error) {
     document.getElementById('status').innerHTML = `<span style="color:red;">Save failed: ${error.message}</span>`;
   } else {
+    hasSavedForecast = true;
     document.getElementById('status').innerHTML = `<span style="color:green;">Saved ${payload.length} city forecasts for ${forecastDay}! 🐰 Good luck!</span>`;
+    buildDailyGrid(); // rebuild to keep expanded permanently
   }
 });
 
