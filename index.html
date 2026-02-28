@@ -30,7 +30,13 @@
           <option value="tomorrow">Tomorrow</option>
         </select>
       </label>
-      <span id="currentDate" style="font-size:1.1rem; color:#555; margin:0.5rem 0;"></span>
+      <div id="currentDateWrapper">
+        <span id="currentDate"></span>
+        <span class="pt-info">
+          ⓘ
+          <span class="pt-tooltip">Dates shown in Pacific Time (PT)</span>
+        </span>
+      </div>
     </div>
 
     <p style="text-align:center; margin:1rem 0;">Cutoff = noon local time | Yesterday's actuals shown for reference</p>
