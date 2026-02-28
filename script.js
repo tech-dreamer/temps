@@ -1,5 +1,7 @@
-// rollback/simple version (no max-height animation logic)
-// keep basic guards against duplicate initialization and idempotent expand/collapse
+// flicker fix (simple display, debounce, interaction lock)
+// debounce buildDailyGrid calls (200ms)
+// add a short interaction lock to avoid rebuilds racing with clicks
+// idempotent expand/collapse & keep duplicate-init guard
 
 const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
@@ -15,9 +17,19 @@ if (window.__TEMPS_SCRIPT_INITIALIZED__) {
   let cities = [];
   let allExpanded = false;
 
-  /* --- Minimal styles (no max-height transition) --- */
+  // Debounce / lock settings
+  const BUILD_DEBOUNCE_MS = 200;
+  const INTERACTION_LOCK_MS = 260; // short lock to avoid race
+  let lastBuildRequest = 0;
+  let buildTimer = null;
+  let interactionLockedUntil = 0;
+
+  const DEBUG = false;
+  function dbg(...a) { if (DEBUG) console.debug('[temps]', ...a); }
+
+  /* --- Minimal styles (no max-height animation) --- */
   (function injectStyles() {
-    if (document.querySelector('style[data-injected-by="script.simple"]')) return;
+    if (document.querySelector('style[data-injected-by="script.flickerFix"]')) return;
     const css = `
       .city-card { border: 1px solid #ddd; border-radius: 6px; margin: 8px 0; background: #fff; }
       .city-card-header { padding: 12px; cursor: pointer; font-weight: 600; user-select: none; }
@@ -31,7 +43,7 @@ if (window.__TEMPS_SCRIPT_INITIALIZED__) {
       }
     `;
     const s = document.createElement('style');
-    s.setAttribute('data-injected-by', 'script.simple');
+    s.setAttribute('data-injected-by', 'script.flickerFix');
     s.appendChild(document.createTextNode(css));
     document.head.appendChild(s);
   })();
@@ -131,6 +143,7 @@ if (window.__TEMPS_SCRIPT_INITIALIZED__) {
     }
   }
 
+  /* --- Data loading --- */
   async function loadCities() {
     const { data, error } = await client
       .from('cities')
@@ -151,7 +164,7 @@ if (window.__TEMPS_SCRIPT_INITIALIZED__) {
 
     cities = data;
     insertPtHintIfMissing();
-    buildDailyGrid();
+    requestBuildDailyGrid();
     refreshCurrentDateDisplay();
   }
 
@@ -223,7 +236,22 @@ if (window.__TEMPS_SCRIPT_INITIALIZED__) {
     }
   }
 
+  /* --- Build with debounce to avoid rapid repeated rebuilds --- */
+  function requestBuildDailyGrid() {
+    lastBuildRequest = Date.now();
+    dbg('requestBuildDailyGrid @', lastBuildRequest);
+    if (buildTimer) clearTimeout(buildTimer);
+    buildTimer = setTimeout(() => {
+      buildTimer = null;
+      buildDailyGrid();
+    }, BUILD_DEBOUNCE_MS);
+  }
+
   async function buildDailyGrid() {
+    // lock interactions briefly to prevent click toggles racing with DOM rebuild
+    interactionLockedUntil = Date.now() + INTERACTION_LOCK_MS;
+    dbg('buildDailyGrid start; interaction locked until', interactionLockedUntil);
+
     const grid = document.getElementById('dailyGrid');
     if (!grid) return;
     grid.innerHTML = '<p>Loading cities...</p>';
@@ -273,10 +301,16 @@ if (window.__TEMPS_SCRIPT_INITIALIZED__) {
     } catch (err) {
       console.error('buildDailyGrid error', err);
       grid.innerHTML = '<p style="color:red;">Failed to load grid</p>';
+    } finally {
+      // release interaction lock shortly after render (safety)
+      setTimeout(() => {
+        dbg('buildDailyGrid done; releasing interaction lock');
+        interactionLockedUntil = 0;
+      }, INTERACTION_LOCK_MS + 10);
     }
   }
 
-  /* --- PST noon handling --- */
+  /* --- PST noon/midnight handling (use requestBuildDailyGrid) --- */
   let pstNoonTriggerKey = null;
   function pstNoonCheck() {
     const sel = document.getElementById('forecastDay');
@@ -312,7 +346,7 @@ if (window.__TEMPS_SCRIPT_INITIALIZED__) {
         sel.dispatchEvent(new Event('change', { bubbles: true }));
       } else {
         refreshCurrentDateDisplay();
-        buildDailyGrid();
+        requestBuildDailyGrid();
       }
     } catch (err) {
       console.error('doPstNoonSwitch error', err);
@@ -327,7 +361,7 @@ if (window.__TEMPS_SCRIPT_INITIALIZED__) {
   function handlePstMidnight() {
     try {
       refreshCurrentDateDisplay();
-      buildDailyGrid();
+      requestBuildDailyGrid();
     } catch (e) {
       console.error('handlePstMidnight error', e);
     }
@@ -366,17 +400,22 @@ if (window.__TEMPS_SCRIPT_INITIALIZED__) {
   }
   scheduleNextPstMidnightUpdate();
 
-  /* --- Click handler: expand all --- */
+  /* --- Click handler: expand all but avoid racing with rebuilds --- */
   document.addEventListener('click', (e) => {
     const hdr = e.target.closest && e.target.closest('.city-card-header');
-    if (hdr) {
-      if (!allExpanded) {
-        allExpanded = true;
-        document.querySelectorAll('#dailyGrid .city-card').forEach(c => setCardExpandedState(c, true));
-        const firstInput = document.querySelector('#dailyGrid .city-card.expanded input:not([disabled])');
-        if (firstInput) firstInput.focus();
-      }
+    if (!hdr) return;
+
+    // if we are currently in interaction lock window, ignore click to avoid toggling during rebuild
+    if (Date.now() < interactionLockedUntil) {
+      dbg('click ignored due to interaction lock');
       return;
+    }
+
+    if (!allExpanded) {
+      allExpanded = true;
+      document.querySelectorAll('#dailyGrid .city-card').forEach(c => setCardExpandedState(c, true));
+      const firstInput = document.querySelector('#dailyGrid .city-card.expanded input:not([disabled])');
+      if (firstInput) firstInput.focus();
     }
   });
 
@@ -421,7 +460,7 @@ if (window.__TEMPS_SCRIPT_INITIALIZED__) {
         if (st) st.innerHTML = `<span style="color:green;">Saved ${payload.length} city forecasts for ${forecastDay}! 🐰 Good luck!</span>`;
         allExpanded = false;
         document.querySelectorAll('#dailyGrid .city-card').forEach(c => setCardExpandedState(c, false));
-        buildDailyGrid();
+        requestBuildDailyGrid();
       }
     });
   }
@@ -430,7 +469,7 @@ if (window.__TEMPS_SCRIPT_INITIALIZED__) {
   if (forecastDayEl) {
     forecastDayEl.addEventListener('change', () => {
       refreshCurrentDateDisplay();
-      buildDailyGrid();
+      requestBuildDailyGrid();
     });
   }
 
