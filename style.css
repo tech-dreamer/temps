@@ -39,7 +39,7 @@ input {
 /* PRIMARY BUTTONS */
 button {
   padding: 1rem 2.2rem;
-  background: #4f46e5;
+  background: #60a5fa;
   color: #fff;
   border: none;
   border-radius: 14px;
@@ -50,6 +50,7 @@ button {
 }
 
 button:hover {
+  background: #3b82f6; /* slightly deeper blue on hover */
   transform: translateY(-2px);
   box-shadow: 0 8px 18px rgba(79, 70, 229, 0.3);
 }
@@ -82,13 +83,8 @@ button:disabled {
 }
 
 #revealResults {
-  margin-top: 1.5rem;
-  padding: 1.5rem;
-  background: #ffffff;
-  border-radius: 18px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-  font-size: 1.1rem;
-  display: none; /* hide until reveal */
+  margin-top: 1rem;
+  margin-bottom: 0;
 }
 
 /* GRID */
@@ -96,7 +92,7 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1.8rem;
-  margin: 2.5rem 0;
+  margin: 2rem 0 1.5rem 0;
 }
 
 /* CARD */
