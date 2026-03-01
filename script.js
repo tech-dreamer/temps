@@ -476,10 +476,14 @@ if (hourlyForm) {
 
 // Change dropdown
 
-document.getElementById('forecastDay').addEventListener('change', () => {
-  updateCurrentDate();
-  buildDailyGrid();
-});
+const forecastDaySelect = document.getElementById('forecastDay');
+
+if (forecastDaySelect) {
+  forecastDaySelect.addEventListener('change', () => {
+    updateCurrentDate();
+    buildDailyGrid();
+  });
+}
 
 // Auto check PST UI refresh
 
