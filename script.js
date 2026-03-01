@@ -73,6 +73,11 @@ async function loadCities() {
 // Update PST label
 
 function updateCurrentDate() {
+  const dateDisplay = document.getElementById('currentDate');
+  const forecastDaySelect = document.getElementById('forecastDay');
+  
+  if (!dateDisplay || !forecastDaySelect) return; // guard clause
+  
   const now = new Date();
 
   const pstToday = now.toLocaleDateString("en-US", {
@@ -125,6 +130,9 @@ async function loadDailyData() {
 
 async function buildDailyGrid() {
   const grid = document.getElementById('dailyGrid');
+  const forecastDaySelect = document.getElementById('forecastDay');
+  if (!grid || !forecastDaySelect) return; // guard clause
+  
   grid.innerHTML = '<p>Loading cities...</p>';
 
   const { actuals, guesses } = await loadDailyData();
