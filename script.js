@@ -402,8 +402,8 @@ if (dailyForm) {
         `<span style="color:green;">Saved ${payload.length} forecasts! 🐰</span>`;
       buildDailyGrid();
     }
-  }
-});
+  });
+}
 
 const hourlyForm = document.getElementById('hourlyForm');
 
