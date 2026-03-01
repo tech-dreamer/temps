@@ -202,14 +202,17 @@ async function buildDailyGrid() {
   });
 }
 
+// Click handler
+
 document.addEventListener('click', (e) => {
-  if (e.target.classList.contains('city-card-header')) {
-    if (!hasSavedForecast) {
-      document.querySelectorAll('.city-card').forEach(card => {
-        card.classList.remove('collapsed');
-        card.classList.add('expanded');
-      });
-    }
+  const header = e.target.closest('.city-card-header');
+  if (!header) return;
+
+  if (!hasSavedForecast) {
+    document.querySelectorAll('.city-card').forEach(card => {
+      card.classList.remove('collapsed');
+      card.classList.add('expanded');
+    });
   }
 });
 
