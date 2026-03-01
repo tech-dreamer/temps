@@ -17,6 +17,9 @@ const HOURLY_LABELS = [
   "7PM"
 ];
 
+const isDailyPage = !!document.getElementById('tempsForm');
+const isHourlyPage = !!document.getElementById('hourlyForm');
+
 let selectedHour = null;
 
 // Time helpers
@@ -325,7 +328,9 @@ document.addEventListener('click', (e) => {
 
 // Save handler
 
-document.getElementById('tempsForm').addEventListener('submit', async e => {
+const dailyForm = document.getElementById('tempsForm');
+if (dailyForm) {
+  dailyForm.addEventListener('submit', async e => {
   e.preventDefault();
 
   const forecastDay = document.getElementById('forecastDay').value;
@@ -397,7 +402,77 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
       `<span style="color:green;">Saved ${payload.length} forecasts! 🐰</span>`;
     buildDailyGrid();
   }
+}
 });
+
+const hourlyForm = document.getElementById('hourlyForm');
+
+if (hourlyForm) {
+  hourlyForm.addEventListener('submit', async e => {
+    e.preventDefault();
+
+    if (!selectedHour) return;
+
+    const payload = [];
+    let blocked = false;
+
+    document.querySelectorAll('.hourly-input').forEach(input => {
+      const val = input.value.trim();
+      if (!val) return;
+
+      const cityId = Number(input.dataset.cityId);
+      const city = cities.find(c => c.id === cityId);
+
+      const localNow = new Date(
+        new Date().toLocaleString("en-US", { timeZone: city.timezone })
+      );
+
+      const hourNum = convertHourLabel(selectedHour);
+
+      // 30-min cutoff before hour
+      const cutoff = new Date(localNow);
+      cutoff.setHours(hourNum, 0, 0, 0);
+      cutoff.setMinutes(cutoff.getMinutes() - 30);
+
+      if (localNow >= cutoff) {
+        blocked = true;
+        return;
+      }
+
+      payload.push({
+        city_id: cityId,
+        date: getCityLocalDateISO(city.timezone, 0),
+        hour: hourNum,
+        temp: Number(val),
+        user_id: 1
+      });
+    });
+
+    if (blocked) {
+      document.getElementById('status').innerHTML =
+        '<span style="color:red;">Cutoff passed for one or more cities.</span>';
+      return;
+    }
+
+    if (!payload.length) {
+      document.getElementById('status').innerHTML =
+        '<span style="color:red;">Enter at least one forecast.</span>';
+      return;
+    }
+
+    const { error } = await client
+      .from('hourly_forecasts')   // <-- make sure this matches your table name
+      .upsert(payload, { onConflict: 'user_id,city_id,date,hour' });
+
+    if (error) {
+      document.getElementById('status').innerHTML =
+        `<span style="color:red;">Save failed: ${error.message}</span>`;
+    } else {
+      document.getElementById('status').innerHTML =
+        `<span style="color:green;">Saved ${selectedHour} forecasts! 🐰</span>`;
+    }
+  });
+}
 
 // Change dropdown
 
