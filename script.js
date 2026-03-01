@@ -331,78 +331,78 @@ document.addEventListener('click', (e) => {
 const dailyForm = document.getElementById('tempsForm');
 if (dailyForm) {
   dailyForm.addEventListener('submit', async e => {
-  e.preventDefault();
-
-  const forecastDay = document.getElementById('forecastDay').value;
-  const payload = [];
-  let blocked = false;
-
-  document.querySelectorAll('.daily-high, .daily-low').forEach(input => {
-    const val = input.value.trim();
-    if (!val) return;
-
-    const cityId = Number(input.dataset.cityId);
-    const city = cities.find(c => c.id === cityId);
-
-    const localNow = new Date(
-      new Date().toLocaleString("en-US", { timeZone: city.timezone })
-    );
-
-    const cutoff = new Date(localNow);
-    cutoff.setHours(12, 0, 0, 0);
-
-    if (forecastDay === 'today' && localNow >= cutoff) {
-      blocked = true;
+    e.preventDefault();
+  
+    const forecastDay = document.getElementById('forecastDay').value;
+    const payload = [];
+    let blocked = false;
+  
+    document.querySelectorAll('.daily-high, .daily-low').forEach(input => {
+      const val = input.value.trim();
+      if (!val) return;
+  
+      const cityId = Number(input.dataset.cityId);
+      const city = cities.find(c => c.id === cityId);
+  
+      const localNow = new Date(
+        new Date().toLocaleString("en-US", { timeZone: city.timezone })
+      );
+  
+      const cutoff = new Date(localNow);
+      cutoff.setHours(12, 0, 0, 0);
+  
+      if (forecastDay === 'today' && localNow >= cutoff) {
+        blocked = true;
+        return;
+      }
+  
+      const type = input.classList.contains('daily-high')
+        ? 'high'
+        : 'low';
+  
+      let entry = payload.find(p => p.city_id === cityId);
+  
+      if (!entry) {
+        entry = {
+          city_id: cityId,
+          date:
+            forecastDay === 'today'
+              ? getCityLocalDateISO(city.timezone, 0)
+              : getCityLocalDateISO(city.timezone, 1),
+          user_id: 1
+        };
+        payload.push(entry);
+      }
+  
+      entry[type] = Number(val);
+    });
+  
+    if (blocked) {
+      document.getElementById('status').innerHTML =
+        '<span style="color:red;">Cutoff passed for one or more cities.</span>';
       return;
     }
-
-    const type = input.classList.contains('daily-high')
-      ? 'high'
-      : 'low';
-
-    let entry = payload.find(p => p.city_id === cityId);
-
-    if (!entry) {
-      entry = {
-        city_id: cityId,
-        date:
-          forecastDay === 'today'
-            ? getCityLocalDateISO(city.timezone, 0)
-            : getCityLocalDateISO(city.timezone, 1),
-        user_id: 1
-      };
-      payload.push(entry);
+  
+    if (!payload.length) {
+      document.getElementById('status').innerHTML =
+        '<span style="color:red;">Enter at least one valid guess!</span>';
+      return;
     }
-
-    entry[type] = Number(val);
-  });
-
-  if (blocked) {
-    document.getElementById('status').innerHTML =
-      '<span style="color:red;">Cutoff passed for one or more cities.</span>';
-    return;
+  
+    const { error } = await client
+      .from('daily_forecasts')
+      .upsert(payload, { onConflict: 'user_id,city_id,date' });
+  
+    if (error) {
+      document.getElementById('status').innerHTML =
+        `<span style="color:red;">Save failed: ${error.message}</span>`;
+    } else {
+      hasSavedForecast = true;
+      document.getElementById('status').innerHTML =
+        `<span style="color:green;">Saved ${payload.length} forecasts! 🐰</span>`;
+      buildDailyGrid();
+    }
   }
-
-  if (!payload.length) {
-    document.getElementById('status').innerHTML =
-      '<span style="color:red;">Enter at least one valid guess!</span>';
-    return;
-  }
-
-  const { error } = await client
-    .from('daily_forecasts')
-    .upsert(payload, { onConflict: 'user_id,city_id,date' });
-
-  if (error) {
-    document.getElementById('status').innerHTML =
-      `<span style="color:red;">Save failed: ${error.message}</span>`;
-  } else {
-    hasSavedForecast = true;
-    document.getElementById('status').innerHTML =
-      `<span style="color:green;">Saved ${payload.length} forecasts! 🐰</span>`;
-    buildDailyGrid();
-  }
-}
 });
 
 const hourlyForm = document.getElementById('hourlyForm');
