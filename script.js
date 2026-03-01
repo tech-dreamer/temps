@@ -36,8 +36,8 @@ async function loadCities() {
   const { data, error } = await client
     .from('cities')
     .select('id, name, timezone_id, timezones(name)')
-    .order('name');
-
+    .order('timezone_id', { ascending: false });
+  
   if (error || !data) {
     document.getElementById('status').innerHTML =
       '<span style="color:red;">Failed to load cities.</span>';
@@ -86,13 +86,9 @@ function updateCurrentDate() {
 async function loadDailyData() {
   const now = new Date();
 
-  const minDate = new Date(now.getTime() - 2 * 86400000)
-    .toISOString()
-    .split('T')[0];
+  const minDate = new Date(now.getTime() - 86400000).toISOString().split('T')[0];
 
-  const maxDate = new Date(now.getTime() + 2 * 86400000)
-    .toISOString()
-    .split('T')[0];
+  const maxDate = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
 
   const { data: actuals } = await client
     .from('hourly_actuals')
