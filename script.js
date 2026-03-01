@@ -202,6 +202,17 @@ async function buildDailyGrid() {
   });
 }
 
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('city-card-header')) {
+    if (!hasSavedForecast) {
+      document.querySelectorAll('.city-card').forEach(card => {
+        card.classList.remove('collapsed');
+        card.classList.add('expanded');
+      });
+    }
+  }
+});
+
 // Save handler
 
 document.getElementById('tempsForm').addEventListener('submit', async e => {
