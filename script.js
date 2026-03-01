@@ -214,6 +214,101 @@ async function buildDailyGrid() {
   });
 }
 
+function buildHourSelector() {
+  const container = document.getElementById('hourSelector');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  HOURLY_LABELS.forEach(label => {
+    const box = document.createElement('div');
+    box.className = 'hour-box';
+    box.textContent = label;
+
+    box.addEventListener('click', () => {
+      document.querySelectorAll('.hour-box')
+        .forEach(b => b.classList.remove('active'));
+
+      box.classList.add('active');
+      selectedHour = label;
+
+      buildHourlyGrid();
+      updateHourlyButton();
+    });
+
+    container.appendChild(box);
+  });
+}
+
+function buildHourlyGrid() {
+  const grid = document.getElementById('hourlyGrid');
+  if (!grid) return;
+
+  grid.innerHTML = '';
+
+  if (!selectedHour) return;
+
+  cities.forEach(city => {
+
+    const now = new Date();
+    const localNow = new Date(
+      now.toLocaleString("en-US", { timeZone: city.timezone })
+    );
+
+    const hourNum = convertHourLabel(selectedHour);
+
+    const cutoff = new Date(localNow);
+    cutoff.setHours(hourNum, 0, 0, 0);
+    cutoff.setMinutes(cutoff.getMinutes() - 30);
+
+    const isPastCutoff = localNow >= cutoff;
+
+    const card = document.createElement('div');
+    card.className = 'city-card expanded';
+
+    card.innerHTML = `
+      <div class="city-card-header">${city.name}</div>
+      <div class="city-card-content">
+        <label>
+          ${selectedHour} (°F):
+          <input type="number"
+            class="hourly-input"
+            data-city-id="${city.id}"
+            min="-25" max="125"
+            ${isPastCutoff ? 'disabled' : ''}>
+        </label>
+        ${isPastCutoff
+          ? '<small style="color:#e74c3c;">Past cutoff</small>'
+          : ''}
+      </div>
+    `;
+
+    grid.appendChild(card);
+  });
+}
+
+function convertHourLabel(label) {
+  if (label === "Noon") return 12;
+
+  let num = parseInt(label);
+  if (label.includes("PM") && num !== 12) num += 12;
+
+  return num;
+}
+
+function updateHourlyButton() {
+  const btn = document.getElementById('hourlySaveBtn');
+  if (!btn) return;
+
+  if (!selectedHour) {
+    btn.disabled = true;
+    btn.textContent = "Select an Hour";
+  } else {
+    btn.disabled = false;
+    btn.textContent = `Save ${selectedHour} Forecasts`;
+  }
+}
+
 // Click handler
 
 document.addEventListener('click', (e) => {
@@ -336,3 +431,8 @@ setInterval(() => {
 // Start page
 
 loadCities();
+if (document.getElementById('hourSelector')) {
+  loadCities().then(() => {
+    buildHourSelector();
+  });
+}
