@@ -6,9 +6,32 @@ const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let cities = [];
 let hasSavedForecast = false;
-let isExpandedAll = false;  // start collapsed
 
-// Load cities from DB
+// Time helpers
+
+function getCityLocalDateISO(timezone, offset = 0) {
+  const now = new Date();
+  const local = new Date(
+    now.toLocaleString("en-US", { timeZone: timezone })
+  );
+
+  local.setDate(local.getDate() + offset);
+
+  const year = local.getFullYear();
+  const month = String(local.getMonth() + 1).padStart(2, '0');
+  const day = String(local.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+function getPSTNow() {
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+  );
+}
+
+// Load cities
+
 async function loadCities() {
   const { data, error } = await client
     .from('cities')
@@ -16,7 +39,8 @@ async function loadCities() {
     .order('name');
 
   if (error || !data) {
-    document.getElementById('status').innerHTML = '<span style="color:red;">Failed to load cities.</span>';
+    document.getElementById('status').innerHTML =
+      '<span style="color:red;">Failed to load cities.</span>';
     return;
   }
 
@@ -31,9 +55,11 @@ async function loadCities() {
   updateCurrentDate();
 }
 
-// Update date label next to dropdown (full month name, PST)
+// Update PST label
+
 function updateCurrentDate() {
   const now = new Date();
+
   const pstToday = now.toLocaleDateString("en-US", {
     timeZone: "America/Los_Angeles",
     month: "long",
@@ -41,98 +67,138 @@ function updateCurrentDate() {
   });
 
   const tomorrow = new Date(now.getTime() + 86400000);
+
   const pstTomorrow = tomorrow.toLocaleDateString("en-US", {
     timeZone: "America/Los_Angeles",
     month: "long",
     day: "numeric"
   });
 
+  const forecastDay = document.getElementById('forecastDay').value;
   const dateDisplay = document.getElementById('currentDate');
-  if (dateDisplay) {
-    const forecastDay = document.getElementById('forecastDay')?.value || 'today';
-    dateDisplay.textContent = forecastDay === 'today' ? pstToday : pstTomorrow;
-  }
 
-  // Auto-default to Tomorrow if past noon PST (but Today stays selectable)
-  const pstNow = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-  const cutoff = new Date(pstNow);
-  cutoff.setHours(12, 0, 0, 0);
-  if (pstNow > cutoff && document.getElementById('forecastDay').value === 'today') {
-    document.getElementById('forecastDay').value = 'tomorrow';
-    updateCurrentDate();  // refresh date display
-  }
-
-  // Re-build grid after possible switch
-  buildDailyGrid();
+  dateDisplay.textContent =
+    forecastDay === 'today' ? pstToday : pstTomorrow;
 }
 
-// Fetch yesterday's actuals + today's & tomorrow's previous guesses
+// Load data in safe window
+
 async function loadDailyData() {
-  const today = new Date().toISOString().split('T')[0];
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const now = new Date();
+
+  const minDate = new Date(now.getTime() - 2 * 86400000)
+    .toISOString()
+    .split('T')[0];
+
+  const maxDate = new Date(now.getTime() + 2 * 86400000)
+    .toISOString()
+    .split('T')[0];
 
   const { data: actuals } = await client
     .from('hourly_actuals')
-    .select('city_id, temp')
-    .eq('date', yesterday);
+    .select('city_id, temp, date')
+    .gte('date', minDate)
+    .lte('date', maxDate);
 
   const { data: guesses } = await client
     .from('daily_forecasts')
     .select('city_id, high, low, date')
-    .eq('user_id', 1) // TODO: replace with real user ID from auth
-    .in('date', [today, tomorrow]);
+    .eq('user_id', 1)
+    .gte('date', minDate)
+    .lte('date', maxDate);
 
   return { actuals: actuals || [], guesses: guesses || [] };
 }
 
-// Build collapsible city grid (all start collapsed)
+// Build grid
+
 async function buildDailyGrid() {
   const grid = document.getElementById('dailyGrid');
-  if (!grid) return;
-
   grid.innerHTML = '<p>Loading cities...</p>';
 
   const { actuals, guesses } = await loadDailyData();
-
   grid.innerHTML = '';
 
-  const forecastDay = document.getElementById('forecastDay').value || 'today';
-  const targetDate = forecastDay === 'today' 
-    ? new Date().toISOString().split('T')[0]
-    : new Date(Date.now() + 86400000).toISOString().split('T')[0];
-
-  const showYesterday = forecastDay === 'today';
+  const forecastDay = document.getElementById('forecastDay').value;
 
   cities.forEach(city => {
-    const cityActuals = actuals.filter(a => a.city_id === city.id);
-    const yesterdayHigh = showYesterday && cityActuals.length ? Math.max(...cityActuals.map(a => a.temp)) : '?';
-    const yesterdayLow = showYesterday && cityActuals.length ? Math.min(...cityActuals.map(a => a.temp)) : '?';
 
-    const prevGuess = guesses.find(g => g.city_id === city.id && g.date === targetDate) || {};
-    const hasPrevGuess = prevGuess.high !== undefined || prevGuess.low !== undefined;
+    const cityToday = getCityLocalDateISO(city.timezone, 0);
+    const cityTomorrow = getCityLocalDateISO(city.timezone, 1);
+    const cityYesterday = getCityLocalDateISO(city.timezone, -1);
 
-    // Check if today's forecast is past cutoff (noon local time)
+    const targetDate =
+      forecastDay === 'today' ? cityToday : cityTomorrow;
+
+    const showYesterday = forecastDay === 'today';
+
+    const cityActuals = actuals.filter(
+      a => a.city_id === city.id && a.date === cityYesterday
+    );
+
+    const yesterdayHigh =
+      showYesterday && cityActuals.length
+        ? Math.max(...cityActuals.map(a => a.temp))
+        : '?';
+
+    const yesterdayLow =
+      showYesterday && cityActuals.length
+        ? Math.min(...cityActuals.map(a => a.temp))
+        : '?';
+
+    const prevGuess = guesses.find(
+      g => g.city_id === city.id && g.date === targetDate
+    ) || {};
+
+    const hasPrevGuess =
+      prevGuess.high !== undefined || prevGuess.low !== undefined;
+
+    // Cutoff check
     const now = new Date();
-    const localNow = new Date(now.toLocaleString("en-US", { timeZone: city.timezone }));
+    const localNow = new Date(
+      now.toLocaleString("en-US", { timeZone: city.timezone })
+    );
+
     const cutoff = new Date(localNow);
     cutoff.setHours(12, 0, 0, 0);
-    const isPastCutoff = localNow > cutoff && forecastDay === 'today';
+
+    const isPastCutoff =
+      forecastDay === 'today' && localNow >= cutoff;
 
     const card = document.createElement('div');
-    card.className = hasSavedForecast ? 'city-card expanded' : 'city-card collapsed';
+    card.className =
+      hasSavedForecast ? 'city-card expanded' : 'city-card collapsed';
+
     card.innerHTML = `
       <div class="city-card-header">${city.name}</div>
       <div class="city-card-content">
-        ${showYesterday ? `<p><small>Yesterday: H ${yesterdayHigh}° / L ${yesterdayLow}°</small></p>` : ''}
-        ${hasPrevGuess ? `<p><small>Your last guess: H ${prevGuess.high ?? '-'}° / L ${prevGuess.low ?? '-'}°</small></p>` : ''}
+        ${showYesterday
+          ? `<p><small>Yesterday: H ${yesterdayHigh}° / L ${yesterdayLow}°</small></p>`
+          : ''}
+
+        ${hasPrevGuess
+          ? `<p><small>Your last guess: H ${prevGuess.high ?? '-'}° / L ${prevGuess.low ?? '-'}°</small></p>`
+          : ''}
+
         <label>High °F:
-          <input type="number" class="daily-high" data-city-id="${city.id}" min="-25" max="125" step="1" placeholder="High" ${isPastCutoff ? 'disabled' : ''}>
+          <input type="number"
+            class="daily-high"
+            data-city-id="${city.id}"
+            min="-25" max="125"
+            ${isPastCutoff ? 'disabled' : ''}>
         </label>
+
         <label>Low °F:
-          <input type="number" class="daily-low" data-city-id="${city.id}" min="-50" max="100" step="1" placeholder="Low" ${isPastCutoff ? 'disabled' : ''}>
+          <input type="number"
+            class="daily-low"
+            data-city-id="${city.id}"
+            min="-50" max="100"
+            ${isPastCutoff ? 'disabled' : ''}>
         </label>
-        ${isPastCutoff ? '<small style="color:#e74c3c; display:block; margin-top:0.5rem;">Past cutoff (noon local) — switch to Tomorrow</small>' : ''}
+
+        ${isPastCutoff
+          ? '<small style="color:#e74c3c; display:block; margin-top:0.5rem;">Past cutoff (noon local)</small>'
+          : ''}
       </div>
     `;
 
@@ -140,45 +206,64 @@ async function buildDailyGrid() {
   });
 }
 
-document.addEventListener('click', (e) => {
-  if (e.target.classList.contains('city-card-header')) {
-    if (!hasSavedForecast) {
-      document.querySelectorAll('.city-card').forEach(card => {
-        card.classList.remove('collapsed');
-        card.classList.add('expanded');
-      });
-    }
-  }
-});
+// Save handler
 
-// Batch save daily guesses
 document.getElementById('tempsForm').addEventListener('submit', async e => {
   e.preventDefault();
 
   const forecastDay = document.getElementById('forecastDay').value;
-  const targetDate = forecastDay === 'today' 
-    ? new Date().toISOString().split('T')[0]
-    : new Date(Date.now() + 86400000).toISOString().split('T')[0];
-
   const payload = [];
+  let blocked = false;
 
   document.querySelectorAll('.daily-high, .daily-low').forEach(input => {
     const val = input.value.trim();
-    if (!val || input.disabled) return;
+    if (!val) return;
 
     const cityId = Number(input.dataset.cityId);
-    const type = input.classList.contains('daily-high') ? 'high' : 'low';
+    const city = cities.find(c => c.id === cityId);
+
+    const localNow = new Date(
+      new Date().toLocaleString("en-US", { timeZone: city.timezone })
+    );
+
+    const cutoff = new Date(localNow);
+    cutoff.setHours(12, 0, 0, 0);
+
+    if (forecastDay === 'today' && localNow >= cutoff) {
+      blocked = true;
+      return;
+    }
+
+    const type = input.classList.contains('daily-high')
+      ? 'high'
+      : 'low';
 
     let entry = payload.find(p => p.city_id === cityId);
+
     if (!entry) {
-      entry = { city_id: cityId, date: targetDate, user_id: 1 }; // TODO: real user_id
+      entry = {
+        city_id: cityId,
+        date:
+          forecastDay === 'today'
+            ? getCityLocalDateISO(city.timezone, 0)
+            : getCityLocalDateISO(city.timezone, 1),
+        user_id: 1
+      };
       payload.push(entry);
     }
+
     entry[type] = Number(val);
   });
 
-  if (payload.length === 0) {
-    document.getElementById('status').innerHTML = '<span style="color:red;">Enter at least one valid guess!</span>';
+  if (blocked) {
+    document.getElementById('status').innerHTML =
+      '<span style="color:red;">Cutoff passed for one or more cities.</span>';
+    return;
+  }
+
+  if (!payload.length) {
+    document.getElementById('status').innerHTML =
+      '<span style="color:red;">Enter at least one valid guess!</span>';
     return;
   }
 
@@ -187,19 +272,45 @@ document.getElementById('tempsForm').addEventListener('submit', async e => {
     .upsert(payload, { onConflict: 'user_id,city_id,date' });
 
   if (error) {
-    document.getElementById('status').innerHTML = `<span style="color:red;">Save failed: ${error.message}</span>`;
+    document.getElementById('status').innerHTML =
+      `<span style="color:red;">Save failed: ${error.message}</span>`;
   } else {
     hasSavedForecast = true;
-    document.getElementById('status').innerHTML = `<span style="color:green;">Saved ${payload.length} city forecasts for ${forecastDay}! 🐰 Good luck!</span>`;
-    buildDailyGrid(); // rebuild to keep expanded permanently
+    document.getElementById('status').innerHTML =
+      `<span style="color:green;">Saved ${payload.length} forecasts! 🐰</span>`;
+    buildDailyGrid();
   }
 });
 
-// Update grid + date label when dropdown changes
+// Change dropdown
+
 document.getElementById('forecastDay').addEventListener('change', () => {
   updateCurrentDate();
   buildDailyGrid();
 });
 
-// Load on start
+// Auto check PST UI refresh
+
+function shouldCheckNow() {
+  const pstNow = getPSTNow();
+  const hours = pstNow.getHours();
+  const minutes = pstNow.getMinutes();
+
+  return (
+    (hours === 11 && minutes >= 55) ||
+    (hours === 12 && minutes === 0) ||
+    (hours === 23 && minutes >= 55) ||
+    (hours === 0 && minutes === 0)
+  );
+}
+
+setInterval(() => {
+  if (shouldCheckNow()) {
+    updateCurrentDate();
+    buildDailyGrid();
+  }
+}, 60000);
+
+// Start page
+
 loadCities();
