@@ -11,52 +11,27 @@
 
   <div style="text-align:center;margin:1rem 0;">
     <a href="index.html">
-      <button style="padding:0.8rem 1.4rem;background:#3498db;color:#fff;border:none;border-radius:8px;cursor:pointer;">
-        ← Back to Daily
-      </button>
+      <button>← Back to Daily</button>
     </a>
   </div>
-  
-  <input id="forecastType" type="hidden" value="hourly">
+
   <h1>Hourly Forecasts</h1>
-  <p style="text-align:center;">Cutoff = 30 mins before each hour local time</p>
+  <p style="text-align:center;">
+    Cutoff = 30 mins before each hour (local time)
+  </p>
 
-  <form id="tempsForm">
-    <div>
-      <label>
-        City:<br>
-        <select id="citySelect" required>
-          <option value="" disabled selected>Loading cities...</option>
-        </select>
-      </label>
+  <!-- Hour Selector Row -->
+  <div id="hourSelector" class="hour-selector"></div>
+
+  <form id="hourlyForm">
+    <div id="hourlyGrid" class="city-grid"></div>
+
+    <div style="text-align:center;margin:2rem 0;">
+      <button type="submit" id="hourlySaveBtn" disabled>
+        Select an Hour
+      </button>
     </div>
-
-  <template id="hourlyForecast">
-    <div style="margin-top:1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
-      <div>
-        <label>
-          <span></span> Hourly (°F):<br>
-          <input type="number" class="hourly-input" min="-25" max="125" step="1" placeholder="0">
-          </label>
-      </div>
-      <div class="sixhr-container" style="display:none;">
-        <label>
-          6-hr High (°F):<br>
-          <input type="number" class="sixhr-input" min="-25" max="125" step="1" placeholder="0">
-        </label>
-      </div>
-    </div>
-  </template>
-
-    <button type="submit" id="submitBtn"> Save </button>
   </form>
-
-  <!-- Reveal Button -->
-  <div style="text-align:center;">
-    <button id="revealBtn"> 🐰 Reveal Hourly Actuals 🐰 </button>
-  </div>
-
-  <div id="revealResults"></div>
 
   <div id="status"></div>
 
