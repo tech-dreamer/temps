@@ -95,7 +95,6 @@ function updateCurrentDate() {
   });
 
   const forecastDay = document.getElementById('forecastDay').value;
-  const dateDisplay = document.getElementById('currentDate');
 
   dateDisplay.textContent =
     forecastDay === 'today' ? pstToday : pstTomorrow;
