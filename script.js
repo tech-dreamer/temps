@@ -283,8 +283,6 @@ function buildHourlyGrid() {
     cutoff.setHours(hourNum, 0, 0, 0);
     cutoff.setMinutes(cutoff.getMinutes() - 30);
 
-    const isPastCutoff = !useTomorrow && localNow >= cutoff; // only enforce cutoff if forecasting today
-
     const card = document.createElement('div');
     card.className = 'city-card expanded';
     
@@ -298,8 +296,7 @@ function buildHourlyGrid() {
     lastCutoff.setHours(19, 0, 0, 0);
     lastCutoff.setMinutes(lastCutoff.getMinutes() - 30);
     
-    const useTomorrow = etNow >= lastCutoff;
-    
+    const useTomorrow = etNow >= lastCutoff;   
     const isPastCutoff = useTomorrow ? false : etNow >= etCutoff; // open all cities after today ET cutoff
 
     card.innerHTML = `
