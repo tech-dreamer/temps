@@ -177,16 +177,9 @@ async function buildDailyGrid() {
       now.toLocaleString("en-US", { timeZone: city.timezone })
     );
 
-    const baseDate = new Date(localNow);
-    if (useTomorrow) {
-      baseDate.setDate(baseDate.getDate() + 1);
-    }
-    
-    const cutoff = new Date(baseDate);
-    cutoff.setHours(hourNum, 0, 0, 0);
-    cutoff.setMinutes(cutoff.getMinutes() - 30);
+    const cutoff = new Date(localNow);
     cutoff.setHours(12, 0, 0, 0);
-
+    
     const isPastCutoff =
       forecastDay === 'today' && localNow >= cutoff;
 
@@ -258,11 +251,20 @@ function buildHourSelector() {
 }
 
 function buildHourlyGrid() {
-  const etNow = getETNow();
-  const lastCutoff = new Date(etNow);
-  lastCutoff.setHours(19, 0, 0, 0);
-  lastCutoff.setMinutes(lastCutoff.getMinutes() - 30);
-  const useTomorrow = etNow >= lastCutoff;
+  const hourNum = convertHourLabel(selectedHour);
+  const localLabel = convertETToCityHourLabel(hourNum, city.timezone);
+  
+  const baseDate = new Date(localNow);
+  
+  if (useTomorrow) {
+    baseDate.setDate(baseDate.getDate() + 1);
+  }
+  
+  const cutoff = new Date(baseDate);
+  cutoff.setHours(hourNum, 0, 0, 0);
+  cutoff.setMinutes(cutoff.getMinutes() - 30);
+  
+  const isPastCutoff = !useTomorrow && localNow >= cutoff;
   
   const grid = document.getElementById('hourlyGrid');
   if (!grid) return;
@@ -288,7 +290,9 @@ function buildHourlyGrid() {
 
     const card = document.createElement('div');
     card.className = 'city-card expanded';
-
+    const hourNum = convertHourLabel(selectedHour);
+    const localLabel = convertETToCityHourLabel(hourNum, city.timezone);
+    
     card.innerHTML = `
       <div class="city-card-header">${city.name}</div>
       <div class="city-card-content">
@@ -565,9 +569,8 @@ function getETNow() {
 
 // Start page
 
-loadCities();
-if (document.getElementById('hourSelector')) {
-  loadCities().then(() => {
+loadCities().then(() => {
+  if (document.getElementById('hourSelector')) {
     buildHourSelector();
-  });
-}
+  }
+});
