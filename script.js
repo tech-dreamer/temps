@@ -177,7 +177,14 @@ async function buildDailyGrid() {
       now.toLocaleString("en-US", { timeZone: city.timezone })
     );
 
-    const cutoff = new Date(localNow);
+    const baseDate = new Date(localNow);
+    if (useTomorrow) {
+      baseDate.setDate(baseDate.getDate() + 1);
+    }
+    
+    const cutoff = new Date(baseDate);
+    cutoff.setHours(hourNum, 0, 0, 0);
+    cutoff.setMinutes(cutoff.getMinutes() - 30);
     cutoff.setHours(12, 0, 0, 0);
 
     const isPastCutoff =
@@ -198,7 +205,7 @@ async function buildDailyGrid() {
           ? `<p><small>Your last guess: H ${prevGuess.high ?? '-'}° / L ${prevGuess.low ?? '-'}°</small></p>`
           : ''}
 
-        <label>High °F:
+        <label>High Temp °F:
           <input type="number"
             class="daily-high"
             data-city-id="${city.id}"
@@ -206,7 +213,7 @@ async function buildDailyGrid() {
             ${isPastCutoff ? 'disabled' : ''}>
         </label>
 
-        <label>Low °F:
+        <label>Low Temp °F:
           <input type="number"
             class="daily-low"
             data-city-id="${city.id}"
@@ -251,6 +258,12 @@ function buildHourSelector() {
 }
 
 function buildHourlyGrid() {
+  const etNow = getETNow();
+  const lastCutoff = new Date(etNow);
+  lastCutoff.setHours(19, 0, 0, 0);
+  lastCutoff.setMinutes(lastCutoff.getMinutes() - 30);
+  const useTomorrow = etNow >= lastCutoff;
+  
   const grid = document.getElementById('hourlyGrid');
   if (!grid) return;
 
@@ -280,7 +293,7 @@ function buildHourlyGrid() {
       <div class="city-card-header">${city.name}</div>
       <div class="city-card-content">
         <label>
-          ${selectedHour} (°F):
+          Temp °F at ${localLabel}:
           <input type="number"
             class="hourly-input"
             data-city-id="${city.id}"
@@ -304,6 +317,29 @@ function convertHourLabel(label) {
   if (label.includes("PM") && num !== 12) num += 12;
 
   return num;
+}
+
+function convertETToCityHourLabel(etHour, cityTimezone) {
+  const now = new Date();
+
+  const etDate = new Date( // create a date in ET at the selected hour
+    now.toLocaleString("en-US", { timeZone: "America/New_York" })
+  );
+
+  etDate.setHours(etHour, 0, 0, 0);
+
+  const cityTime = new Date(  // convert to city local time
+    etDate.toLocaleString("en-US", { timeZone: cityTimezone })
+  );
+
+  let hours = cityTime.getHours();
+  const minutes = cityTime.getMinutes();
+
+  const period = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+
+  return `${hours}${minutes === 0 ? "" : ":" + minutes} ${period}`;
 }
 
 function updateHourlyButton() {
@@ -392,7 +428,7 @@ if (dailyForm) {
   
     if (!payload.length) {
       document.getElementById('status').innerHTML =
-        '<span style="color:red;">Enter at least one valid guess!</span>';
+        '<span style="color:red;">Enter at least one valid forecast!</span>';
       return;
     }
   
@@ -419,9 +455,15 @@ if (hourlyForm) {
     e.preventDefault();
 
     if (!selectedHour) return;
-
+    
     const payload = [];
     let blocked = false;
+
+    const etNow = getETNow();
+    const lastCutoff = new Date(etNow);
+    lastCutoff.setHours(19, 0, 0, 0);
+    lastCutoff.setMinutes(lastCutoff.getMinutes() - 30);
+    const useTomorrow = etNow >= lastCutoff;
 
     document.querySelectorAll('.hourly-input').forEach(input => {
       const val = input.value.trim();
@@ -435,6 +477,7 @@ if (hourlyForm) {
       );
 
       const hourNum = convertHourLabel(selectedHour);
+      const localLabel = convertETToCityHourLabel(hourNum, city.timezone);
 
       // 30-min cutoff before hour
       const cutoff = new Date(localNow);
@@ -448,7 +491,7 @@ if (hourlyForm) {
 
       payload.push({
         city_id: cityId,
-        date: getCityLocalDateISO(city.timezone, 0),
+        date: getCityLocalDateISO(city.timezone, useTomorrow ? 1 : 0),
         hour: hourNum,
         temp: Number(val),
         user_id: 1
@@ -513,6 +556,12 @@ setInterval(() => {
     buildDailyGrid();
   }
 }, 60000);
+
+function getETNow() {
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "America/New_York" })
+  );
+}
 
 // Start page
 
