@@ -303,7 +303,7 @@ function buildHourlyGrid() {
     
     const useTomorrow = etNow >= lastCutoff;
     
-    const isPastCutoff = !useTomorrow && etNow >= etCutoff; // only disable if forecasting today and past ET cutoff
+    const isPastCutoff = useTomorrow ? false : etNow >= etCutoff; // open all cities after today ET cutoff
 
     card.innerHTML = `
       <div class="city-card-header">${city.name}</div>
