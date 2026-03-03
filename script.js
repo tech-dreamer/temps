@@ -177,8 +177,21 @@ async function buildDailyGrid() {
       now.toLocaleString("en-US", { timeZone: city.timezone })
     );
 
-    const cutoff = new Date(localNow);
+    const pstNow = getPSTNow(); // get PT game date
+    const pstGameDate = new Date(pstNow);
+    pstGameDate.setHours(0, 0, 0, 0);
+    
+    const cityGameDate = new Date( // convert game date to city local time
+      pstGameDate.toLocaleString("en-US", { timeZone: city.timezone })
+    );
+    
+    const cutoff = new Date(cityGameDate); // noon cutoff for that game date
     cutoff.setHours(12, 0, 0, 0);
+    
+    const now = new Date(); // current city time
+    const localNow = new Date(
+      now.toLocaleString("en-US", { timeZone: city.timezone })
+    );
     
     const isPastCutoff =
       forecastDay === 'today' && localNow >= cutoff;
