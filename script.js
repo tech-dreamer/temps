@@ -288,6 +288,23 @@ function buildHourlyGrid() {
     const card = document.createElement('div');
     card.className = 'city-card expanded';
 
+    const hourNum = convertHourLabel(selectedHour);
+    const localLabel = convertETToCityHourLabel(hourNum, city.timezone);
+    
+    const etNow = getETNow();
+    
+    const etCutoff = new Date(etNow); // build ET cutoff
+    etCutoff.setHours(hourNum, 0, 0, 0);
+    etCutoff.setMinutes(etCutoff.getMinutes() - 30);
+    
+    const lastCutoff = new Date(etNow); // tomorrow mode after cutoff time
+    lastCutoff.setHours(19, 0, 0, 0);
+    lastCutoff.setMinutes(lastCutoff.getMinutes() - 30);
+    
+    const useTomorrow = etNow >= lastCutoff;
+    
+    const isPastCutoff = !useTomorrow && etNow >= etCutoff; // only disable if forecasting today and past ET cutoff
+
     card.innerHTML = `
       <div class="city-card-header">${city.name}</div>
       <div class="city-card-content">
@@ -454,39 +471,35 @@ if (hourlyForm) {
     e.preventDefault();
 
     if (!selectedHour) return;
-    
+
     const payload = [];
     let blocked = false;
 
     const etNow = getETNow();
-    const lastCutoff = new Date(etNow);
+    const lastCutoff = new Date(etNow); // last cutoff of the day
     lastCutoff.setHours(19, 0, 0, 0);
     lastCutoff.setMinutes(lastCutoff.getMinutes() - 30);
+
     const useTomorrow = etNow >= lastCutoff;
+
+    const hourNum = convertHourLabel(selectedHour);
+
+    const etCutoff = new Date(etNow); // ET-based cutoff for selected hour
+    etCutoff.setHours(hourNum, 0, 0, 0);
+    etCutoff.setMinutes(etCutoff.getMinutes() - 30);
 
     document.querySelectorAll('.hourly-input').forEach(input => {
       const val = input.value.trim();
       if (!val) return;
 
-      const cityId = Number(input.dataset.cityId);
-      const city = cities.find(c => c.id === cityId);
-
-      const localNow = new Date(
-        new Date().toLocaleString("en-US", { timeZone: city.timezone })
-      );
-
-      const hourNum = convertHourLabel(selectedHour);
-      const localLabel = convertETToCityHourLabel(hourNum, city.timezone);
-
-      // 30-min cutoff before hour
-      const cutoff = new Date(localNow);
-      cutoff.setHours(hourNum, 0, 0, 0);
-      cutoff.setMinutes(cutoff.getMinutes() - 30);
-
-      if (localNow >= cutoff) {
+      // If forecasting today AND past ET cutoff → block
+      if (!useTomorrow && etNow >= etCutoff) {
         blocked = true;
         return;
       }
+
+      const cityId = Number(input.dataset.cityId);
+      const city = cities.find(c => c.id === cityId);
 
       payload.push({
         city_id: cityId,
@@ -499,7 +512,7 @@ if (hourlyForm) {
 
     if (blocked) {
       document.getElementById('status').innerHTML =
-        '<span style="color:red;">Cutoff passed for one or more cities.</span>';
+        '<span style="color:red;">Cutoff passed for this hour.</span>';
       return;
     }
 
@@ -510,7 +523,7 @@ if (hourlyForm) {
     }
 
     const { error } = await client
-      .from('hourly_forecasts')   // <-- make sure this matches your table name
+      .from('hourly_forecasts')
       .upsert(payload, { onConflict: 'user_id,city_id,date,hour' });
 
     if (error) {
