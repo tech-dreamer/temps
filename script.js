@@ -21,6 +21,32 @@ const isDailyPage = !!document.getElementById('tempsForm');
 const isHourlyPage = !!document.getElementById('hourlyForm');
 
 let selectedHour = null;
+let userId;
+
+// helper to get existing user or create new
+async function getOrCreateUser() {
+
+  let userId = localStorage.getItem("temps_user_id");
+
+  if (!userId) {
+    userId = crypto.randomUUID();
+    localStorage.setItem("temps_user_id", userId);
+  }
+
+  const { data } = await client
+    .from('users')
+    .select('id')
+    .eq('id', userId)
+    .single();
+
+  if (!data) {
+    await client
+      .from('users')
+      .insert({ id: userId });
+  }
+
+  return userId;
+}
 
 // Time helpers
 
@@ -560,8 +586,14 @@ function getETNow() {
 
 // Start page
 
-loadCities().then(() => {
+(async () => {
+
+  userId = await getOrCreateUser();
+
+  await loadCities();
+
   if (document.getElementById('hourSelector')) {
     buildHourSelector();
   }
-});
+
+})();
