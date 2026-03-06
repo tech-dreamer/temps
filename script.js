@@ -118,7 +118,7 @@ async function loadDailyData() {
   const { data: guesses } = await client
     .from('daily_forecasts')
     .select('city_id, high, low, date')
-    .eq('user_id', 1)
+    .eq('user_id', "11111111-1111-1111-1111-111111111111")
     .gte('date', minDate)
     .lte('date', maxDate);
 
@@ -410,7 +410,7 @@ if (dailyForm) {
             forecastDay === 'today'
               ? getCityLocalDateISO(city.timezone, 0)
               : getCityLocalDateISO(city.timezone, 1),
-          user_id: 1
+          user_id: "11111111-1111-1111-1111-111111111111"
         };
         payload.push(entry);
       }
