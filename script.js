@@ -111,9 +111,7 @@ function updateCurrentDate() {
 
   const advanceCutoff = new Date(pstNow);
   cutoff.setHours(12, 0, 0, 0);
-
-  const forecastDaySelect = document.getElementById('forecastDay');
-
+  
   if (pstNow >= advanceCutoff && forecastDaySelect.value === "today") {
     forecastDaySelect.value = "tomorrow";
   }
