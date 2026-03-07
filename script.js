@@ -242,6 +242,7 @@ async function buildDailyGrid() {
           <input type="number"
             class="daily-high"
             data-city-id="${city.id}"
+            value="${prevGuess.high ?? ''}"
             min="-25" max="125"
             ${isPastCutoff ? 'disabled' : ''}>
         </label>
@@ -250,6 +251,7 @@ async function buildDailyGrid() {
           <input type="number"
             class="daily-low"
             data-city-id="${city.id}"
+            value="${prevGuess.low ?? ''}"
             min="-50" max="100"
             ${isPastCutoff ? 'disabled' : ''}>
         </label>
