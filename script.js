@@ -114,9 +114,11 @@ function updateCurrentDate() {
   const pstCutoff = new Date(pstNow); // noon PT cutoff
   pstCutoff.setHours(12, 0, 0, 0);
 
-  if (pstNow >= pstCutoff && forecastDaySelect.value === "today") {
+  const hasAutoSwitched = sessionStorage.getItem("temps_auto_switched");
+  if (pstNow >= pstCutoff && !hasAutoSwitched) {
     forecastDaySelect.value = "tomorrow";
-  } // auto-switch dropdown after noon PT
+    sessionStorage.setItem("temps_auto_switched", "true");
+  } // auto-switch dropdown once after noon PT
 
   const pstToday = pstNow.toLocaleDateString("en-US", {
     month: "long",
@@ -233,7 +235,7 @@ async function buildDailyGrid() {
           : ''}
 
         ${hasPrevGuess
-          ? `<p><small>Your last guess: H ${prevGuess.high ?? '-'}° / L ${prevGuess.low ?? '-'}°</small></p>`
+          ? `<p><small>Your last forecast: H ${prevGuess.high ?? '-'}° / L ${prevGuess.low ?? '-'}°</small></p>`
           : ''}
 
         <label>High Temp °F:
