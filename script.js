@@ -208,22 +208,15 @@ async function buildDailyGrid() {
     const hasPrevGuess =
       prevGuess.high !== undefined || prevGuess.low !== undefined;
 
-    // Cutoff check
-    const pstNow = getPSTNow(); // get PT game date
-    const pstGameDate = new Date(pstNow);
-    pstGameDate.setHours(0, 0, 0, 0);
+    // Cutoff check (noon local time)
+    const now = new Date();
     
-    const cityGameDate = new Date( // convert game date to city local time
-      pstGameDate.toLocaleString("en-US", { timeZone: city.timezone })
-    );
-    
-    const cutoff = new Date(cityGameDate); // noon cutoff for that game date
-    cutoff.setHours(12, 0, 0, 0);
-    
-    const now = new Date(); // current city time
     const localNow = new Date(
       now.toLocaleString("en-US", { timeZone: city.timezone })
     );
+    
+    const cutoff = new Date(localNow);
+    cutoff.setHours(12, 0, 0, 0);
     
     const isPastCutoff =
       forecastDay === 'today' && localNow >= cutoff;
