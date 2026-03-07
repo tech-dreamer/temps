@@ -155,7 +155,7 @@ async function loadDailyData() {
   
   const { data: actuals } = await client
     .from('daily_actuals')
-    .select('city_id, temp, date')
+    .select('city_id, high, low, date')
     .gte('date', minDate)
     .lte('date', maxDate);
 
@@ -305,7 +305,7 @@ function buildHourSelector() {
   });
 }
 
-function buildHourlyGrid() {
+async function buildHourlyGrid() {
   const { hourlyGuesses } = await loadDailyData();
   const grid = document.getElementById('hourlyGrid');
   if (!grid) return;
