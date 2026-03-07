@@ -212,6 +212,7 @@ async function buildDailyGrid() {
 
     // Cutoff check (noon local time)
     const now = new Date();
+    const pstNow = getPSTNow();
     
     const localNow = new Date(
       now.toLocaleString("en-US", { timeZone: city.timezone })
@@ -221,12 +222,10 @@ async function buildDailyGrid() {
     cutoff.setHours(12, 0, 0, 0);
 
     const pstCutoff = new Date(pstNow);
-    pstCutoff.setHours(12,0,0,0); // noon PT last city cutoff
+    pstCutoff.setHours(12, 0, 0, 0); // noon PT last city cutoff
     
-    const pstNow = getPSTNow();
-
     const pstMidnight = new Date(pstNow);
-    pstMidnight.setHours(0,0,0,0);
+    pstMidnight.setHours(0, 0, 0, 0);
     
     const isPastCutoff =
       forecastDay === 'today' &&
