@@ -148,6 +148,11 @@ async function loadDailyData() {
 
   const maxDate = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
 
+  const { data: hourlyGuesses } = await client
+    .from('hourly_forecasts')
+    .select('city_id, hour, temp, date')
+    .eq('user_id', userId);
+  
   const { data: actuals } = await client
     .from('hourly_actuals')
     .select('city_id, temp, date')
@@ -336,6 +341,7 @@ function buildHourlyGrid() {
           <input type="number"
             class="hourly-input"
             data-city-id="${city.id}"
+            value="${prevGuess?.temp ?? ''}"
             min="-25" max="125"
             ${isPastCutoff ? 'disabled' : ''}>
         </label>
