@@ -36,6 +36,10 @@ input {
   text-align: center;
 }
 
+input:disabled {
+  background: #f2f2f2;
+}
+
 /* PRIMARY BUTTONS */
 button {
   padding: 1rem 2.2rem;
