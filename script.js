@@ -219,9 +219,18 @@ async function buildDailyGrid() {
     
     const cutoff = new Date(localNow);
     cutoff.setHours(12, 0, 0, 0);
+
+    const pstCutoff = new Date(pstNow);
+    pstCutoff.setHours(12,0,0,0); // noon PT last city cutoff
+    
+    const pstNow = getPSTNow();
+
+    const pstMidnight = new Date(pstNow);
+    pstMidnight.setHours(0,0,0,0);
     
     const isPastCutoff =
-      forecastDay === 'today' && localNow >= cutoff;
+      forecastDay === 'today' &&
+      (pstNow >= pstCutoff || localNow >= cutoff); // all cities stay closed from PT noon to midnight
 
     const card = document.createElement('div');
     card.className =
