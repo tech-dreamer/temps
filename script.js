@@ -210,19 +210,23 @@ async function buildDailyGrid() {
 
     const showYesterday = forecastDay === 'today';
 
-    const cityActuals = actuals.filter(
-      a => a.city_id === city.id && a.date === cityYesterday
-    );
+    const cityActuals = actuals
+      .filter(a => a.city_id === city.id)
+      .sort((a,b) => new Date(b.date) - new Date(a.date));
+
+    const cityActuals = actuals
+      .filter(a => a.city_id === city.id && new Date(a.date) <= new Date(cityYesterday))
+      .sort((a,b) => new Date(b.date) - new Date(a.date));
 
     const yesterdayHigh =
       showYesterday && cityActuals.length
-        ? Math.max(...cityActuals.map(a => a.temp))
-        : '?';
+        ? cityActuals[0].high
+        : ' ';
 
     const yesterdayLow =
       showYesterday && cityActuals.length
-        ? Math.min(...cityActuals.map(a => a.temp))
-        : '?';
+        ? cityActuals[0].low
+        : ' ';
 
     const prevGuess = guesses.find(
       g => g.city_id === city.id && g.date === targetDate
