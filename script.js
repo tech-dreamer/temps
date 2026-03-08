@@ -564,7 +564,7 @@ if (hourlyForm) {
       payload.push({
         city_id: cityId,
         city: city.name,
-        date: getCityLocalDateISO,
+        date: getETGameDateISO(useTomorrow),
         hour: hourNum,
         temp: Number(val),
         user_id: userId
