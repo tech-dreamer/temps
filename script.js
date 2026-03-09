@@ -172,8 +172,6 @@ async function loadDailyData() {
   const { data: actuals } = await client
     .from('daily_actuals')
     .select('city_id, high, low, date')
-    .gte('date', minDate)
-    .lte('date', maxDate);
 
   const { data: guesses } = await client
     .from('daily_forecasts')
