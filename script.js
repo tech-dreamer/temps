@@ -7,14 +7,15 @@ const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let cities = [];
 let hasSavedForecast = false;
 const HOURLY_LABELS = [
-  "Noon",
+  // "Noon",
   "1PM",
   "2PM",
   "3PM",
   "4PM",
   "5PM",
   "6PM",
-  "7PM"
+  "7PM",
+  "8PM"
 ];
 
 const isDailyPage = !!document.getElementById('tempsForm');
