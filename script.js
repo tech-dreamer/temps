@@ -382,7 +382,7 @@ async function buildHourlyGrid() {
 }
 
 function convertHourLabel(label) {
-  if (label === "Noon") return 12;
+  // if (label === "Noon") return 12;
 
   let num = parseInt(label);
   if (label.includes("PM") && num !== 12) num += 12;
