@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Your Score</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+
+body{
+  font-family:system-ui;
+  max-width:500px;
+  margin:auto;
+  padding:20px;
+  text-align:center;
+}
+
+h1{
+  margin-bottom:10px;
+}
+
+.score-row{
+  opacity:0;
+  transform:scale(0.9) translateY(8px);
+  transition:0.45s ease;
+  margin:16px 0;
+  border-bottom:1px solid #eee;
+  padding-bottom:12px;
+}
+
+.score-row.visible{
+  opacity:1;
+  transform:scale(1) translateY(0);
+}
+
+.city{
+  font-size:20px;
+  font-weight:600;
+}
+
+.msg{
+  font-size:14px;
+  margin-top:4px;
+}
+
+.detail{
+  font-size:13px;
+  margin-top:4px;
+}
+
+.coin{
+  margin-top:6px;
+  font-weight:600;
+}
+
+#total{
+  margin-top:18px;
+  font-size:20px;
+  font-weight:bold;
+}
+
+button{
+  padding:10px 16px;
+  margin-top:14px;
+  font-size:14px;
+  cursor:pointer;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<a href="index.html">
+<button>← Back</button>
+</a>
+
+<h1>🐰 Your Score</h1>
+
+<div id="scoreList"></div>
+
+<div id="total"></div>
+
+<div id="extras"></div>
+
+<button id="shareBtn">Share Score</button>
+
+<script>
+
+const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
+
+const { createClient } = supabase;
+const client = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* user id */
+
+const userId = localStorage.getItem("tempsUserId");
+
+/* yesterday game date */
+
+const gameDate = new Date(Date.now()-86400000)
+.toISOString()
+.split("T")[0];
+
+/* load score */
+
+async function loadScore(){
+
+const { data:scores } = await client
+.from("daily_scores")
+.select("*")
+.eq("user_id",userId)
+.eq("date",gameDate)
+.order("city_id");
+
+if(!scores || scores.length===0){
+
+document.body.innerHTML += "<p>No score yet.</p>";
+return;
+
+}
+
+let totalCoins=0;
+
+const list=document.getElementById("scoreList");
+
+scores.forEach(s=>{
+
+totalCoins+=s.coins;
+
+const err=Math.max(s.error_high,s.error_low);
+
+let color="🔴";
+
+if(err<=1) color="🟢";
+else if(err<=3) color="🟡";
+
+const row=document.createElement("div");
+row.className="score-row";
+
+row.innerHTML=`
+<div class="city">${color} ${s.city}</div>
+
+<div class="msg">${s.message}</div>
+
+<div class="detail">
+H ${s.forecast_high} / L ${s.forecast_low}
+<br>
+Actual: H ${s.actual_high} / L ${s.actual_low}
+</div>
+
+<div class="coin">🪙 +${s.coins}</div>
+`;
+
+list.appendChild(row);
+
+});
+
+/* total */
+
+document.getElementById("total").innerHTML=
+`🪙 ${totalCoins}`;
+
+/* reveal animation */
+
+revealRows();
+
+/* build share */
+
+buildShare(scores,totalCoins);
+
+}
+
+/* reveal rows */
+
+function revealRows(){
+
+const rows=document.querySelectorAll(".score-row");
+
+rows.forEach((row,i)=>{
+
+setTimeout(()=>{
+row.classList.add("visible");
+},i*300);
+
+});
+
+/* reveal total after cities */
+
+setTimeout(()=>{
+document.getElementById("total").style.opacity=1;
+},rows.length*600);
+
+}
+
+/* share graphic */
+
+function buildShare(scores,coins){
+
+  const btn=document.getElementById("shareBtn");
+  
+  btn.onclick=async()=>{
+  
+  const circles=scores.map(s=>{
+  
+  if (s.forecast_high == null) {
+    return "⚪";
+  } // skipped forecast
+  const err=Math.max(s.error_high,s.error_low);
+  
+  if(err<=1) return "🟢";
+  if(err<=3) return "🟡";
+  return "🔴";
+  
+  }).join(" ");
+  
+  const text=
+  `🐰 Temps With Friends
+  
+  ${circles}
+  
+  🪙 ${coins}
+    
+  await navigator.clipboard.writeText(text);
+  
+  alert("Score copied! Share it 🐰");
+  
+  };
+  
+  }
+
+/* run */
+
+loadScore();
+
+</script>
+
+</body>
+</html>
