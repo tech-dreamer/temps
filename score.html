@@ -82,7 +82,7 @@ button{
 <button>← Back</button>
 </a>
 
-<h1>🐰 Your Score</h1>
+<h1>Your Score</h1>
 
 <div id="scoreList"></div>
 
@@ -112,7 +112,7 @@ const CITY_ORDER = [
 
 /* yesterday game date */
 
-const gameDate = new Date(Date.now()-86400000)
+const ydayDate = new Date(Date.now()-86400000)
 .toISOString()
 .split("T")[0];
 
@@ -124,7 +124,7 @@ const { data:scores } = await client
 .from("daily_scores")
 .select("*")
 .eq("user_id",userId)
-.eq("date",gameDate)
+.eq("date",ydayDate)
 .order("city_id");
 
 if(!scores || scores.length===0){
@@ -219,7 +219,7 @@ function buildShare(scores, coins, hourly, streak) {
     if (err <= 1) return "🟢";
     if (err <= 3) return "🟡";
     return "🔴";
-  }).join("");
+  }).join(" ");
 
   const gameDate = new Date(Date.now() - 86400000)
   .toLocaleDateString("en-US", { month:"short", day:"numeric" });
@@ -231,7 +231,7 @@ function buildShare(scores, coins, hourly, streak) {
                 ⭐ ${streak}`;
 
   await navigator.clipboard.writeText(text);
-  alert("Score copied! Share it 🐰");
+  alert("Score copied! Share it");
   };
 }
 
