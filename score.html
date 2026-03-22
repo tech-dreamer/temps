@@ -179,10 +179,9 @@ if (!userStats) { // create user stats row if nonexistent
   await client.from("user_stats").upsert({
     user_id: userId,
     current_streak: 0,
-    best_hourly: 0,
     current_coins: 0,
     mood: 0
-    }, { onConflict: ["user_id"] });
+    }, { onConflict: "user_id" });
 }
 
 streak = userStats?.current_streak || 0;
