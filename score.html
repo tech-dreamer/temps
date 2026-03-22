@@ -175,6 +175,7 @@ if (!userStats) { // create user stats row if nonexistent
   console.log("Creating new user_stats for:", userId);
   if (!userId) {
     console.error("userId is null! Cannot upsert");
+  }
   await client.from("user_stats").upsert({
     user_id: userId,
     current_streak: 0,
