@@ -169,7 +169,17 @@ const { data:userStats } = await client
 .from("user_stats")
 .select("current_streak") // best_hourly
 .eq("user_id",userId)
-.single();
+.maybeSingle(); // return null if no rows else return row
+
+if (!userStats) { // create user stats row if nonexistent
+  await client.from("user_stats").insert({
+    user_id: userId,
+    current_streak: 0,
+    best_hourly: 0,
+    current_coins: 0,
+    mood: 0
+  });
+}
 
 streak = userStats?.current_streak || 0;
 // hourly = userStats?.best_hourly || 0;
