@@ -195,9 +195,8 @@
     function resultCircle(row) {
       if (!hasForecast(row)) return "⚪";
 
-      const err = Math.max(
-        Number(row.error_high ?? Number.POSITIVE_INFINITY),
-        Number(row.error_low ?? Number.POSITIVE_INFINITY)
+      const error_high = Number(row.error_high);
+      const error_low = Number(row.error_low);
       );
 
       if (err <= 1) return "🟢";
@@ -287,7 +286,7 @@
               <br />
               Actual Temps: H ${s.actual_high} / L ${s.actual_low}
               <br />
-              Acurracy: Error of ${s.error_high}° / L {s.error_low}°
+              Acurracy: Error of H ${s.error_high}° / L {s.error_low}°
             `
           : `No forecast submitted for yesterday`;
 
