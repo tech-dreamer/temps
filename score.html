@@ -197,7 +197,6 @@
 
       const error_high = Number(row.error_high);
       const error_low = Number(row.error_low);
-      );
 
       if (err <= 1) return "🟢";
       if (err <= 3) return "🟡";
@@ -286,7 +285,7 @@
               <br />
               Actual Temps: H ${s.actual_high} / L ${s.actual_low}
               <br />
-              Acurracy: Error of H ${s.error_high}° / L {s.error_low}°
+              Acurracy: H ${s.error_high}° / L {s.error_low}° Error
             `
           : `No forecast submitted for yesterday`;
 
