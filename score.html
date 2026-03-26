@@ -193,27 +193,16 @@
       return row.id || `${row.user_id}-${row.date}-${row.city_id}-${row.hour || ""}`;
     }
 
-    function orderedScores(scores) {
-      const byName = Object.fromEntries(
-        CITY_ORDER.map((c, i) => [c.name.toLowerCase().trim(), i])
-      );
-      const byId = Object.fromEntries(
-        CITY_ORDER.map((c, i) => [String(c.id), i])
-      );
+    function orderedScores(scores) { // order city priority via ids
+    const orderMap = {
+      1: 0, // LA
+      2: 1, // AUS
+      3: 2 // NYC
+    };
     
-      return [...scores].sort((a, b) => {
-        const rank = (row) => {
-          const nameRank = byName[normalize(row.city)];
-          if (nameRank !== undefined) return nameRank; // prefer city name
-    
-          const idRank = byId[String(row.city_id ?? "")];
-          if (idRank !== undefined) return idRank;
-    
-          return 999; // unknown cities last
-        };
-    
-        return rank(a) - rank(b);
-      });
+    return [...scores].sort((a, b) => {
+      return (orderMap[a.city_id] ?? 999) - (orderMap[b.city_id] ?? 999);
+    });
     }
 
     function hasForecast(row) {
