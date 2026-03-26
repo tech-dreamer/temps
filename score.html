@@ -1,324 +1,382 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Score</title>
 
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<title>Your Score</title>
-
-<link rel="stylesheet" href="style.css"/>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<style>
-
-body{
-  font-family:system-ui;
-  max-width:500px;
-  margin:auto;
-  padding:20px;
-  text-align:center;
-}
-
-h1{
-  margin-bottom:10px;
-}
-
-.score-row{
-  opacity:0;
-  transform:scale(0.9) translateY(8px);
-  transition:0.45s ease;
-  margin:16px 0;
-  border-bottom:1px solid #eee;
-  padding-bottom:12px;
-}
-
-.score-row.visible{
-  opacity:1;
-  transform:scale(1) translateY(0);
-}
-
-.city{
-  font-size:20px;
-  font-weight:600;
-}
-
-.msg{
-  font-size:14px;
-  margin-top:4px;
-}
-
-.detail{
-  font-size:13px;
-  margin-top:4px;
-}
-
-.coin{
-  margin-top:6px;
-  font-weight:600;
-}
-
-#total{
-  margin-top:18px;
-  font-size:20px;
-  font-weight:bold;
-}
-
-button{
-  padding:10px 16px;
-  margin-top:14px;
-  font-size:14px;
-  cursor:pointer;
-}
-
-</style>
-
-</head>
-
-<body>
-
-<a href="index.html">
-<button>← Back</button>
-</a>
-
-<h1>Your Score</h1>
-
-<div id="scoreList"></div>
-
-<div id="total">🪙 <span id="coinTotal">0</span></div>
-
-<div id="stats">
-</div>
-⭐ <span id="streakTotal">0</span>
-<br>
-
-<button id="shareBtn">Share Score</button>
-
-<script>
-
-const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
-
-const { createClient } = supabase;
-const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-/* user id */
-
-const userId = localStorage.getItem("temps_user_id");
-
-let totalCoins = 0;
-let streak = 0;
-
-const CITY_ORDER = [
-  "Los Angeles",
-  "Austin",
-  "New York City"
-];
-
-/* yesterday game date */
-
-const ydayDate = new Date(Date.now()-86400000)
-.toISOString()
-.split("T")[0];
-
-/* help numbers count up */
-
-function animateNumber(elementId, target, duration = 600) {
-
-  const el = document.getElementById(elementId);
-  const start = 0;
-  const startTime = performance.now();
-
-  function update(now) {
-
-    const progress = Math.min((now - startTime) / duration, 1);
-
-    const value = Math.floor(progress * target);
-
-    el.textContent = value;
-
-    if (progress < 1) {
-      requestAnimationFrame(update);
-    } else {
-      el.textContent = target;
-      el.style.transform="scale(1.2)";
-      setTimeout(()=>el.style.transform="scale(1)", 125);
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      max-width: 500px;
+      margin: auto;
+      padding: 20px;
+      text-align: center;
     }
 
-  }
+    h1 {
+      margin-bottom: 10px;
+    }
 
-  requestAnimationFrame(update);
+    .score-row {
+      opacity: 0;
+      transform: scale(0.9) translateY(8px);
+      transition: 0.45s ease;
+      margin: 16px 0;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 12px;
+    }
 
-}
-  
-/* load score */
+    .score-row.visible {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
 
-async function loadScore(){
+    .city {
+      font-size: 20px;
+      font-weight: 600;
+    }
 
-console.log("scores:", scores);
-console.log("User ID:", userId);
-console.log("Yesterday's Date:", ydayDate);
-console.log("Total coins", totalCoins);
+    .msg {
+      font-size: 14px;
+      margin-top: 4px;
+    }
 
-const { data:scores } = await client
-.from("daily_scores")
-.select("*")
-.eq("user_id", userId)
-.eq("date", ydayDate)
-.order("city_id");
+    .detail {
+      font-size: 13px;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
 
-if (scoreError) {
-  console.error("Score Fetch Error:", scoreError);
-  return;
-}
+    .coin {
+      margin-top: 6px;
+      font-weight: 600;
+    }
 
-console.log("Fetched Scores:", scores);
-console.log("Scores Length:", scores?.length);
+    .missing {
+      opacity: 0.75;
+    }
 
-const { data:userStats } = await client
-.from("user_stats")
-.select("current_streak")
-.eq("user_id", userId)
-.maybeSingle(); // return null if no rows else return row
+    #total {
+      margin-top: 18px;
+      font-size: 20px;
+      font-weight: bold;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
 
-if (!userStats) { // create user stats row if nonexistent
-  console.log("Creating new user_stats for:", userId);
-  if (!userId) {
-    console.error("userId is null! Cannot upsert");
-  }
-  await client.from("user_stats").upsert({
-    user_id: userId,
-    current_streak: 0,
-    current_coins: 0,
-    mood: 0
-    }, { onConflict: "user_id" });
-}
+    #stats {
+      margin-top: 6px;
+    }
 
-streak = userStats?.current_streak || 0;
+    button {
+      padding: 10px 16px;
+      margin-top: 14px;
+      font-size: 14px;
+      cursor: pointer;
+    }
 
-if(!scores || scores.length===0){
-  document.body.innerHTML += "<p>No score yet.</p>";
-  return;
-}
+    @media (max-width: 500px) {
+      body {
+        padding: 14px 12px;
+      }
 
-totalCoins = 0;
+      .city {
+        font-size: 18px;
+      }
 
-const list=document.getElementById("scoreList");
-list.innerHTML = "";
+      #total {
+        font-size: 18px;
+      }
 
-CITY_ORDER.forEach(city => {
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a href="index.html">
+    <button>← Back</button>
+  </a>
 
-  const s = scores.find(r => r.city === city);
-  if (!s) return;
+  <h1>Your Score</h1>
 
-  totalCoins += s.coins;
+  <div id="scoreList"></div>
 
-  const err=Math.max(s.error_high,s.error_low);
+  <div id="total">🪙 <span id="coinTotal">0</span></div>
 
-  let color="🔴";
-  if(err<=1) color="🟢";
-  else if(err<=3) color="🟡";
+  <div id="stats">
+    ⭐ <span id="streakTotal">0</span>
+  </div>
 
-  const row=document.createElement("div");
-  row.className="score-row";
+  <button id="shareBtn">Share Score</button>
 
-  row.innerHTML=`
-    <div class="city">${color} ${s.city}</div>
+  <script>
+    const SUPABASE_URL = "https://ckyqknlxmjqlkqnxhgef.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0";
 
-    <div class="msg">${s.message || ""}</div>
+    const { createClient } = supabase;
+    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    <div class="detail">
-      H ${s.forecast_high} / L ${s.forecast_low}
-      <br>
-      Actual: H ${s.actual_high} / L ${s.actual_low}
-      <br>
-      Error: ${err}°
-    </div>
+    const userId = localStorage.getItem("temps_user_id");
+    const ydayDate = new Date(Date.now() - 86400000).toISOString().split("T")[0];
 
-    <div class="coin">🪙 +${s.coins}</div>
-  `;
+    // keep city IDs in DB; use local map for display/order
+    const CITY_ORDER = [
+      { id: 1, name: "Los Angeles" },
+      { id: 2, name: "Austin" },
+      { id: 3, name: "New York City" }
+    ];
 
-  list.appendChild(row);
+    const CITY_BY_ID = {
+      1: "Los Angeles",
+      2: "Austin",
+      3: "New York City"
+    };
 
-});
+    let totalCoins = 0;
+    let streak = 0;
 
-/* reset UI before animation */
+    function animateNumber(elementId, target, duration = 600) {
+      const el = document.getElementById(elementId);
+      const start = 0;
+      const startTime = performance.now();
 
-document.getElementById("coinTotal").textContent = 0;
-document.getElementById("streakTotal").textContent = 0;
+      function update(now) {
+        const progress = Math.min((now - startTime) / duration, 1);
+        const value = Math.floor(progress * target);
+        el.textContent = value;
 
-/* reveal animations */
+        if (progress < 1) {
+          requestAnimationFrame(update);
+        } else {
+          el.textContent = target;
+          el.style.transform = "scale(1.2)";
+          setTimeout(() => (el.style.transform = "scale(1)"), 125);
+        }
+      }
 
-revealRows();
+      requestAnimationFrame(update);
+    }
 
-/* build share */
+    function normalize(v) {
+      return String(v ?? "").trim().toLowerCase();
+    }
 
-buildShare(scores, totalCoins, streak);
+    function cityDisplay(row) {
+      if (row.city && String(row.city).trim()) return String(row.city).trim();
+      if (row.city_id !== null && row.city_id !== undefined) {
+        return CITY_BY_ID[row.city_id] || CITY_BY_ID[String(row.city_id)] || `City ${row.city_id}`;
+      }
+      return "Unknown City";
+    }
 
-}
+    function rowMatchesCity(row, cityCfg) {
+      return (
+        normalize(row.city) === normalize(cityCfg.name) ||
+        String(row.city_id ?? "") === String(cityCfg.id)
+      );
+    }
 
-/* reveal rows */
+    function uniqueKey(row) {
+      return row.id || `${row.user_id}-${row.date}-${row.city_id}-${row.hour || ""}`;
+    }
 
-function revealRows(){
+    function orderedScores(scores) {
+      const used = new Set();
+      const ordered = [];
 
-const rows=document.querySelectorAll(".score-row");
+      CITY_ORDER.forEach((cityCfg) => {
+        const found = scores.find((r) => rowMatchesCity(r, cityCfg) && !used.has(uniqueKey(r)));
+        if (found) {
+          ordered.push(found);
+          used.add(uniqueKey(found));
+        }
+      });
 
-rows.forEach((row,i)=>{
+      scores.forEach((r) => {
+        if (!used.has(uniqueKey(r))) ordered.push(r);
+      });
 
-  setTimeout(()=>{
-    row.classList.add("visible");
-  }, i * 300);
+      return ordered;
+    }
 
-});
+    function hasForecast(row) {
+      return row.forecast_high != null && row.forecast_low != null;
+    }
 
-/* animate totals after rows */
+    function resultCircle(row) {
+      if (!hasForecast(row)) return "⚪";
 
-setTimeout(()=>{
-  animateNumber("coinTotal", totalCoins, 600);
-  animateNumber("streakTotal", streak, 600);
-}, rows.length * 300);
+      const err = Math.max(
+        Number(row.error_high ?? Number.POSITIVE_INFINITY),
+        Number(row.error_low ?? Number.POSITIVE_INFINITY)
+      );
 
-/* reveal total after cities */
+      if (err <= 1) return "🟢";
+      if (err <= 3) return "🟡";
+      return "🔴";
+    }
 
-setTimeout(()=>{
-document.getElementById("total").style.opacity=1;
-}, rows.length * 600);
-}
+    async function loadScore() {
+      console.log("User ID:", userId);
+      console.log("Yesterday's Date:", ydayDate);
 
-/* share graphic */
+      if (!userId) {
+        document.getElementById("scoreList").innerHTML = "<p>No user found. Please sign in first.</p>";
+        return;
+      }
 
-function buildShare(scores, totalCoins, streak) {
-  const btn = document.getElementById("shareBtn");
+      // --- 1) fixed undefined error variable
+      const { data: scores, error: scoreError } = await client
+        .from("daily_scores")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("date", ydayDate)
+        .order("city_id");
 
-  btn.onclick = async () => {
-  const circles = CITY_ORDER.map(city => {
-    const s = scores.find(r => r.city === city);
-    if(!s || s.forecast_high == null) return "⚪";  
-    const err = Math.max(s.error_high, s.error_low);  
-    if (err <= 1) return "🟢";
-    if (err <= 3) return "🟡";  
-    return "🔴";
-  }).join(" ");
+      if (scoreError) {
+        console.error("Score Fetch Error:", scoreError);
+        document.getElementById("scoreList").innerHTML = "<p>Could not load scores.</p>";
+        return;
+      }
 
-  const gameDate = new Date(Date.now() - 86400000)
-  .toLocaleDateString("en-US", { month:"short", day:"numeric" });
-    
-  const text = `Temps with Friends — ${gameDate}
-                ${circles} 
-                🪙 ${totalCoins}
-                ⭐ ${streak}`;
+      // --- 2) robust user_stats handling
+      let { data: userStats, error: statsError } = await client
+        .from("user_stats")
+        .select("current_streak, current_coins, mood")
+        .eq("user_id", userId)
+        .maybeSingle();
 
-  await navigator.clipboard.writeText(text);
-  alert("Score copied! Share it");
-  };
-}
+      if (statsError) {
+        console.error("User Stats Fetch Error:", statsError);
+      }
 
-/* run */
+      if (!userStats) {
+        console.log("Creating user_stats for:", userId);
+        const { error: upsertError } = await client.from("user_stats").upsert(
+          {
+            user_id: userId,
+            current_streak: 0,
+            current_coins: 0,
+            mood: 0
+          },
+          { onConflict: "user_id" }
+        );
 
-loadScore();
+        if (upsertError) {
+          console.error("user_stats upsert Error:", upsertError);
+        }
+        streak = 0;
+      } else {
+        streak = userStats.current_streak || 0;
+      }
 
-</script>
+      if (!scores || scores.length === 0) {
+        document.getElementById("scoreList").innerHTML = "<p>No score yet.</p>";
+        animateNumber("coinTotal", 0, 600);
+        animateNumber("streakTotal", streak, 600);
+        document.getElementById("total").style.opacity = 1;
+        return;
+      }
 
+      const list = document.getElementById("scoreList");
+      list.innerHTML = "";
+      totalCoins = 0;
+
+      const rows = orderedScores(scores);
+
+      rows.forEach((s) => {
+        const forecasted = hasForecast(s);
+
+        if (forecasted) {
+          totalCoins += Number(s.coins || 0);
+        }
+
+        const icon = resultCircle(s);
+        const detailHtml = forecasted
+          ? `
+              H ${s.forecast_high} / L ${s.forecast_low}
+              <br />
+              Actual: H ${s.actual_high} / L ${s.actual_low}
+              <br />
+              Error: ${Math.max(s.error_high || 0, s.error_low || 0)}°
+            `
+          : `No forecast submitted for yesterday`;
+
+        const coinText = forecasted ? `🪙 +${Number(s.coins || 0)}` : `🪙 +0`;
+        const rowClass = forecasted ? "score-row" : "score-row missing";
+
+        const row = document.createElement("div");
+        row.className = rowClass;
+        row.innerHTML = `
+          <div class="city">${icon} ${cityDisplay(s)}</div>
+          <div class="msg">${s.message || (forecasted ? "" : "No submission")}</div>
+          <div class="detail">${detailHtml}</div>
+          <div class="coin">${coinText}</div>
+        `;
+        list.appendChild(row);
+      });
+
+      document.getElementById("coinTotal").textContent = "0";
+      document.getElementById("streakTotal").textContent = "0";
+      revealRows(rows.length);
+      buildShare(rows, totalCoins, streak);
+    }
+
+    function revealRows(rowCount) {
+      const rows = document.querySelectorAll(".score-row");
+
+      rows.forEach((row, i) => {
+        setTimeout(() => {
+          row.classList.add("visible");
+        }, i * 300);
+      });
+
+      setTimeout(() => {
+        animateNumber("coinTotal", totalCoins, 600);
+        animateNumber("streakTotal", streak, 600);
+      }, rowCount * 300);
+
+      setTimeout(() => {
+        document.getElementById("total").style.opacity = 1;
+      }, rowCount * 600);
+    }
+
+    function buildShare(scores, totalCoins, streak) {
+      const btn = document.getElementById("shareBtn");
+
+      btn.onclick = async () => {
+        const circles = CITY_ORDER.map((cityCfg) => {
+          const row = scores.find((r) => rowMatchesCity(r, cityCfg));
+          return resultCircle(row || {});
+        }).join(" ");
+
+        const gameDate = new Date(Date.now() - 86400000).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric"
+        });
+
+        const text = `Temps with Friends — ${gameDate}
+                     ${circles}
+                   🪙 ${totalCoins}
+                   ⭐ ${streak}`;
+
+        try {
+          await navigator.clipboard.writeText(text);
+          alert("Score copied! Share it.");
+        } catch (e) {
+          console.error("Clipboard Error:", e);
+          alert("Unable to copy automatically. You can copy manually.");
+        }
+      };
+    }
+
+    loadScore();
+  </script>
 </body>
 </html>
