@@ -288,11 +288,11 @@
         const icon = resultCircle(s);
         const detailHtml = forecasted
           ? `
-              My Forecasts:    H ${s.forecast_high}° / L ${s.forecast_low}°
+              My Forecasts:   H ${s.forecast_high}° / L ${s.forecast_low}°
               <br />
-              Actual Temps:    H ${s.actual_high}° / L ${s.actual_low}°
+              Actual Temps:   H ${s.actual_high}° / L ${s.actual_low}°
               <br />
-              Accuracy:    H ${format(s.error_high)}° / L ${format(s.error_low)}° Error
+              Accuracy:   H ${format(s.error_high)}° / L ${format(s.error_low)}° Error
             `
           : `No forecasts submitted for yesterday`;
 
