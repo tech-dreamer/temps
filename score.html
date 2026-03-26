@@ -359,34 +359,57 @@
       }
       status.style.color = type === "error" ? "#b91c1c" : "#166534";
       status.textContent = msg;
-    
       clearTimeout(window.__shareTimer);
-      window.__shareTimer = setTimeout(() => {
-        status.textContent = "";
-      }, 2000);
-    }  
+      window.__shareTimer = setTimeout(() => (status.textContent = ""), 2000);
+    }
+
+    function showManualShareFallback(text) {
+      let box = document.getElementById("manualShareBox");
+      if (!box) {
+        box = document.createElement("textarea");
+        box.id = "manualShareBox";
+        box.setAttribute("readonly", "");
+        box.style.width = "100%";
+        box.style.minHeight = "110px";
+        box.style.marginTop = "10px";
+        box.style.padding = "8px";
+        box.style.fontFamily = "inherit";
+        box.style.fontSize = "14px";
+        document.getElementById("shareBtn").insertAdjacentElement("afterend", box);
+      }
+      box.value = text;
+      box.style.display = "block";
+      box.focus();
+      box.select();
+    }
 
     async function copyText(text) {
-      // modern Clipboard API
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-        await navigator.clipboard.writeText(text);
-        return;
+      // try modern clipboard API first for secure contexts
+      if (window.isSecureContext && navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (e) {
+          console.warn("Clipboard API failed:", e);
+        }
+      }
+
+      try { // failsafe legacy execCommand
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        if (ok) return true;
+      } catch (e) {
+        console.warn("execCommand fallback failed:", e);
       }
     
-      // failsafe for contexts where clipboard API is unavailable
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      ta.setAttribute("readonly", "");
-      ta.style.position = "fixed";
-      ta.style.left = "-9999px";
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-    
-      const ok = document.execCommand("copy");
-      document.body.removeChild(ta);
-    
-      if (!ok) throw new Error("execCommand copy failed");
+      return false;
     }
 
     function buildShare(scores, totalCoins, streak) {
@@ -403,17 +426,15 @@
           day: "numeric"
         });
     
-        const text = `Temps with Friends — ${gameDate}
-                      ${circles}
-                  🪙 ${totalCoins}
-                  ⭐ ${streak}`;
+        const text =
+          `Temps with Friends — ${gameDate}\n${circles}\n🪙 ${totalCoins}\n⭐ ${streak}`;
     
-        try {
-          await copyText(text);
+        const ok = await copyText(text);
+        if (ok) {
           showShareStatus("✅ Score copied");
-        } catch (e) {
-          console.error("Clipboard Error:", e);
-          showShareStatus("⚠️ Copy blocked. You can manually select and copy.", "error");
+        } else {
+          showShareStatus("⚠️ Clipboard is blocked here. Use the text box below.", "error");
+          showManualShareFallback(text);
         }
       };
     }
