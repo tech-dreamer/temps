@@ -55,9 +55,9 @@
     }
 
     .detail {
-      font-size: 13px;
-      margin-top: 4px;
-      line-height: 1.4;
+      font-size: 16px;
+      margin-top: 6px;
+      line-height: 1.5;
     }
 
     .coin {
@@ -173,7 +173,7 @@
       if (v === null || v === undefined || v === "" || Number.isNaN(Number(v))) {
         return "—";
       }
-      return `${Math.abs(Math.round(Number(v)))}°`;
+      return `${Math.abs(Math.round(Number(v)))}`;
     }
     
     function cityDisplay(row) {
