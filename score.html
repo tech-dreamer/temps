@@ -198,8 +198,8 @@
       const error_high = Number(row.error_high);
       const error_low = Number(row.error_low);
 
-      if (err <= 1) return "🟢";
-      if (err <= 3) return "🟡";
+      if (error_high <= 1) return "🟢";
+      if (error_high <= 3) return "🟡";
       return "🔴";
     }
 
