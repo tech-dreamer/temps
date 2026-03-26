@@ -22,22 +22,29 @@
     }
 
     #scoreList {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap; /* optional for responsiveness */
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 10px;
+      margin-top: 16px;
+      justify-content: flex-start;
+      align-items: stretch;
+      overflow-x: auto;
+      padding-bottom: 4px; /* optional, for mobile scrollbar spacing */
     }
     
     .score-row {
-    flex: 1; /* all take equal space */
-    min-width: 140px;
-    opacity: 0;
-    transform: scale(0.9) translateY(8px);
-    transition: 0.45s ease;
-    border-bottom: none;
-    border: 1px solid #eee;
-    border-radius: 12px;
-    padding: 12px;
+      flex: 0 0 auto;
+      min-width: 220px; /* prevents cramping; change if you want smaller/larger cards */
+      opacity: 0;
+      transform: scale(0.9) translateY(8px);
+      transition: 0.45s ease;
+      border-bottom: none; /* no vertical divider needed in card layout */
+      padding: 12px;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      box-sizing: border-box;
+      background: white;
+      text-align: center;
     }
 
     .score-row.visible {
