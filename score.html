@@ -143,7 +143,7 @@
 
   <div id="stats">
     <div class="stat-item">💗 <span id="moodTotal">0</span></div>
-    <div class="stat-item">⭐ <span id="streakTotal">0</span></div>
+    <div class="stat-item">⭐ <span id="currentStreak">0</span></div>
   </div>
 
   <button id="shareBtn"> Share </button>
@@ -179,7 +179,7 @@
 
     let totalCoins = 0;
     let totalMood = 0;
-    let streak = 0;
+    let currentStreak = 0;
 
     function showBanner(message, isError = false) {
       const banner = document.getElementById("scoreErrorBanner");
@@ -212,6 +212,27 @@
       requestAnimationFrame(update);
     }
 
+  function animateSignedNumber(elementId, target, duration = 600) {
+    const el = document.getElementById(elementId);
+    const startTime = performance.now();
+  
+    function update(now) {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const value = target * progress;
+      el.textContent = formatSignedNumber(value);
+  
+      if (progress < 1) {
+        requestAnimationFrame(update);
+      } else {
+        el.textContent = formatSignedNumber(target);
+        el.style.transform = "scale(1.2)";
+        setTimeout(() => (el.style.transform = "scale(1)"), 125);
+      }
+    }
+  
+    requestAnimationFrame(update);
+  }
+
     function format(v) {
       if (v === null || v === undefined || v === "" || Number.isNaN(Number(v))) {
         return "—";
@@ -223,7 +244,8 @@
       if (v === null || v === undefined || v === "" || Number.isNaN(Number(v))) {
         return "—";
       }
-      return `${Math.round(Number(v))}`;
+      const n = Math.round(Number(v));
+      return `${n > 0 ? "+" : ""}${n}`;
     }
 
     function cityDisplay(row) {
@@ -248,8 +270,7 @@
       return "🔴";
     }
 
-    async function checkAuth() {
-      // Lightweight sanity check to prove API key headers are being sent.
+    async function checkAuth() { // sanity check to prove API key headers are being sent
       const { error } = await client
         .from("daily_scores")
         .select("id", { head: true, count: "exact" })
@@ -311,16 +332,16 @@
         if (upsertError) {
           console.error("user_stats upsert Error:", upsertError);
         }
-        streak = 0;
+        currentStreak = 0;
       } else {
-        streak = userStats.current_streak || 0;
+        currentStreak = userStats.current_streak || 0;
       }
 
       if (!scores || scores.length === 0) {
         document.getElementById("scoreList").innerHTML = "<p>No score yet.</p>";
         animateNumber("coinTotal", 0, 600);
-        animateNumber("moodTotal", 0, 600);
-        animateNumber("streakTotal", streak, 600);
+        animateSignedNumber("moodTotal", 0, 600);
+        animateNumber("currentStreak", currentStreak, 600);
         document.getElementById("total").style.opacity = 1;
         return;
       }
@@ -367,9 +388,9 @@
 
       document.getElementById("coinTotal").textContent = "0";
       document.getElementById("moodTotal").textContent = "0";
-      document.getElementById("streakTotal").textContent = "0";
+      document.getElementById("currentStreak").textContent = "0";
       revealRows(scores.length);
-      buildShare(scores, totalCoins, totalMood, streak);
+      buildShare(scores, totalCoins, totalMood, currentStreak);
     }
 
     function revealRows(rowCount) {
@@ -383,8 +404,8 @@
 
       setTimeout(() => {
         animateNumber("coinTotal", totalCoins, 600);
-        animateNumber("moodTotal", totalMood, 600);
-        animateNumber("streakTotal", streak, 600);
+        animateSignedNumber("moodTotal", totalMood, 600);
+        animateNumber("currentStreak", currentStreak, 600);
       }, rowCount * 300);
 
       setTimeout(() => {
@@ -456,7 +477,7 @@
       return false;
     }
 
-    function buildShare(scores, totalCoins, totalMood, streak) {
+    function buildShare(scores, totalCoins, totalMood, currentStreak) {
       const btn = document.getElementById("shareBtn");
 
       btn.onclick = async () => {
@@ -474,8 +495,7 @@
           day: "numeric"
         });
 
-        const text =
-          `Temps with Friends — ${gameDate}\n${circles}\n🪙 ${totalCoins}\n💗 ${totalMood}\n⭐ ${streak}`;
+        const text = `Temps with Friends — ${gameDate}\n${circles}\n🪙 ${totalCoins}\n💗 ${formatSignedNumber(totalMood)}\n⭐ ${streak}`;
 
         const ok = await copyText(text);
         if (ok) {
