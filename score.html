@@ -20,6 +20,13 @@
     h1 {
       margin-bottom: 10px;
     }
+    
+    #scoreDate {
+      margin: 0 0 14px;
+      font-size: 1rem;
+      color: #666;
+      opacity: 1;
+    }
 
     #scoreList {
       display: flex;
@@ -50,12 +57,12 @@
     }
 
     .msg {
-      font-size: 14px;
+      font-size: 16px;
       margin-top: 4px;
     }
 
     .detail {
-      font-size: 18px;
+      font-size: 20px;
       margin-top: 6px;
       line-height: 1.5;
       white-space: nowrap;   /* safety */
@@ -89,7 +96,7 @@
 
     #total {
       margin-top: 16px;
-      font-size: 20px;
+      font-size: 22px;
       font-weight: bold;
       opacity: 0;
       transition: opacity 0.3s ease;
@@ -97,7 +104,7 @@
 
     #stats {
       margin-top: 16px;
-      font-size: 20px;
+      font-size: 22px;
       font-weight: bold;
       display: flex;
       justify-content: center;
@@ -154,6 +161,7 @@
   </a>
 
   <h1> My Score </h1>
+  <p id="scoreDate"></p>
 
   <div id="scoreList"></div>
   <div id="total">🪙 <span id="coinTotal">0</span></div>
@@ -163,6 +171,7 @@
     <div class="stat-item">⭐ <span id="currentStreak">0</span></div>
   </div>
 
+  <div id="cityCircles"> ⚪ ⚪ ⚪ </div>
   <button id="shareBtn"> Share </button>
   <div id="scoreErrorBanner"></div>
 
@@ -187,6 +196,12 @@
 
     const userId = localStorage.getItem("temps_user_id");
     const ydayDate = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+    const ydayDate = yday.toISOString().split("T")[0];
+    const ydayLabel = yday.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+    });
+    document.getElementById("scoreDate").textContent = ydayLabel;
 
     const CITY_BY_ID = {
       1: "Los Angeles",
@@ -197,6 +212,7 @@
     let totalCoins = 0;
     let totalMood = 0;
     let currentStreak = 0;
+    let cityCircleString = "⚪ ⚪ ⚪";
 
     function showBanner(message, isError = false) {
       const banner = document.getElementById("scoreErrorBanner");
@@ -379,11 +395,11 @@
         const icon = resultCircle(s);
         const detailHtml = forecasted
           ? `
-              My Forecasts: &nbsp;&nbsp;&nbsp; H ${s.forecast_high}° / L ${s.forecast_low}°
+              My Forecasts: &nbsp;&nbsp; H ${s.forecast_high}° / L ${s.forecast_low}°
               <br />
-              Actual Temps: &nbsp;&nbsp;&nbsp; H ${s.actual_high}° / L ${s.actual_low}°
+              Actual Temps: &nbsp;&nbsp; H ${s.actual_high}° / L ${s.actual_low}°
               <br />
-              Accuracy (Error): &nbsp;&nbsp;&nbsp; H ${format(s.error_high)}° / L ${format(s.error_low)}°
+              Accuracy (Error): &nbsp;&nbsp; H ${format(s.error_high)}° / L ${format(s.error_low)}°
             `
           : `No forecasts submitted for yesterday`;
 
