@@ -186,11 +186,6 @@
     function uniqueKey(row) {
       return row.id || `${row.user_id}-${row.date}-${row.city_id}-${row.hour || ""}`;
     }
-    
-    return [...scores].sort((a, b) => {
-      return (orderMap[a.city_id] ?? 999) - (orderMap[b.city_id] ?? 999);
-    });
-    }
 
     function hasForecast(row) {
       return row.forecast_high != null && row.forecast_low != null;
