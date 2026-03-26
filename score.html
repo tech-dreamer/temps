@@ -125,17 +125,17 @@
     const userId = localStorage.getItem("temps_user_id");
     const ydayDate = new Date(Date.now() - 86400000).toISOString().split("T")[0];
 
-    // keep city IDs in DB; use local map for display/order
+    // keep city IDs in DB from west to east for graphic
     const CITY_ORDER = [
       { id: 1, name: "Los Angeles" },
       { id: 2, name: "Austin" },
       { id: 3, name: "New York City" }
     ];
 
-    const CITY_BY_ID = {
-      1: "Los Angeles",
-      2: "Austin",
-      3: "New York City"
+    const CITY_BY_ID = { // local city map
+      1: "New York City",
+      2: "Los Angeles",
+      3: "Austin"
     };
 
     let totalCoins = 0;
