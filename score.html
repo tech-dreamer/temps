@@ -124,15 +124,17 @@
     }
 
     #cityCircles {
-      margin-top: 16px;
-      margin-bottom: 16px;
-      text-align: center;
-      font-size: 1.5rem;
-      letter-spacing: 8px;
+      margin-top: 0;
+      margin-bottom: 24px;
+      width: 100%;
       min-height: 34px;
-      white-space: nowrap;
+      font-size: 1.5rem;
+      line-height: 1.2;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;      /* replaces manual spacing in text */
       overflow: hidden;
-      text-overflow: ellipsis;
     }
     
     button {
@@ -225,10 +227,30 @@
       3: "New York City"
     };
 
+    const CITY_ORDER = Object.keys(CITY_BY_ID)
+      .map((id) => Number(id))
+      .sort((a, b) => a - b);
+    
+    let cityCircleString = "⚪ ⚪ ⚪";
+    
+    function cityCirclesFromScores(scores) {
+      return CITY_ORDER
+        .map((id) => {
+          const row = scores.find((r) => Number(r.city_id) === id);
+          return resultCircle(row || {});
+        })
+        .join(" ");
+    }
+    
+    function renderCityCircles(scores) {
+      cityCircleString = cityCirclesFromScores(scores || []);
+      const el = document.getElementById("cityCircles");
+      if (el) el.textContent = cityCircleString;
+    }
+
     let totalCoins = 0;
     let totalMood = 0;
     let currentStreak = 0;
-    let cityCircleString = "⚪ ⚪ ⚪";
 
     function showBanner(message, isError = false) {
       const banner = document.getElementById("scoreErrorBanner");
@@ -310,12 +332,13 @@
     }
 
     function resultCircle(row) {
-      if (!hasForecast(row)) return "⚪";
-
-      const error_high = Number(row.error_high);
-
-      if (error_high <= 1) return "🟢";
-      if (error_high <= 3) return "🟡";
+      if (!row || !hasForecast(row)) return "⚪";
+      const errorHigh = Number(row.error_high);
+      if (!Number.isFinite(errorHigh)) return "⚪"; // gray if not valid numeric error
+    
+      const e = Math.abs(Math.round(errorHigh));
+      if (e <= 1) return "🟢";
+      if (e <= 3) return "🟡";
       return "🔴";
     }
 
@@ -357,7 +380,7 @@
         return;
       }
 
-      // Keep user_stats query minimal to avoid side effects
+      // keep user_stats query minimal to avoid side effects
       let { data: userStats, error: statsError } = await client
         .from("user_stats")
         .select("current_streak")
@@ -388,6 +411,7 @@
 
       if (!scores || scores.length === 0) {
         document.getElementById("scoreList").innerHTML = "<p>No score yet.</p>";
+        renderCityCircles([]);
         animateNumber("coinTotal", 0, 600);
         animateSignedNumber("moodTotal", 0, 600);
         animateNumber("currentStreak", currentStreak, 600);
@@ -435,6 +459,7 @@
         list.appendChild(row);
       });
 
+      renderCityCircles(scores);
       document.getElementById("coinTotal").textContent = "0";
       document.getElementById("moodTotal").textContent = "0";
       document.getElementById("currentStreak").textContent = "0";
@@ -528,24 +553,17 @@
 
     function buildShare(scores, totalCoins, totalMood, currentStreak) {
       const btn = document.getElementById("shareBtn");
-
+    
       btn.onclick = async () => {
-        const orderedCityIds = Object.keys(CITY_BY_ID).map((id) => Number(id)).sort((a, b) => a - b);
-
-        const circles = orderedCityIds
-          .map((id) => {
-            const row = scores.find((r) => Number(r.city_id) === id);
-            return resultCircle(row || {});
-          })
-          .join(" ");
-
+        const circles = cityCirclesFromScores(scores || []);
+    
         const gameDate = new Date(Date.now() - 86400000).toLocaleDateString("en-US", {
           month: "short",
           day: "numeric"
         });
-
+    
         const text = `Temps with Friends — ${gameDate}\n${circles}\n🪙 ${totalCoins}\n💗 ${formatSignedNumber(totalMood)}\n⭐ ${currentStreak}`;
-
+    
         const ok = await copyText(text);
         if (ok) {
           showShareStatus("✅ Score copied!");
