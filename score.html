@@ -69,23 +69,23 @@
       font-size: 18px;
       margin-top: 6px;
       line-height: 1.5;
-      white-space: nowrap;   /* safety */
+      white-space: nowrap;
       display: flex;
       flex-direction: column;
       gap: 4px;
     }
 
-   .detail-line {
-     display: flex;
-     align-items: baseline;
-     gap: 10px;
-     white-space: nowrap;      /* keep each line on one row */
-     overflow: hidden;         /* prevent scrollbar */
-     text-overflow: ellipsis;  /* graceful fallback if super narrow */
-   }
+    .detail-line {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
     .detail-label {
-      flex: 0 0 110px;         /* keep label spacing consistent */
+      flex: 0 0 110px;
       white-space: nowrap;
     }
 
@@ -132,7 +132,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      gap: 8px;      /* replaces manual spacing in text */
+      gap: 8px;
       overflow: hidden;
     }
     
@@ -177,12 +177,13 @@
   <p id="scoreDate"></p>
 
   <div id="scoreList"></div>
+
   <div id="stats">
     <div class="stat-item">🪙 <span id="coinTotal">0</span></div>
     <div class="stat-row">
       <div class="stat-item">💗 <span id="moodTotal">0</span></div>
       <div class="stat-item">⭐ <span id="currentStreak">0</span></div>
-  </div>
+    </div>
   </div>
 
   <div id="cityCircles"> ⚪ ⚪ ⚪ </div>
@@ -199,7 +200,6 @@
 
     const { createClient } = supabase;
     const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      // force headers so the request always contains apikey/authorization
       global: {
         headers: {
           apikey: SUPABASE_ANON_KEY,
@@ -209,41 +209,38 @@
     });
 
     const userId = localStorage.getItem("temps_user_id");
-    const GAME_TZ = "America/Los_Angeles"; // set timezone
+    const GAME_TZ = "America/Los_Angeles";
 
     const MONTH_NAMES = [
       "January","February","March","April","May","June",
       "July","August","September","October","November","December"
     ];
-    
+
     function ymdToShift(ymd, deltaDays) {
-      // ymd = "YYYY-MM-DD"
       const [y, m, d] = ymd.split("-").map(Number);
       const dt = new Date(Date.UTC(y, m - 1, d));
       dt.setUTCDate(dt.getUTCDate() + deltaDays);
-    
+
       const yy = dt.getUTCFullYear();
       const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
       const dd = String(dt.getUTCDate()).padStart(2, "0");
       return `${yy}-${mm}-${dd}`;
     }
-    
+
     function dateLabelFromYMD(ymd) {
       const [, m, d] = ymd.split("-");
       return `${MONTH_NAMES[Number(m) - 1]} ${Number(d)}`;
     }
-    
-    // today in Pacific Time, then subtract one day in pure date space
+
     const todayInGameTz = new Intl.DateTimeFormat("en-CA", {
       timeZone: GAME_TZ,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
     }).format(new Date());
-    
-    const ydayDate = ymdToShift(todayInGameTz, -1);      // query key for DB
-    const ydayLabel = dateLabelFromYMD(ydayDate);        // display & share text
-    
+
+    const ydayDate = ymdToShift(todayInGameTz, -1);
+    const ydayLabel = dateLabelFromYMD(ydayDate);
     document.getElementById("scoreDate").textContent = ydayLabel;
 
     const CITY_BY_ID = {
@@ -255,9 +252,9 @@
     const CITY_ORDER = Object.keys(CITY_BY_ID)
       .map((id) => Number(id))
       .sort((a, b) => a - b);
-    
+
     let cityCircleString = "⚪ ⚪ ⚪";
-    
+
     function cityCirclesFromScores(scores) {
       return CITY_ORDER
         .map((id) => {
@@ -266,7 +263,7 @@
         })
         .join(" ");
     }
-    
+
     function renderCityCircles(scores) {
       cityCircleString = cityCirclesFromScores(scores || []);
       const el = document.getElementById("cityCircles");
@@ -287,10 +284,6 @@
       }
     }
 
-    function animateNumber(elementId, target, duration = 800) {
-      const el = document.getElementById(elementId);
-      const startTime = performance.now();
-
     function easeOutCubic(t) {
       return 1 - Math.pow(1 - t, 3);
     }
@@ -298,51 +291,24 @@
     function animateNumber(elementId, target, duration = 800) {
       const el = document.getElementById(elementId);
       const startTime = performance.now();
+      const safeTarget = Number(target) || 0;
 
-    function update(now) {
-      const rawProgress = Math.min((now - startTime) / duration, 1);
-      const eased = easeOutCubic(rawProgress);
-      const value = Math.floor(eased * target);
-      el.textContent = value;
-  
-      if (rawProgress < 1) {
-        requestAnimationFrame(update);
-      } else {
-        el.textContent = target;
-        el.style.transform = "scale(1.2)";
-        setTimeout(() => (el.style.transform = "scale(1)"), 125);
+      function update(now) {
+        const rawProgress = Math.min((now - startTime) / duration, 1);
+        const eased = easeOutCubic(rawProgress);
+        const value = Math.floor(eased * safeTarget);
+        el.textContent = value;
+
+        if (rawProgress < 1) {
+          requestAnimationFrame(update);
+        } else {
+          el.textContent = safeTarget;
+          el.style.transform = "scale(1.2)";
+          setTimeout(() => (el.style.transform = "scale(1)"), 125);
+        }
       }
-    }
 
       requestAnimationFrame(update);
-    }
-
-  function animateSignedNumber(elementId, target, duration = 800) {
-    const el = document.getElementById(elementId);
-    const startTime = performance.now();
-  
-    function update(now) {
-      const rawProgress = Math.min((now - startTime) / duration, 1);
-      const eased = easeOutCubic(rawProgress);
-      const value = target * eased;
-      el.textContent = formatSignedNumber(value);
-  
-      if (rawProgress < 1) requestAnimationFrame(update);
-      else {
-        el.textContent = formatSignedNumber(target);
-        el.style.transform = "scale(1.2)";
-        setTimeout(() => (el.style.transform = "scale(1)"), 125);
-      }
-  }
-  
-    requestAnimationFrame(update);
-  }
-
-    function format(v) {
-      if (v === null || v === undefined || v === "" || Number.isNaN(Number(v))) {
-        return "—";
-      }
-      return `${Math.abs(Math.round(Number(v)))}`;
     }
 
     function formatSignedNumber(v) {
@@ -351,6 +317,35 @@
       }
       const n = Math.round(Number(v));
       return `${n > 0 ? "+" : ""}${n}`;
+    }
+
+    function animateSignedNumber(elementId, target, duration = 800) {
+      const el = document.getElementById(elementId);
+      const startTime = performance.now();
+      const safeTarget = Number(target) || 0;
+
+      function update(now) {
+        const rawProgress = Math.min((now - startTime) / duration, 1);
+        const eased = easeOutCubic(rawProgress);
+        const value = safeTarget * eased;
+        el.textContent = formatSignedNumber(value);
+
+        if (rawProgress < 1) requestAnimationFrame(update);
+        else {
+          el.textContent = formatSignedNumber(safeTarget);
+          el.style.transform = "scale(1.2)";
+          setTimeout(() => (el.style.transform = "scale(1)"), 125);
+        }
+      }
+
+      requestAnimationFrame(update);
+    }
+
+    function format(v) {
+      if (v === null || v === undefined || v === "" || Number.isNaN(Number(v))) {
+        return "—";
+      }
+      return `${Math.abs(Math.round(Number(v)))}`;
     }
 
     function cityDisplay(row) {
@@ -368,15 +363,15 @@
     function resultCircle(row) {
       if (!row || !hasForecast(row)) return "⚪";
       const errorHigh = Number(row.error_high);
-      if (!Number.isFinite(errorHigh)) return "⚪"; // gray if not valid numeric error
-    
+      if (!Number.isFinite(errorHigh)) return "⚪";
+
       const e = Math.abs(Math.round(errorHigh));
       if (e <= 1) return "🟢";
       if (e <= 3) return "🟡";
       return "🔴";
     }
 
-    async function checkAuth() { // sanity check to prove API key headers are being sent
+    async function checkAuth() {
       const { error } = await client
         .from("daily_scores")
         .select("id", { head: true, count: "exact" })
@@ -387,6 +382,7 @@
         showBanner(`Auth probe failed: ${error.message}`, true);
         return false;
       }
+
       console.log("Auth probe OK.");
       return true;
     }
@@ -414,7 +410,6 @@
         return;
       }
 
-      // keep user_stats query minimal to avoid side effects
       let { data: userStats, error: statsError } = await client
         .from("user_stats")
         .select("current_streak")
