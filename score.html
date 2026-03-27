@@ -98,15 +98,6 @@
       opacity: 0.75;
     }
 
-    #total {
-      margin-top: 16px;
-      margin-bottom: 16px;
-      font-size: 22px;
-      font-weight: bold;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
-
     #stats {
       margin-bottom: 16px;
       font-size: 22px;
@@ -159,10 +150,6 @@
         font-size: 18px;
       }
 
-      #total {
-        font-size: 18px;
-      }
-
       .detail {
         font-size: 15px;
       }
@@ -175,16 +162,15 @@
 </head>
 <body>
   <a href="index.html">
-    <button>← Back</button>
+    <button> ← Back </button>
   </a>
 
   <h1> My Score </h1>
   <p id="scoreDate"></p>
 
   <div id="scoreList"></div>
-  <div id="total">🪙 <span id="coinTotal">0</span></div>
-
   <div id="stats">
+    <div class="stat-item">🪙 <span id="coinTotal">0</span></div>
     <div class="stat-item">💗 <span id="moodTotal">0</span></div>
     <div class="stat-item">⭐ <span id="currentStreak">0</span></div>
   </div>
@@ -444,7 +430,6 @@
         animateNumber("coinTotal", 0, 600);
         animateSignedNumber("moodTotal", 0, 600);
         animateNumber("currentStreak", currentStreak, 600);
-        document.getElementById("total").style.opacity = 1;
         return;
       }
 
@@ -510,10 +495,6 @@
         animateSignedNumber("moodTotal", totalMood, 600);
         animateNumber("currentStreak", currentStreak, 600);
       }, rowCount * 300);
-
-      setTimeout(() => {
-        document.getElementById("total").style.opacity = 1;
-      }, rowCount * 600);
     }
 
     function showShareStatus(msg, type = "ok") {
