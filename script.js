@@ -35,26 +35,26 @@ let userId;
 
 // Helper to get existing user or create new
 async function getOrCreateUser() {
-  let userId = localStorage.getItem("temps_user_id");
+  let id = localStorage.getItem("temps_user_id");
 
-  if (!userId) {
-    userId = crypto.randomUUID();
-    localStorage.setItem("temps_user_id", userId);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem("temps_user_id", id);
   }
 
   const { data } = await client
     .from('users')
     .select('id')
-    .eq('id', userId)
+    .eq('id', id)
     .single();
 
   if (!data) {
     await client
       .from('users')
-      .insert({ id: userId });
+      .insert({ id: id });
   }
 
-  return userId;
+  return id;
 }
 
 // Time helpers
@@ -90,7 +90,7 @@ function getETGameDateISO(useTomorrow = false) {
   return `${year}-${month}-${day}`;
 }
 
-function getPSTNow() {
+function getPTNow() {
   return new Date(
     new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
   );
@@ -156,36 +156,40 @@ function updateCurrentDate() {
 
   const now = new Date();
 
-  const pstNow = new Date(
+  const ptNow = new Date(
     now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
   ); // current PT
 
-  const pstCutoff = new Date(pstNow); // noon PT cutoff
-  pstCutoff.setHours(12, 0, 0, 0);
+  const ptCutoff = new Date(ptNow); // noon PT cutoff
+  ptCutoff.setHours(12, 0, 0, 0);
 
-  const hasAutoSwitched = sessionStorage.getItem("temps_auto_switched");
-  if (pstNow >= pstCutoff && !hasAutoSwitched) {
+  const dateKey = `${ptNow.getFullYear()}-${String(ptNow.getMonth() + 1).padStart(2, "0")}-${String(ptNow.getDate()).padStart(2, "0")}`;
+  const autoSwitchKey = `temps_auto_switched_${dateKey}`;
+  
+  const hasAutoSwitched = sessionStorage.getItem(autoSwitchKey);
+  
+  if (ptNow >= ptCutoff && !hasAutoSwitched) {
     forecastDaySelect.value = "tomorrow";
-    sessionStorage.setItem("temps_auto_switched", "true");
+    sessionStorage.setItem(autoSwitchKey, "true");
   } // auto-switch dropdown once after noon PT
 
-  const pstToday = pstNow.toLocaleDateString("en-US", {
+  const ptToday = ptNow.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric"
   }); // build display dates
 
-  const tomorrow = new Date(pstNow);
+  const tomorrow = new Date(ptNow);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const pstTomorrow = tomorrow.toLocaleDateString("en-US", {
+  const ptTomorrow = tomorrow.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric"
   });
 
   dateDisplay.textContent =
     forecastDaySelect.value === "today"
-      ? pstToday
-      : pstTomorrow;
+      ? ptToday
+      : ptTomorrow;
 }
 
 // Load data in safe window
@@ -266,7 +270,7 @@ async function buildDailyGrid() {
 
     // Cutoff check (noon local time)
     const now = new Date();
-    const pstNow = getPSTNow();
+    const ptNow = getPTNow();
 
     const localNow = new Date(
       now.toLocaleString("en-US", { timeZone: city.timezone })
@@ -275,15 +279,15 @@ async function buildDailyGrid() {
     const cutoff = new Date(localNow);
     cutoff.setHours(12, 0, 0, 0);
 
-    const pstCutoff = new Date(pstNow);
-    pstCutoff.setHours(12, 0, 0, 0); // noon PT last city cutoff
+    const ptCutoff = new Date(ptNow);
+    ptCutoff.setHours(12, 0, 0, 0); // noon PT last city cutoff
 
-    const pstMidnight = new Date(pstNow);
-    pstMidnight.setHours(0, 0, 0, 0);
+    const ptMidnight = new Date(ptNow);
+    ptMidnight.setHours(0, 0, 0, 0);
 
     const isPastCutoff =
       forecastDay === 'today' &&
-      (pstNow >= pstCutoff || localNow >= cutoff); // all cities stay closed from PT noon to midnight
+      (ptNow >= ptCutoff || localNow >= cutoff); // all cities stay closed from PT noon to midnight
 
     const card = document.createElement('div');
     card.className =
@@ -582,10 +586,6 @@ if (dailyForm) {
 
 const hourlyForm = document.getElementById('hourlyForm');
 
-if (hourlyForm) {
-  hourlyForm.addEventListener('submit', await handleHourlySubmit)
-}
-
 async function handleHourlySubmit(e) {
   e.preventDefault();
 
@@ -665,7 +665,6 @@ async function handleHourlySubmit(e) {
   }
 }
 
-const hourlyForm = document.getElementById('hourlyForm');
 if (hourlyForm) {
   hourlyForm.addEventListener('submit', handleHourlySubmit);
 }
@@ -681,12 +680,12 @@ if (forecastDaySelect) {
   });
 }
 
-// Auto check PST UI refresh
+// Auto check PT UI refresh
 
 function shouldCheckNow() {
-  const pstNow = getPSTNow();
-  const hours = pstNow.getHours();
-  const minutes = pstNow.getMinutes();
+  const ptNow = getPTNow();
+  const hours = ptNow.getHours();
+  const minutes = ptNow.getMinutes();
 
   return (
     (hours === 11 && minutes >= 55) ||
