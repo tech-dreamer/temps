@@ -432,7 +432,7 @@
     const refreshBtn = document.getElementById("refreshBtn");
     const statsBtn = document.getElementById("statsBtn");
 
-    const prevPageBtn = document.getElementById("prevPage");
+    const prevPageBtn = document.getElementByid("prevPage");
     const nextPageBtn = document.getElementById("nextPage");
     const pagerInfo = document.getElementById("pagerInfo");
 
@@ -485,6 +485,17 @@
       const n = Number(v);
       if (Number.isNaN(n)) return fallback;
       return decimals === 0 ? Math.round(n).toLocaleString() : n.toFixed(decimals);
+    }
+
+    // show integers without decimals when possible, show 1 decimal otherwise
+    function fmtIntOrDecimal(v, fallback = "—") {
+      if (v === null || v === undefined || v === "") return fallback;
+      const n = Number(v);
+      if (Number.isNaN(n) || !Number.isFinite(n)) return fallback;
+      if (Number.isInteger(n)) {
+        return Math.trunc(n).toLocaleString();
+      }
+      return n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     }
 
     function fmtRange(high, low) {
@@ -678,11 +689,11 @@
           tdColor.appendChild(dot);
 
           const tdCoins = document.createElement("td");
-          tdCoins.textContent = fmtNum(row.coins, "—", 2);
+          tdCoins.textContent = fmtIntOrDecimal(row.coins, "—");
 
           const tdMood = document.createElement("td");
           tdMood.className = "muted";
-          tdMood.textContent = row.mood === null || row.mood === undefined ? "—" : Number(row.mood).toFixed(2);
+          tdMood.textContent = fmtIntOrDecimal(row.mood, "—");
 
           const tdMsg = document.createElement("td");
           tdMsg.className = "message-cell";
