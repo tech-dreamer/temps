@@ -6,6 +6,7 @@ const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let cities = [];
 let hasSavedForecast = false;
+
 const HOURLY_LABELS = [
   // "Noon",
   "1PM",
@@ -18,15 +19,22 @@ const HOURLY_LABELS = [
   "8PM"
 ];
 
+// 6-hr high fields stored as decimal hours on same card
+const SIX_HR_HOUR_BY_LABEL = {
+  // "1PM": 13.5,
+  // "7PM": 19.5
+  "2PM": 14.5,
+  "8PM": 20.5
+};
+
 const isDailyPage = !!document.getElementById('tempsForm');
 const isHourlyPage = !!document.getElementById('hourlyForm');
 
 let selectedHour = null;
 let userId;
 
-// helper to get existing user or create new
+// Helper to get existing user or create new
 async function getOrCreateUser() {
-
   let userId = localStorage.getItem("temps_user_id");
 
   if (!userId) {
@@ -88,6 +96,30 @@ function getPSTNow() {
   );
 }
 
+function getETNow() {
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "America/New_York" })
+  );
+}
+
+function getSixHrHourForSelectedLabel(label) {
+  return SIX_HR_HOUR_BY_LABEL[label] || null;
+}
+
+function getHourlyCutoff(etNow, hourValue) {
+  const cutoff = new Date(etNow);
+  const wholeHour = Math.floor(hourValue);
+  const minuteMark = Number.isInteger(hourValue) ? 0 : 30;
+  cutoff.setHours(wholeHour, minuteMark, 0, 0);
+  cutoff.setMinutes(cutoff.getMinutes() - 30);
+  return cutoff;
+}
+
+function isPastCutoffForHour(etNow, useTomorrow, hourValue) {
+  if (useTomorrow) return false;
+  return etNow >= getHourlyCutoff(etNow, hourValue);
+}
+
 // Load cities
 
 async function loadCities() {
@@ -95,7 +127,7 @@ async function loadCities() {
     .from('cities')
     .select('id, name, timezone_id, timezones(name)')
     .order('timezone_id', { ascending: false });
-  
+
   if (error || !data) {
     document.getElementById('status').innerHTML =
       '<span style="color:red;">Failed to load cities.</span>';
@@ -162,14 +194,13 @@ async function loadDailyData() {
   const now = new Date();
 
   const minDate = new Date(now.getTime() - 86400000).toISOString().split('T')[0];
-
   const maxDate = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
 
   const { data: hourlyGuesses } = await client
     .from('hourly_forecasts')
     .select('city_id, hour, temp, date')
     .eq('user_id', userId);
-  
+
   const { data: actuals } = await client
     .from('daily_actuals')
     .select('city_id, high, low, date')
@@ -190,7 +221,7 @@ async function buildDailyGrid() {
   const grid = document.getElementById('dailyGrid');
   const forecastDaySelect = document.getElementById('forecastDay');
   if (!grid || !forecastDaySelect) return; // guard clause
-  
+
   grid.innerHTML = '<p>Loading cities...</p>';
 
   const { actuals, guesses } = await loadDailyData();
@@ -211,7 +242,7 @@ async function buildDailyGrid() {
 
     console.log("cityYesterday:", cityYesterday);
     console.log("actuals:", actuals);
-    
+
     const cityActuals = actuals
       .filter(a => a.city_id === city.id && a.date <= cityYesterday)
       .sort((a, b) => b.date.localeCompare(a.date));
@@ -236,20 +267,20 @@ async function buildDailyGrid() {
     // Cutoff check (noon local time)
     const now = new Date();
     const pstNow = getPSTNow();
-    
+
     const localNow = new Date(
       now.toLocaleString("en-US", { timeZone: city.timezone })
     );
-    
+
     const cutoff = new Date(localNow);
     cutoff.setHours(12, 0, 0, 0);
 
     const pstCutoff = new Date(pstNow);
     pstCutoff.setHours(12, 0, 0, 0); // noon PT last city cutoff
-    
+
     const pstMidnight = new Date(pstNow);
     pstMidnight.setHours(0, 0, 0, 0);
-    
+
     const isPastCutoff =
       forecastDay === 'today' &&
       (pstNow >= pstCutoff || localNow >= cutoff); // all cities stay closed from PT noon to midnight
@@ -337,24 +368,32 @@ async function buildHourlyGrid() {
   lastCutoff.setMinutes(lastCutoff.getMinutes() - 30);
 
   const useTomorrow = etNow >= lastCutoff;
-  const hourNum = convertHourLabel(selectedHour);
 
-  const etCutoff = new Date(etNow); // ET-based cutoff for selected hour
-  etCutoff.setHours(hourNum, 0, 0, 0);
-  etCutoff.setMinutes(etCutoff.getMinutes() - 30);
+  const hourNum = convertHourLabel(selectedHour);
+  const sixHrHourNum = getSixHrHourForSelectedLabel(selectedHour);
 
   cities.forEach(city => {
 
     const localLabel = convertETToCityHourLabel(hourNum, city.timezone);
+    const sixHrLabel = sixHrHourNum !== null
+      ? convertETToCityHourLabel(sixHrHourNum, city.timezone)
+      : null;
 
-    const isPastCutoff = useTomorrow ? false : etNow >= etCutoff; // disable only if forecasting today and past ET cutoff
+    const isPastCutoff = isPastCutoffForHour(etNow, useTomorrow, hourNum);
 
     const prevGuess = hourlyGuesses.find(
       g =>
         g.city_id === city.id &&
         g.hour === hourNum &&
         g.date === getETGameDateISO(useTomorrow)
-    ); // find saved forecasts
+    );
+
+    const prev6HrGuess = sixHrHourNum !== null ? hourlyGuesses.find(
+      g =>
+        g.city_id === city.id &&
+        g.hour === sixHrHourNum &&
+        g.date === getETGameDateISO(useTomorrow)
+    ) : null;
 
     const card = document.createElement('div');
     card.className = 'city-card expanded';
@@ -367,11 +406,28 @@ async function buildHourlyGrid() {
           <input type="number"
             class="hourly-input"
             data-city-id="${city.id}"
+            data-hour="${hourNum}"
             value="${prevGuess?.temp ?? ''}"
-            min="-25" max="125"
+            min="-25"
+            max="125"
             ${isPastCutoff ? 'disabled' : ''}>
         </label>
-        ${isPastCutoff
+
+        ${sixHrHourNum !== null ? `
+          <label>
+            6-hr High °F (${sixHrLabel} target):
+            <input type="number"
+              class="hourly-input"
+              data-city-id="${city.id}"
+              data-hour="${sixHrHourNum}"
+              value="${prev6HrGuess?.temp ?? ''}"
+              min="-25"
+              max="125"
+              ${isPast6HrCutoff ? 'disabled' : ''}>
+          </label>
+        ` : ''}
+
+        ${(isPastCutoff || isPast6HrCutoff)
           ? '<small style="color:#e74c3c;">Past cutoff</small>'
           : ''}
       </div>
@@ -397,7 +453,10 @@ function convertETToCityHourLabel(etHour, cityTimezone) {
     now.toLocaleString("en-US", { timeZone: "America/New_York" })
   );
 
-  etDate.setHours(etHour, 0, 0, 0);
+  const hourPart = Math.floor(etHour);
+  const minutePart = Number.isInteger(etHour) ? 0 : 30;
+
+  etDate.setHours(hourPart, minutePart, 0, 0);
 
   const cityTime = new Date(  // convert to city local time
     etDate.toLocaleString("en-US", { timeZone: cityTimezone })
@@ -410,7 +469,8 @@ function convertETToCityHourLabel(etHour, cityTimezone) {
   hours = hours % 12;
   if (hours === 0) hours = 12;
 
-  return `${hours}${minutes === 0 ? "" : ":" + minutes} ${period}`;
+  const minuteText = minutes === 0 ? "" : `:${String(minutes).padStart(2, '0')}`;
+  return `${hours}${minuteText} ${period}`;
 }
 
 function updateHourlyButton() {
@@ -446,36 +506,36 @@ const dailyForm = document.getElementById('tempsForm');
 if (dailyForm) {
   dailyForm.addEventListener('submit', async e => {
     e.preventDefault();
-  
+
     const forecastDay = document.getElementById('forecastDay').value;
     const payload = [];
     let blocked = false;
-  
+
     document.querySelectorAll('.daily-high, .daily-low').forEach(input => {
       const val = input.value.trim();
       if (!val) return;
-  
+
       const cityId = Number(input.dataset.cityId);
       const city = cities.find(c => c.id === cityId);
-  
+
       const localNow = new Date(
         new Date().toLocaleString("en-US", { timeZone: city.timezone })
       );
-  
+
       const cutoff = new Date(localNow);
       cutoff.setHours(12, 0, 0, 0);
-  
+
       if (forecastDay === 'today' && localNow >= cutoff) {
         blocked = true;
         return;
       }
-  
+
       const type = input.classList.contains('daily-high')
         ? 'high'
         : 'low';
-  
+
       let entry = payload.find(p => p.city_id === cityId);
-  
+
       if (!entry) {
         entry = {
           city_id: cityId,
@@ -488,26 +548,26 @@ if (dailyForm) {
         };
         payload.push(entry);
       }
-  
+
       entry[type] = Number(val);
     });
-  
+
     if (blocked) {
       document.getElementById('status').innerHTML =
         '<span style="color:red;">Cutoff passed for one or more cities.</span>';
       return;
     }
-  
+
     if (!payload.length) {
       document.getElementById('status').innerHTML =
         '<span style="color:red;">Enter at least one valid forecast!</span>';
       return;
     }
-  
+
     const { error } = await client
       .from('daily_forecasts')
       .upsert(payload, { onConflict: 'user_id,city_id,date' });
-  
+
     if (error) {
       document.getElementById('status').innerHTML =
         `<span style="color:red;">Save failed: ${error.message}</span>`;
@@ -525,8 +585,6 @@ const hourlyForm = document.getElementById('hourlyForm');
 if (hourlyForm) {
   hourlyForm.addEventListener('submit', async e => {
     e.preventDefault();
-    console.log("selectedHour:", selectedHour);
-    console.log("userId:", userId);
 
     if (!selectedHour) {
       document.getElementById('status').innerHTML =
@@ -544,30 +602,28 @@ if (hourlyForm) {
 
     const useTomorrow = etNow >= lastCutoff;
 
-    const hourNum = convertHourLabel(selectedHour);
-
-    const etCutoff = new Date(etNow); // ET-based cutoff for selected hour
-    etCutoff.setHours(hourNum, 0, 0, 0);
-    etCutoff.setMinutes(etCutoff.getMinutes() - 30);
+    const selectedForecastDate = getETGameDateISO(useTomorrow);
 
     document.querySelectorAll('.hourly-input').forEach(input => {
       const val = input.value.trim();
       if (!val) return;
 
-      // block if forecasting today & past ET cutoff
-      if (!useTomorrow && etNow >= etCutoff) {
+      const selectedHourNum = convertHourLabel(selectedHour);
+      const selectedCutoff = getHourlyCutoff(etNow, selectedHourNum);
+      const cityId = Number(input.dataset.cityId);
+      const city = cities.find(c => c.id === cityId);
+
+      // block if forecasting today & past cutoff for each forecast type separately
+      if (!useTomorrow && etNow >= selectedCutoff) {
         blocked = true;
         return;
       }
 
-      const cityId = Number(input.dataset.cityId);
-      const city = cities.find(c => c.id === cityId);
-
       payload.push({
         city_id: cityId,
         city: city.name,
-        date: getETGameDateISO(useTomorrow),
-        hour: hourNum,
+        date: selectedForecastDate,
+        hour: hour,
         temp: Number(val),
         user_id: userId
       });
@@ -575,7 +631,7 @@ if (hourlyForm) {
 
     if (blocked) {
       document.getElementById('status').innerHTML =
-        '<span style="color:red;">Cutoff passed for this hour.</span>';
+        '<span style="color:red;">Cutoff passed for one or more hour selections.</span>';
       return;
     }
 
@@ -595,6 +651,7 @@ if (hourlyForm) {
     } else {
       document.getElementById('status').innerHTML =
         `<span style="color:green;">Saved ${selectedHour} forecasts! 🐰</span>`;
+      await buildHourlyGrid(); // refresh to show saved values (including 6-hr high)
     }
   });
 }
@@ -632,19 +689,13 @@ setInterval(() => {
   }
 }, 60000);
 
-function getETNow() {
-  return new Date(
-    new Date().toLocaleString("en-US", { timeZone: "America/New_York" })
-  );
-}
-
 // connect Reveal button to user score page
 document.addEventListener("DOMContentLoaded", function () {
-const btn = document.getElementById("revealBtn");
+  const btn = document.getElementById("revealBtn");
 
-if (btn) {
-  btn.addEventListener("click", function () {
-    window.location.href = "score.html";
+  if (btn) {
+    btn.addEventListener("click", function () {
+      window.location.href = "score.html";
     });
   }
 });
@@ -652,13 +703,10 @@ if (btn) {
 // Start page
 
 (async () => {
-
   userId = await getOrCreateUser();
-
   await loadCities();
 
   if (document.getElementById('hourSelector')) {
     buildHourSelector();
   }
-
 })();
