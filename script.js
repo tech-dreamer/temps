@@ -19,14 +19,6 @@ const HOURLY_LABELS = [
   "8PM"
 ];
 
-// 6-hr high fields stored as decimal hours on same card
-const SIX_HR_HOUR_BY_LABEL = {
-  // "1PM": 13.5,
-  // "7PM": 19.5
-  "2PM": 14.5,
-  "8PM": 20.5
-};
-
 const isDailyPage = !!document.getElementById('tempsForm');
 const isHourlyPage = !!document.getElementById('hourlyForm');
 
@@ -100,10 +92,6 @@ function getETNow() {
   return new Date(
     new Date().toLocaleString("en-US", { timeZone: "America/New_York" })
   );
-}
-
-function getSixHrHourForSelectedLabel(label) {
-  return SIX_HR_HOUR_BY_LABEL[label] || null;
 }
 
 function getHourlyCutoff(etNow, hourValue) {
@@ -374,14 +362,11 @@ async function buildHourlyGrid() {
   const useTomorrow = etNow >= lastCutoff;
 
   const hourNum = convertHourLabel(selectedHour);
-  const sixHrHourNum = getSixHrHourForSelectedLabel(selectedHour);
+  const sixHrHourNum = hourNum + 0.5;
 
   cities.forEach(city => {
 
     const localLabel = convertETToCityHourLabel(hourNum, city.timezone);
-    const sixHrLabel = sixHrHourNum !== null
-      ? convertETToCityHourLabel(sixHrHourNum, city.timezone)
-      : null;
 
     const isPastCutoff = isPastCutoffForHour(etNow, useTomorrow, hourNum);
 
@@ -401,7 +386,7 @@ async function buildHourlyGrid() {
 
     const card = document.createElement('div');
     card.className = 'city-card expanded';
-
+    card.dataset.cityId = city.id;
     card.innerHTML = `
       <div class="city-card-header">${city.name}</div>
       <div class="city-card-content">
@@ -595,28 +580,22 @@ async function handleHourlySubmit(e) {
     return;
   }
 
-  const markInvalidInput = (input) => {
-    if (!input) return;
-    input.style.borderColor = "#dc2626";      // red border
-    input.style.boxShadow = "0 0 0 1px #dc2626";
-    input.style.backgroundColor = "#fef2f2"; // light red background
-  };
-
-  const clearValidation = (input) => {
+  const clearInput = (input) => {
     if (!input) return;
     input.style.borderColor = "";
     input.style.boxShadow = "";
     input.style.backgroundColor = "";
   };
+  const markInvalid = (input) => {
+    if (!input) return;
+    input.style.borderColor = "#dc2626";
+    input.style.boxShadow = "0 0 0 1px #dc2626";
+    input.style.backgroundColor = "#fef2f2";
+  };
 
-  // clear previous row errors
-  document.querySelectorAll(".hourly-validation-msg").forEach((el) => el.remove());
-  document.querySelectorAll(".hourly-input").forEach((input) => clearValidation(input));
-
-  const payload = [];
-  let blocked = false;
-  let hasValidationErrors = false;
-  const validationMessages = [];
+  // clear old validation
+  document.querySelectorAll(".hourly-validation-msg").forEach(el => el.remove());
+  document.querySelectorAll(".hourly-input").forEach(clearInput);
 
   const etNow = getETNow();
   const lastCutoff = new Date(etNow);
@@ -625,20 +604,30 @@ async function handleHourlySubmit(e) {
 
   const useTomorrow = etNow >= lastCutoff;
   const selectedForecastDate = getETGameDateISO(useTomorrow);
-  const selectedHourNum = convertHourLabel(selectedHour);
+  const selectedHourNum = convertHourLabel(selectedHour);          
   const selectedCutoff = getHourlyCutoff(etNow, selectedHourNum);
-  const sixHrHourNum = getSixHrHourForSelectedLabel(selectedHour);
+  const sixHrHourNum = selectedHourNum + 0.5;                    
 
-  // collect each city's values
-  const cityRows = new Map(); // cityId -> { hourlyVal, sixHrVal, sixHrInput }
+  if (!Number.isFinite(selectedHourNum)) {
+    status.innerHTML = '<span style="color:red;">Invalid selected hour.</span>';
+    return;
+  }
+
+  let blocked = false;
+  const payload = [];
+  const cityRows = new Map(); // cityId -> { cityName, hourlyVal, sixHrVal, sixHrInput }
+
+  const EPS = 1e-6;
+  const sameHour = (a, b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) < EPS;
 
   document.querySelectorAll(".hourly-input").forEach((input) => {
-    const val = input.value.trim();
-    if (!val) return;
+    if (input.disabled) return; // prevent disabled fields from being validated or included in payload
+    const raw = input.value.trim();
+    if (!raw) return;
 
     const cityId = Number(input.dataset.cityId);
     const inputHour = Number(input.dataset.hour);
-    const numVal = Number(val);
+    const numVal = Number(raw);
 
     if (Number.isNaN(cityId) || Number.isNaN(inputHour) || Number.isNaN(numVal)) return;
 
@@ -650,11 +639,15 @@ async function handleHourlySubmit(e) {
     const city = cities.find((c) => c.id === cityId);
     if (!city) return;
 
-    const row = cityRows.get(cityId) || { hourlyVal: undefined, sixHrVal: undefined, sixHrInput: null, cityName: city.name };
+    const row = cityRows.get(cityId) || { cityName: city.name, hourlyVal: undefined, sixHrVal: undefined, sixHrInput: null };
 
-    if (inputHour === selectedHourNum) {
+    // integer hour = hourly input at selected hour
+    if (sameHour(inputHour, selectedHourNum)) {
       row.hourlyVal = numVal;
-    } else if (sixHrHourNum !== null && inputHour === sixHrHourNum) {
+    }
+
+    // half-hour (selectedHour + 0.5) = 6-hr input for this selected hour card
+    if (sameHour(inputHour, sixHrHourNum)) {
       row.sixHrVal = numVal;
       row.sixHrInput = input;
     }
@@ -681,37 +674,34 @@ async function handleHourlySubmit(e) {
     return;
   }
 
-  // block whole submit if any invalid row
+  const validationMessages = [];
   cityRows.forEach((row, cityId) => {
-    if (sixHrHourNum === null || !row.sixHrInput) return;
+    if (!row.sixHrInput) return; // no rule needed if no 6-hr entered
 
     const cityCard = document.querySelector(`#hourlyGrid .city-card[data-city-id="${cityId}"]`);
     const msgHost = cityCard?.querySelector(".city-card-content");
-    if (!msgHost) return;
 
     if (row.hourlyVal === undefined) {
-      hasValidationErrors = true;
-      markInvalidInput(row.sixHrInput);
-      validationMessages.push(`${row.cityName}: 6-hr high requires the hourly forecast.`);
+      markInvalid(row.sixHrInput);
+      validationMessages.push(`${row.cityName}: 6-hr high requires the hourly ${selectedHour} forecast first.`);
     } else if (row.sixHrVal < row.hourlyVal) {
-      hasValidationErrors = true;
-      markInvalidInput(row.sixHrInput);
+      markInvalid(row.sixHrInput);
       validationMessages.push(
-        `${row.cityName}: 6-hr high (${row.sixHrVal}°F) must be >= hourly temp (${row.hourlyVal}°F).`
+        `${row.cityName}: 6-hr high (${row.sixHrVal}°F) must be at least hourly temp (${row.hourlyVal}°F).`
       );
     }
 
-    if (hasValidationErrors) {
+    if (validationMessages.length && msgHost) {
       msgHost.insertAdjacentHTML(
         "beforeend",
-        `<div class="hourly-validation-msg" style="color:#dc2626; margin-top:.4rem;">Invalid: 6-hr high must be >= hourly temp.</div>`
+        `<div class="hourly-validation-msg" style="color:#dc2626; margin-top:.4rem;">Fix invalid 6-hr input.</div>`
       );
     }
   });
 
-  if (hasValidationErrors) {
+  if (validationMessages.length) {
     status.innerHTML = `<span style="color:red;">${validationMessages.join("<br>")}</span>`;
-    return; // save nothing if any city row is invalid
+    return; // strict: save nothing if any invalid
   }
 
   const { error } = await client
