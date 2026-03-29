@@ -174,7 +174,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 980px;
+      min-width: 1080px;
     }
 
     thead th {
@@ -200,7 +200,6 @@
       background: #f1f5f9;
     }
 
-    /* Active sorted header: blue underline */
     th[data-sort].active-sort {
       color: #1d4ed8;
       background: #eef7ff;
@@ -277,6 +276,34 @@
       flex-wrap: wrap;
     }
 
+    .accuracy-cell {
+      text-align: center;
+    }
+
+    .accuracy-dot {
+      width: 0.85rem;
+      height: 0.85rem;
+      border-radius: 9999px;
+      display: inline-block;
+      box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+    }
+
+    .accuracy-dot.green {
+      background: #16a34a;
+    }
+
+    .accuracy-dot.yellow {
+      background: #ca8a04;
+    }
+
+    .accuracy-dot.red {
+      background: #dc2626;
+    }
+
+    .accuracy-dot.gray {
+      background: #9ca3af;
+    }
+
     @media (max-width: 960px) {
       .controls {
         grid-template-columns: repeat(2, minmax(150px, 1fr));
@@ -305,7 +332,7 @@
   <main class="wrap">
     <header>
       <h1 class="title">📖 Forecast History</h1>
-      <p class="subtitle">Search, filter, sort by clicking headers, and paginate forecast records from <strong>daily_scores</strong>.</p>
+      <p class="subtitle">Search, filter, sort by clicking headers, and paginate forecast records from <strong>My Daily Scores</strong>.</p>
     </header>
 
     <section class="card">
@@ -362,6 +389,7 @@
                 <th data-sort="forecast" data-label="Forecast">Forecast <span class="sort-arrow"></span></th>
                 <th data-sort="actual" data-label="Actual">Actual <span class="sort-arrow"></span></th>
                 <th data-sort="accuracy" data-label="Accuracy (Error)">Accuracy (Error) <span class="sort-arrow"></span></th>
+                <th data-sort="color" data-label="Color">Color <span class="sort-arrow"></span></th>
                 <th data-sort="coins" data-label="Coins">Coins <span class="sort-arrow"></span></th>
                 <th data-sort="mood" data-label="Mood">Mood <span class="sort-arrow"></span></th>
                 <th>Message</th>
@@ -390,7 +418,7 @@
     import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
     const SUPABASE_URL = "https://ckyqknlxmjqlkqnxhgef.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhbmNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const statusEl = document.getElementById("status");
@@ -410,6 +438,17 @@
 
     const tbody = document.getElementById("historyBody");
     const tableHeaders = document.querySelectorAll("th[data-sort]");
+
+    const defaultSortDirection = {
+      date: "desc",
+      city: "asc",
+      forecast: "desc",
+      actual: "desc",
+      accuracy: "desc",
+      color: "asc",   // best to worst on first click
+      coins: "desc",
+      mood: "desc"
+    };
 
     const state = {
       rows: [],
@@ -505,6 +544,24 @@
       });
     }
 
+    function scoreDotState(errorHigh) {
+      const n = Number(errorHigh);
+      if (!Number.isFinite(n)) {
+        return { className: "gray", title: "No score data" };
+      }
+      if (n <= 1) return { className: "green", title: "Score: 0/1 (green)" };
+      if (n <= 3) return { className: "yellow", title: "Score: 2/3 (yellow)" };
+      return { className: "red", title: "Score: 4+ (red)" };
+    }
+
+    function colorSortRank(errorHigh) {
+      const n = Number(errorHigh);
+      if (!Number.isFinite(n)) return 4; // unknown => last
+      if (n <= 1) return 1;             // green
+      if (n <= 3) return 2;             // yellow
+      return 3;                         // red
+    }
+
     function applyFiltersAndSort() {
       const search = searchInput.value.trim().toLowerCase();
       const cityValue = cityFilter.value;
@@ -545,9 +602,13 @@
           cmp = safeNumber(a.actual_high) - safeNumber(b.actual_high);
           if (cmp === 0) cmp = safeNumber(a.actual_low) - safeNumber(b.actual_low);
           if (cmp === 0) cmp = parseDate(a.date) - parseDate(b.date);
-        } else if (sortBy === "errors") {
+        } else if (sortBy === "accuracy") {
           cmp = safeNumber(a.error_high) - safeNumber(b.error_high);
           if (cmp === 0) cmp = safeNumber(a.error_low) - safeNumber(b.error_low);
+          if (cmp === 0) cmp = parseDate(a.date) - parseDate(b.date);
+        } else if (sortBy === "color") {
+          cmp = colorSortRank(a.error_high) - colorSortRank(b.error_high);
+          if (cmp === 0) cmp = safeNumber(a.error_high) - safeNumber(b.error_high);
           if (cmp === 0) cmp = parseDate(a.date) - parseDate(b.date);
         } else if (sortBy === "coins") {
           cmp = safeNumber(a.coins) - safeNumber(b.coins);
@@ -584,7 +645,7 @@
         const tr = document.createElement("tr");
         const td = document.createElement("td");
         td.className = "empty";
-        td.colSpan = 8;
+        td.colSpan = 9;
         td.textContent = total === 0 ? "No records found." : "No records on this page.";
         tr.appendChild(td);
         tbody.appendChild(tr);
@@ -607,6 +668,15 @@
           const tdErrors = document.createElement("td");
           tdErrors.textContent = fmtRange(row.error_high, row.error_low);
 
+          const tdColor = document.createElement("td");
+          tdColor.className = "accuracy-cell";
+          const dotState = scoreDotState(row.error_high);
+          const dot = document.createElement("span");
+          dot.className = `accuracy-dot ${dotState.className}`;
+          dot.title = dotState.title;
+          dot.setAttribute("aria-label", dotState.title);
+          tdColor.appendChild(dot);
+
           const tdCoins = document.createElement("td");
           tdCoins.textContent = fmtNum(row.coins, "—", 2);
 
@@ -623,6 +693,7 @@
           tr.appendChild(tdForecast);
           tr.appendChild(tdActual);
           tr.appendChild(tdErrors);
+          tr.appendChild(tdColor);
           tr.appendChild(tdCoins);
           tr.appendChild(tdMood);
           tr.appendChild(tdMsg);
@@ -641,7 +712,7 @@
     function renderStatus() {
       statusEl.className = "status";
       statusEl.textContent = state.rows.length
-        ? `Loaded ${state.rows.length} total record${state.rows.length === 1 ? "" : "s"} from daily_scores.`
+        ? `Loaded ${state.rows.length} total record${state.rows.length === 1 ? "" : "s"} from My Daily Scores.`
         : "No forecast entries found for this user yet.";
 
       if (state.filteredRows.length === 0) {
@@ -780,7 +851,7 @@
             state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
           } else {
             state.sortBy = sortKey;
-            state.sortDir = "desc";
+            state.sortDir = defaultSortDirection[sortKey] || "desc";
           }
 
           state.page = 1;
