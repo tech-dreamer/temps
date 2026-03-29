@@ -13,12 +13,10 @@
       --line: #e5e7eb;
       --accent: #3b82f6;
       --shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
-      --good: #10b981;
-      --warn: #f59e0b;
-      --soft: #f3f4f6;
     }
 
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       min-height: 100vh;
@@ -31,7 +29,7 @@
     }
 
     .wrap {
-      width: min(1120px, 100%);
+      width: min(1180px, 100%);
       display: flex;
       flex-direction: column;
       gap: 14px;
@@ -96,8 +94,9 @@
 
     .controls {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: repeat(6, minmax(150px, 1fr));
       gap: 10px;
+      align-items: end;
       margin-bottom: 12px;
     }
 
@@ -108,7 +107,7 @@
       min-width: 0;
     }
 
-    label {
+    .control label {
       font-size: 0.8rem;
       color: #374151;
       font-weight: 600;
@@ -128,13 +127,6 @@
     input:focus, select:focus {
       border-color: #93c5fd;
       box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
-    }
-
-    .controls-row {
-      display: flex;
-      gap: 10px;
-      align-items: end;
-      flex-wrap: wrap;
     }
 
     .button {
@@ -163,6 +155,18 @@
       border: 1px solid #d1d5db;
     }
 
+    .button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      filter: grayscale(0.2);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     .table-wrap {
       border: 1px solid var(--line);
       border-radius: 12px;
@@ -178,7 +182,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 880px;
+      min-width: 980px;
     }
 
     thead th {
@@ -191,6 +195,43 @@
       text-transform: uppercase;
       letter-spacing: 0.02em;
       white-space: nowrap;
+      position: relative;
+      transition: background-color 0.2s ease;
+    }
+
+    th[data-sort] {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    th[data-sort]:hover {
+      background: #f1f5f9;
+    }
+
+    /* Active sorted header: blue underline */
+    th[data-sort].active-sort {
+      color: #1d4ed8;
+      background: #eef7ff;
+    }
+
+    th[data-sort].active-sort::after {
+      content: "";
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 0;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 9999px;
+      pointer-events: none;
+    }
+
+    th .sort-arrow {
+      display: inline-block;
+      width: 0.8rem;
+      font-size: 0.72rem;
+      margin-left: 6px;
+      color: #64748b;
     }
 
     tbody td {
@@ -208,7 +249,7 @@
     .muted { color: #6b7280; }
 
     .message-cell {
-      max-width: 280px;
+      max-width: 260px;
       white-space: normal;
       word-break: break-word;
     }
@@ -221,13 +262,22 @@
       background: #fafafa;
     }
 
-    .small {
-      font-size: 0.84rem;
-      color: #6b7280;
-      margin-top: 4px;
+    .pager {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 12px;
+      gap: 12px;
+      flex-wrap: wrap;
     }
 
-    .btn-row {
+    .pager-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .footer-row {
       margin-top: 12px;
       display: flex;
       justify-content: flex-end;
@@ -235,30 +285,27 @@
       flex-wrap: wrap;
     }
 
-    @media (max-width: 640px) {
+    @media (max-width: 960px) {
+      .controls {
+        grid-template-columns: repeat(2, minmax(150px, 1fr));
+      }
       .title {
         font-size: 1.45rem;
       }
+    }
 
+    @media (max-width: 560px) {
       .controls {
         grid-template-columns: 1fr;
       }
-
-      .controls-row {
-        width: 100%;
+      .pager {
+        justify-content: center;
+        text-align: center;
       }
-
-      .controls-row .button {
-        flex: 1 1 auto;
-      }
-
-      .btn-row {
-        justify-content: stretch;
-      }
-
-      .btn-row .button {
-        width: 100%;
-      }
+      .footer-row { justify-content: stretch; }
+      .footer-row .button { width: 100%; }
+      .btn-group { width: 100%; }
+      .btn-group .button { flex: 1; }
     }
   </style>
 </head>
@@ -266,7 +313,7 @@
   <main class="wrap">
     <header>
       <h1 class="title">📖 Forecast History</h1>
-      <p class="subtitle">Filter, search, and sort your saved forecast entries from <strong>daily_scores</strong>.</p>
+      <p class="subtitle">Search, filter, sort by clicking headers, and paginate forecast records from <strong>daily_scores</strong>.</p>
     </header>
 
     <section class="card">
@@ -278,65 +325,72 @@
           <label for="searchInput">Search</label>
           <input id="searchInput" type="text" placeholder="City or message…" />
         </div>
+
         <div class="control">
           <label for="cityFilter">City</label>
           <select id="cityFilter">
             <option value="">All cities</option>
           </select>
         </div>
+
         <div class="control">
           <label for="fromDate">From date</label>
           <input id="fromDate" type="date" />
         </div>
+
         <div class="control">
           <label for="toDate">To date</label>
           <input id="toDate" type="date" />
         </div>
+
         <div class="control">
-          <label for="sortBy">Sort by</label>
-          <select id="sortBy">
-            <option value="date">Date</option>
-            <option value="city">City</option>
-            <option value="coins">Coins</option>
-            <option value="mood">Mood</option>
-            <option value="forecast_high">Forecast High</option>
-            <option value="actual_high">Actual High</option>
-            <option value="error_score">Error Score (|high|+|low|)</option>
+          <label for="pageSize">Rows / page</label>
+          <select id="pageSize">
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
           </select>
+        </div>
+
+        <div class="control">
+          <label>&nbsp;</label>
+          <div class="btn-group">
+            <button id="clearBtn" class="button ghost" type="button">Clear Filters</button>
+            <button id="refreshBtn" class="button secondary" type="button">Refresh</button>
+          </div>
         </div>
       </div>
 
-      <div class="controls-row">
-        <button id="sortDirBtn" class="button secondary" type="button">Descending</button>
-        <button id="clearBtn" class="button ghost" type="button">Clear Filters</button>
-      </div>
-
-      <div class="table-wrap" style="margin-top: 12px;">
+      <div class="table-wrap">
         <div class="table-scroll">
           <table>
             <thead>
               <tr>
-                <th>Date</th>
-                <th>City</th>
-                <th>Forecast</th>
-                <th>Actual</th>
-                <th>Errors</th>
-                <th>Error Score</th>
-                <th>Coins</th>
-                <th>Mood</th>
+                <th data-sort="date" data-label="Date">Date <span class="sort-arrow"></span></th>
+                <th data-sort="city" data-label="City">City <span class="sort-arrow"></span></th>
+                <th data-sort="forecast" data-label="Forecast">Forecast <span class="sort-arrow"></span></th>
+                <th data-sort="actual" data-label="Actual">Actual <span class="sort-arrow"></span></th>
+                <th data-sort="errors" data-label="Errors">Errors <span class="sort-arrow"></span></th>
+                <th data-sort="coins" data-label="Coins">Coins <span class="sort-arrow"></span></th>
+                <th data-sort="mood" data-label="Mood">Mood <span class="sort-arrow"></span></th>
                 <th>Message</th>
               </tr>
             </thead>
-            <tbody id="historyBody">
-              <!-- rows render here -->
-            </tbody>
+            <tbody id="historyBody"></tbody>
           </table>
         </div>
       </div>
 
-      <div class="btn-row">
-        <button id="statsBtn" class="button secondary" type="button">Back to My Stats</button>
-        <button id="refreshBtn" class="button" type="button">Refresh</button>
+      <div class="pager">
+        <span id="pagerInfo" class="meta">0 of 0 entries</span>
+        <div class="pager-actions">
+          <button id="prevPage" class="button secondary" type="button">Previous</button>
+          <button id="nextPage" class="button secondary" type="button">Next</button>
+        </div>
+      </div>
+
+      <div class="footer-row">
+        <button id="statsBtn" class="button" type="button">Back to My Stats</button>
       </div>
     </section>
   </main>
@@ -355,16 +409,25 @@
     const cityFilter = document.getElementById("cityFilter");
     const fromDateInput = document.getElementById("fromDate");
     const toDateInput = document.getElementById("toDate");
-    const sortByInput = document.getElementById("sortBy");
-    const sortDirBtn = document.getElementById("sortDirBtn");
+    const pageSizeInput = document.getElementById("pageSize");
     const clearBtn = document.getElementById("clearBtn");
     const refreshBtn = document.getElementById("refreshBtn");
     const statsBtn = document.getElementById("statsBtn");
+
+    const prevPageBtn = document.getElementById("prevPage");
+    const nextPageBtn = document.getElementById("nextPage");
+    const pagerInfo = document.getElementById("pagerInfo");
+
     const tbody = document.getElementById("historyBody");
+    const tableHeaders = document.querySelectorAll("th[data-sort]");
 
     const state = {
       rows: [],
+      filteredRows: [],
+      sortBy: "date",
       sortDir: "desc",
+      page: 1,
+      pageSize: 25,
     };
 
     function getUserId() {
@@ -383,6 +446,11 @@
       return null;
     }
 
+    function safeNumber(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    }
+
     function fmtNum(v, fallback = "—", decimals = 0) {
       if (v === null || v === undefined || v === "") return fallback;
       const n = Number(v);
@@ -391,8 +459,8 @@
     }
 
     function fmtRange(high, low) {
-      const h = fmtNum(high, null, 0);
-      const l = fmtNum(low, null, 0);
+      const h = fmtNum(high, "", 0);
+      const l = fmtNum(low, "", 0);
       if (!h && !l) return "—";
       if (!h) return `Low ${l}°`;
       if (!l) return `High ${h}°`;
@@ -410,22 +478,9 @@
       });
     }
 
-    function moodLine(moodVal) {
-      const mood = Number(moodVal ?? 0);
-      if (mood >= 40) return "Quietly strong streak. Nice consistency.";
-      if (mood >= 30) return "Steady winds. Keep up the rhythm.";
-      if (mood >= 20) return "Momentum is building day by day.";
-      if (mood >= 10) return "Learning in progress — you’re getting better.";
-      return "Early on, and that is absolutely fine. Keep going.";
-    }
-
-    function safeNumber(v) {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : 0;
-    }
-
-    function errorScore(row) {
-      return Math.abs(safeNumber(row.error_high)) + Math.abs(safeNumber(row.error_low));
+    function parseDate(raw) {
+      const t = Date.parse(raw);
+      return Number.isNaN(t) ? 0 : t;
     }
 
     function buildSearchText(row) {
@@ -433,14 +488,13 @@
     }
 
     function buildCityOptions(rows) {
-      const items = new Map();
+      const seen = new Map();
       rows.forEach(r => {
-        if (r.city_key && !items.has(r.city_key)) {
-          items.set(r.city_key, r.city_name || "Unknown city");
+        if (r.city_key && !seen.has(r.city_key)) {
+          seen.set(r.city_key, r.city_name || "Unknown city");
         }
       });
-      const arr = [...items.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-
+      const arr = [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
       cityFilter.innerHTML = '<option value="">All cities</option>';
       arr.forEach(([key, name]) => {
         const opt = document.createElement("option");
@@ -450,18 +504,24 @@
       });
     }
 
-    function dateToMs(dateStr) {
-      const t = Date.parse(dateStr);
-      return Number.isNaN(t) ? null : t;
+    function updateSortIndicators() {
+      tableHeaders.forEach(th => {
+        const isSorted = th.dataset.sort === state.sortBy;
+        th.classList.toggle("active-sort", isSorted);
+
+        const label = th.dataset.label || th.textContent.replace("▲", "").replace("▼", "").trim();
+        const arrow = th.querySelector(".sort-arrow");
+        th.innerHTML = `${label} <span class="sort-arrow">${isSorted ? (state.sortDir === "asc" ? "▲" : "▼") : ""}</span>`;
+      });
     }
 
     function applyFiltersAndSort() {
       const search = searchInput.value.trim().toLowerCase();
       const cityValue = cityFilter.value;
-      const sortBy = sortByInput.value;
+      const sortBy = state.sortBy;
       const from = fromDateInput.value ? Date.parse(fromDateInput.value) : null;
       const toRaw = toDateInput.value ? Date.parse(toDateInput.value) : null;
-      const to = Number.isFinite(toRaw) ? (toRaw + (24 * 60 * 60 * 1000) - 1) : null;
+      const to = Number.isFinite(toRaw) ? (toRaw + 24 * 60 * 60 * 1000 - 1) : null;
 
       let rows = state.rows.filter(row => {
         if (cityValue && row.city_key !== cityValue) return false;
@@ -471,109 +531,132 @@
           if (!hay.includes(search)) return false;
         }
 
-        const d = dateToMs(row.date);
-        if (from !== null && d !== null && d < from) return false;
-        if (to !== null && d !== null && d > to) return false;
+        const d = parseDate(row.date);
+        if (from !== null && d !== 0 && d < from) return false;
+        if (to !== null && d !== 0 && d > to) return false;
 
         return true;
       });
 
       rows.sort((a, b) => {
-        const dir = state.sortDir === "asc" ? 1 : -1;
         let cmp = 0;
 
         if (sortBy === "date") {
-          const da = dateToMs(a.date);
-          const db = dateToMs(b.date);
-          cmp = (db || 0) - (da || 0);
-          if (cmp === 0) cmp = (safeNumber(b.id) - safeNumber(a.id));
+          cmp = parseDate(a.date) - parseDate(b.date);
+          if (cmp === 0) cmp = safeNumber(a.id) - safeNumber(b.id);
         } else if (sortBy === "city") {
           cmp = (a.city_name || "Unknown city").localeCompare(b.city_name || "Unknown city");
-          if (cmp === 0) cmp = (dateToMs(b.date) || 0) - (dateToMs(a.date) || 0);
-        } else if (sortBy === "coins") {
-          cmp = safeNumber(a.coins) - safeNumber(b.coins);
-        } else if (sortBy === "mood") {
-          cmp = safeNumber(a.mood) - safeNumber(b.mood);
-        } else if (sortBy === "forecast_high") {
+          if (cmp === 0) cmp = parseDate(a.date) - parseDate(b.date);
+        } else if (sortBy === "forecast") {
           cmp = safeNumber(a.forecast_high) - safeNumber(b.forecast_high);
           if (cmp === 0) cmp = safeNumber(a.forecast_low) - safeNumber(b.forecast_low);
-        } else if (sortBy === "actual_high") {
+          if (cmp === 0) cmp = parseDate(a.date) - parseDate(b.date);
+        } else if (sortBy === "actual") {
           cmp = safeNumber(a.actual_high) - safeNumber(b.actual_high);
           if (cmp === 0) cmp = safeNumber(a.actual_low) - safeNumber(b.actual_low);
-        } else if (sortBy === "error_score") {
-          cmp = errorScore(a) - errorScore(b);
-          if (cmp === 0) cmp = (safeNumber(a.error_high) + safeNumber(a.error_low)) - (safeNumber(b.error_high) + safeNumber(b.error_low));
+          if (cmp === 0) cmp = parseDate(a.date) - parseDate(b.date);
+        } else if (sortBy === "errors") {
+          cmp = safeNumber(a.error_high) - safeNumber(b.error_high);
+          if (cmp === 0) cmp = safeNumber(a.error_low) - safeNumber(b.error_low);
+          if (cmp === 0) cmp = parseDate(a.date) - parseDate(b.date);
+        } else if (sortBy === "coins") {
+          cmp = safeNumber(a.coins) - safeNumber(b.coins);
+          if (cmp === 0) cmp = parseDate(a.date) - parseDate(b.date);
+        } else if (sortBy === "mood") {
+          cmp = safeNumber(a.mood) - safeNumber(b.mood);
+          if (cmp === 0) cmp = parseDate(a.date) - parseDate(b.date);
         }
 
-        return dir * cmp;
+        return state.sortDir === "asc" ? cmp : -cmp;
       });
 
-      renderTable(rows);
-      countText.textContent = `${rows.length} of ${state.rows.length} entries shown`;
-
-      const latestMood = rows.find(r => r.mood !== null && r.mood !== undefined)?.mood ?? state.rows.find(r => r.mood !== null && r.mood !== undefined)?.mood;
-      statusEl.className = rows.length ? "status" : "status error";
-      statusEl.textContent = rows.length
-        ? `Showing ${rows.length} result${rows.length === 1 ? "" : "s"} · ${moodLine(latestMood)}`
-        : "No entries match your current filters.";
+      state.filteredRows = rows;
+      state.page = 1;
+      renderCurrentPage();
+      renderStatus();
+      updateSortIndicators();
     }
 
-    function renderTable(rows) {
+    function renderCurrentPage() {
+      state.pageSize = Math.max(1, Number(pageSizeInput.value) || 25);
+
+      const total = state.filteredRows.length;
+      const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
+      state.page = Math.min(Math.max(1, state.page), totalPages);
+
+      const start = (state.page - 1) * state.pageSize;
+      const end = Math.min(start + state.pageSize, total);
+      const visibleRows = state.filteredRows.slice(start, end);
+
       tbody.innerHTML = "";
 
-      if (!rows.length) {
+      if (!visibleRows.length) {
         const tr = document.createElement("tr");
         const td = document.createElement("td");
         td.className = "empty";
         td.colSpan = 8;
-        td.textContent = "No records found.";
+        td.textContent = total === 0 ? "No records found." : "No records on this page.";
         tr.appendChild(td);
         tbody.appendChild(tr);
-        return;
+      } else {
+        for (const row of visibleRows) {
+          const tr = document.createElement("tr");
+
+          const tdDate = document.createElement("td");
+          tdDate.textContent = fmtDate(row.date);
+
+          const tdCity = document.createElement("td");
+          tdCity.textContent = row.city_name || "Unknown city";
+
+          const tdForecast = document.createElement("td");
+          tdForecast.textContent = fmtRange(row.forecast_high, row.forecast_low);
+
+          const tdActual = document.createElement("td");
+          tdActual.textContent = fmtRange(row.actual_high, row.actual_low);
+
+          const tdErrors = document.createElement("td");
+          tdErrors.textContent = fmtRange(row.error_high, row.error_low);
+
+          const tdCoins = document.createElement("td");
+          tdCoins.textContent = fmtNum(row.coins, "—", 2);
+
+          const tdMood = document.createElement("td");
+          tdMood.className = "muted";
+          tdMood.textContent = row.mood === null || row.mood === undefined ? "—" : Number(row.mood).toFixed(2);
+
+          const tdMsg = document.createElement("td");
+          tdMsg.className = "message-cell";
+          tdMsg.textContent = row.msg || "—";
+
+          tr.appendChild(tdDate);
+          tr.appendChild(tdCity);
+          tr.appendChild(tdForecast);
+          tr.appendChild(tdActual);
+          tr.appendChild(tdErrors);
+          tr.appendChild(tdCoins);
+          tr.appendChild(tdMood);
+          tr.appendChild(tdMsg);
+          tbody.appendChild(tr);
+        }
       }
 
-      for (const row of rows) {
-        const tr = document.createElement("tr");
+      pagerInfo.textContent = total === 0
+        ? "No entries to display."
+        : `Showing ${start + 1}-${end} of ${total} entries • Page ${state.page} of ${totalPages}`;
 
-        const tdDate = document.createElement("td");
-        tdDate.textContent = fmtDate(row.date);
+      prevPageBtn.disabled = state.page <= 1;
+      nextPageBtn.disabled = state.page >= totalPages;
+    }
 
-        const tdCity = document.createElement("td");
-        tdCity.textContent = row.city_name || "Unknown city";
-
-        const tdForecast = document.createElement("td");
-        tdForecast.textContent = fmtRange(row.forecast_high, row.forecast_low);
-
-        const tdActual = document.createElement("td");
-        tdActual.textContent = fmtRange(row.actual_high, row.actual_low);
-
-        const tdErrors = document.createElement("td");
-        tdErrors.textContent = fmtRange(row.error_high, row.error_low);
-
-        const tdErrScore = document.createElement("td");
-        tdErrScore.className = "muted";
-        tdErrScore.textContent = fmtNum(errorScore(row), "—", 2);
-
-        const tdCoins = document.createElement("td");
-        tdCoins.textContent = fmtNum(row.coins, "—", 2);
-
-        const tdMood = document.createElement("td");
-        tdMood.textContent = row.mood === null || row.mood === undefined ? "—" : Number(row.mood).toFixed(2);
-
-        const tdMsg = document.createElement("td");
-        tdMsg.className = "message-cell";
-        tdMsg.textContent = row.msg || "—";
-
-        tr.appendChild(tdDate);
-        tr.appendChild(tdCity);
-        tr.appendChild(tdForecast);
-        tr.appendChild(tdActual);
-        tr.appendChild(tdErrors);
-        tr.appendChild(tdErrScore);
-        tr.appendChild(tdCoins);
-        tr.appendChild(tdMood);
-        tr.appendChild(tdMsg);
-        tbody.appendChild(tr);
+    function renderStatus() {
+      countText.textContent = `${state.filteredRows.length} of ${state.rows.length} entries shown`;
+      statusEl.className = "status";
+      statusEl.textContent = state.rows.length
+        ? `Loaded ${state.rows.length} total record${state.rows.length === 1 ? "" : "s"} from daily_scores.`
+        : "No forecast entries found for this user yet.";
+      if (state.filteredRows.length === 0) {
+        statusEl.className = "status error";
+        statusEl.textContent = "No entries match your current filters.";
       }
     }
 
@@ -603,7 +686,7 @@
         const userId = getUserId();
         if (!userId) {
           statusEl.className = "status error";
-          statusEl.textContent = "No user ID found. Open this page from the same session where forecasts were created.";
+          statusEl.textContent = "No User ID found. Open this page from the session that saved the forecasts.";
           return;
         }
 
@@ -636,12 +719,10 @@
         });
 
         buildCityOptions(state.rows);
+        state.sortBy = "date";
+        state.sortDir = "desc";
+        updateSortIndicators();
         applyFiltersAndSort();
-
-        statusEl.className = "status";
-        statusEl.textContent = state.rows.length
-          ? `Loaded ${state.rows.length} total record${state.rows.length === 1 ? "" : "s"} from daily_scores.`
-          : "No forecast entries found for this user yet.";
       } catch (error) {
         statusEl.className = "status error";
         statusEl.textContent = `Could not load history: ${error.message || String(error)}`;
@@ -649,16 +730,29 @@
     }
 
     function wireEvents() {
-      searchInput.addEventListener("input", applyFiltersAndSort);
-      cityFilter.addEventListener("change", applyFiltersAndSort);
-      fromDateInput.addEventListener("change", applyFiltersAndSort);
-      toDateInput.addEventListener("change", applyFiltersAndSort);
-      sortByInput.addEventListener("change", applyFiltersAndSort);
-
-      sortDirBtn.addEventListener("click", () => {
-        state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
-        sortDirBtn.textContent = state.sortDir === "asc" ? "Ascending" : "Descending";
+      searchInput.addEventListener("input", () => {
+        state.page = 1;
         applyFiltersAndSort();
+      });
+
+      cityFilter.addEventListener("change", () => {
+        state.page = 1;
+        applyFiltersAndSort();
+      });
+
+      fromDateInput.addEventListener("change", () => {
+        state.page = 1;
+        applyFiltersAndSort();
+      });
+
+      toDateInput.addEventListener("change", () => {
+        state.page = 1;
+        applyFiltersAndSort();
+      });
+
+      pageSizeInput.addEventListener("change", () => {
+        state.page = 1;
+        renderCurrentPage();
       });
 
       clearBtn.addEventListener("click", () => {
@@ -666,14 +760,44 @@
         cityFilter.value = "";
         fromDateInput.value = "";
         toDateInput.value = "";
-        sortByInput.value = "date";
-        state.sortDir = "desc";
-        sortDirBtn.textContent = "Descending";
+        pageSizeInput.value = "25";
+        state.page = 1;
+        state.pageSize = 25;
         applyFiltersAndSort();
       });
 
       refreshBtn.addEventListener("click", loadHistory);
-      statsBtn.addEventListener("click", () => (window.location.href = "stats.html"));
+
+      prevPageBtn.addEventListener("click", () => {
+        state.page = Math.max(1, state.page - 1);
+        renderCurrentPage();
+      });
+
+      nextPageBtn.addEventListener("click", () => {
+        state.page += 1;
+        renderCurrentPage();
+      });
+
+      statsBtn.addEventListener("click", () => {
+        window.location.href = "stats.html";
+      });
+
+      tableHeaders.forEach(th => {
+        th.addEventListener("click", () => {
+          const sortKey = th.dataset.sort;
+          if (!sortKey) return;
+
+          if (state.sortBy === sortKey) {
+            state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+          } else {
+            state.sortBy = sortKey;
+            state.sortDir = "desc";
+          }
+
+          state.page = 1;
+          applyFiltersAndSort();
+        });
+      });
     }
 
     wireEvents();
