@@ -337,9 +337,9 @@
         <div class="control">
           <label for="pageSize">Rows / page</label>
           <select id="pageSize">
-            <option value="25" selected>25</option>
-            <option value="50">50</option>
+            <option value="50" selected>50</option>
             <option value="100">100</option>
+            <option value="150">150</option>
           </select>
         </div>
 
@@ -417,7 +417,7 @@
       sortBy: "date",
       sortDir: "desc",
       page: 1,
-      pageSize: 25,
+      pageSize: 50,
     };
 
     function getUserId() {
@@ -568,7 +568,7 @@
     }
 
     function renderCurrentPage() {
-      state.pageSize = Math.max(1, Number(pageSizeInput.value) || 25);
+      state.pageSize = Math.max(1, Number(pageSizeInput.value) || 50);
 
       const total = state.filteredRows.length;
       const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
@@ -749,9 +749,9 @@
         cityFilter.value = "";
         fromDateInput.value = "";
         toDateInput.value = "";
-        pageSizeInput.value = "25";
+        pageSizeInput.value = "50";
         state.page = 1;
-        state.pageSize = 25;
+        state.pageSize = 50;
         applyFiltersAndSort();
       });
 
