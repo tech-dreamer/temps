@@ -166,11 +166,11 @@
   <div class="wrap">
     <header>
       <h1 class="title">🌤️ My Stats</h1>
-      <p class="subtitle">A cozy snapshot of your current progress and how your forecasting is going today.</p>
+      <p class="subtitle">A snapshot of my current progress and my bun's stats.</p>
     </header>
 
     <section class="card">
-      <div id="status" class="loading">Loading your personal stats…</div>
+      <div id="status" class="loading"> Loading my personal stats… </div>
 
       <div id="statsPanel" style="display:none;">
         <div id="moodLine" class="status"></div>
@@ -210,9 +210,8 @@
   <script type="module">
     import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-    // Replace with your real values
     const SUPABASE_URL = "https://ckyqknlxmjqlkqnxhgef.supabase.co";
-    const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0";
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -259,14 +258,15 @@
       panel.style.display = "none";
 
       try {
-        const userId = localStorage.getItem("user_id");
-        if (!userId) {
-          statusEl.textContent = "Pls load your user ID or create a user ID by making a daily forecast.";
+        const localUserId = localStorage.getItem("user_id");   // localStorage identity
+        const authUserId = userData?.user?.id;                 // auth identity
+        if (!localUserId) {
+          statusEl.textContent = "Please load your user ID or create a user ID by making a daily forecast.";
         }
 
-        if (userErr || !userData?.user) {
+        if (userErr) {
           statusEl.className = "error";
-          statusEl.textContent = "No active session found in this browser. Pls try again.";
+          statusEl.textContent = "No active session found in this browser. Please try again.";
           return;
         }
         
@@ -279,7 +279,7 @@
         if (error) {
           if (error.code === "PGRST116") {
             statusEl.className = "error";
-            statusEl.textContent = "No stats row yet for this user. Scores appear here once forecasts get scored.";
+            statusEl.textContent = "No stats for you yet. Your stats appear here once forecasts are scored.";
             return;
           }
           throw error;
