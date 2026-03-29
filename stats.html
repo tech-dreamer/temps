@@ -110,13 +110,7 @@
       font-weight: 650;
       margin-bottom: 6px;
     }
-    
-    .mood-tag {
-      font-size: 0.75em;
-      font-weight: 600;
-      margin-left: 0.25rem;
-    }
-    
+
     .value {
       font-size: 1.45rem;
       font-weight: 750;
@@ -297,7 +291,7 @@
 
     function setMoodDisplay(mood) {
       const moodTag = mood > 0 ? " (HAPPY)" : mood < 0 ? " (SAD)" : "";
-      moodEl.innerHTML = `${cleanNumber(mood, 0, 2)} <span class="mood-tag">${mood > 0 ? "(HAPPY)" : mood < 0 ? "(SAD)" : ""}</span>`;
+      moodEl.textContent = `${cleanNumber(mood, 0, 2)}${moodTag}`;
 
       moodEl.classList.remove("happy", "sad", "neutral");
       if (mood > 0) moodEl.classList.add("happy");
