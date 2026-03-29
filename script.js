@@ -415,7 +415,7 @@ async function buildHourlyGrid() {
 
         ${sixHrHourNum !== null ? `
           <label>
-            6-hr High °F (${sixHrLabel} target):
+            6-hr High °F:
             <input type="number"
               class="hourly-input"
               data-city-id="${city.id}"
