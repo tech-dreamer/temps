@@ -269,9 +269,7 @@
           statusEl.textContent = "No active session found in this browser. Pls try again.";
           return;
         }
-
-        const userId = userData.user.id;
-
+        
         const { data, error } = await supabase
           .from("user_stats")
           .select("mood, current_streak, total_coins, coins, last_active")
