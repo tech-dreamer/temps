@@ -608,7 +608,7 @@ if (hourlyForm) {
       const val = input.value.trim();
       if (!val) return;
 
-      const selectedHourNum = convertHourLabel(selectedHour);
+      const selectedHourNum = convertHourLabel(selectedHour); // convert hour to number
       const selectedCutoff = getHourlyCutoff(etNow, selectedHourNum);
       const cityId = Number(input.dataset.cityId);
       const city = cities.find(c => c.id === cityId);
@@ -623,7 +623,7 @@ if (hourlyForm) {
         city_id: cityId,
         city: city.name,
         date: selectedForecastDate,
-        hour: selectedHour,
+        hour: selectedHourNum,
         temp: Number(val),
         user_id: userId
       });
