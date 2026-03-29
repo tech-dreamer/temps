@@ -273,7 +273,7 @@
         const { data, error } = await supabase
           .from("user_stats")
           .select("mood, current_streak, total_coins, coins, last_active")
-          .eq("user_id", userId)
+          .eq("user_id", localUserId)
           .single();
 
         if (error) {
@@ -307,7 +307,6 @@
     refreshBtn.addEventListener("click", loadStats);
 
     historyBtn.addEventListener("click", () => {
-      // Rename this if your history file is different
       window.location.href = "history.html";
     });
 
