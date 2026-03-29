@@ -639,7 +639,7 @@ if (hourlyForm) {
           temp: Number(val),
           user_id: userId
         });
-    });
+    };
 
     if (blocked) {
       document.getElementById('status').innerHTML =
