@@ -84,14 +84,6 @@
       color: #334155;
     }
 
-    .meta {
-      color: var(--muted);
-      margin: 0 0 12px;
-      font-size: 0.93rem;
-      text-align: center;
-      line-height: 1.4;
-    }
-
     .controls {
       display: grid;
       grid-template-columns: repeat(6, minmax(150px, 1fr));
@@ -318,7 +310,6 @@
 
     <section class="card">
       <div id="status" class="status loading">Loading your forecast history…</div>
-      <p id="countText" class="meta"></p>
 
       <div class="controls">
         <div class="control">
@@ -370,7 +361,7 @@
                 <th data-sort="city" data-label="City">City <span class="sort-arrow"></span></th>
                 <th data-sort="forecast" data-label="Forecast">Forecast <span class="sort-arrow"></span></th>
                 <th data-sort="actual" data-label="Actual">Actual <span class="sort-arrow"></span></th>
-                <th data-sort="errors" data-label="Errors">Errors <span class="sort-arrow"></span></th>
+                <th data-sort="accuracy" data-label="Accuracy (Error)">Accuracy (Error) <span class="sort-arrow"></span></th>
                 <th data-sort="coins" data-label="Coins">Coins <span class="sort-arrow"></span></th>
                 <th data-sort="mood" data-label="Mood">Mood <span class="sort-arrow"></span></th>
                 <th>Message</th>
@@ -403,7 +394,6 @@
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const statusEl = document.getElementById("status");
-    const countText = document.getElementById("countText");
 
     const searchInput = document.getElementById("searchInput");
     const cityFilter = document.getElementById("cityFilter");
@@ -649,11 +639,11 @@
     }
 
     function renderStatus() {
-      countText.textContent = `${state.filteredRows.length} of ${state.rows.length} entries shown`;
       statusEl.className = "status";
       statusEl.textContent = state.rows.length
         ? `Loaded ${state.rows.length} total record${state.rows.length === 1 ? "" : "s"} from daily_scores.`
         : "No forecast entries found for this user yet.";
+
       if (state.filteredRows.length === 0) {
         statusEl.className = "status error";
         statusEl.textContent = "No entries match your current filters.";
@@ -678,7 +668,6 @@
     async function loadHistory() {
       statusEl.className = "status loading";
       statusEl.textContent = "Loading your forecast history…";
-      countText.textContent = "";
       tbody.innerHTML = "";
       cityFilter.innerHTML = '<option value="">All cities</option>';
 
@@ -686,7 +675,7 @@
         const userId = getUserId();
         if (!userId) {
           statusEl.className = "status error";
-          statusEl.textContent = "No User ID found. Open this page from the session that saved the forecasts.";
+          statusEl.textContent = "No user ID found. Open this page from the session that created the forecasts.";
           return;
         }
 
