@@ -543,13 +543,13 @@ if (dailyForm) {
 
     if (blocked) {
       document.getElementById('status').innerHTML =
-        '<span style="color:red;">Cutoff passed for one or more cities.</span>';
+        '<span style="color:red;">Cutoff passed for at least 1 city.</span>';
       return;
     }
 
     if (!payload.length) {
       document.getElementById('status').innerHTML =
-        '<span style="color:red;">Enter at least one valid forecast!</span>';
+        '<span style="color:red;">Enter at least 1 valid forecast!</span>';
       return;
     }
 
@@ -687,7 +687,7 @@ async function handleHourlySubmit(e) {
     } else if (row.sixHrVal < row.hourlyVal) {
       markInvalid(row.sixHrInput);
       validationMessages.push(
-        `${row.cityName}: 6-hr high (${row.sixHrVal}°F) must be at least hourly temp (${row.hourlyVal}°F).`
+        `${row.cityName}: 6-hr high (${row.sixHrVal}°F) must be >= hourly temp (${row.hourlyVal}°F).`
       );
     }
 
