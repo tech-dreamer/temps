@@ -423,11 +423,11 @@ async function buildHourlyGrid() {
               value="${prev6HrGuess?.temp ?? ''}"
               min="-25"
               max="125"
-              ${isPast6HrCutoff ? 'disabled' : ''}>
+              ${isPastCutoff ? 'disabled' : ''}>
           </label>
         ` : ''}
 
-        ${(isPastCutoff || isPast6HrCutoff)
+        ${(isPastCutoff)
           ? '<small style="color:#e74c3c;">Past cutoff</small>'
           : ''}
       </div>
