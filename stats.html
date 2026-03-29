@@ -16,6 +16,7 @@
       --good: #10b981;
       --soft: #f3f4f6;
       --shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+      --cozy-purple: #8b5cf6;
     }
 
     * { box-sizing: border-box; }
@@ -26,12 +27,12 @@
     .status {
       text-align: center;
     }
-    
+
     .title,
     .subtitle {
       width: 100%;
     }
-    
+
     .status {
       margin-left: auto;
       margin-right: auto;
@@ -104,16 +105,33 @@
     }
 
     .label {
-      color: var(--muted);
-      font-size: 0.85rem;
+      color: #111827;
+      font-size: 1rem;
+      font-weight: 650;
       margin-bottom: 6px;
     }
 
     .value {
       font-size: 1.45rem;
       font-weight: 750;
-      color: #111827;
+      color: var(--cozy-purple);
       margin: 0;
+    }
+
+    .value.mood {
+      color: var(--cozy-purple);
+    }
+
+    .value.mood.happy {
+      color: #15803d;
+    }
+
+    .value.mood.sad {
+      color: #b91c1c;
+    }
+
+    .value.mood.neutral {
+      color: #374151;
     }
 
     .value.small {
@@ -193,24 +211,23 @@
         <div id="moodLine" class="status"></div>
 
         <div class="grid">
-
           <article class="stat">
-            <div class="label">Current Coins</div>
+            <div class="label">🪙 Current Coins</div>
             <p class="value" id="coins">—</p>
           </article>
           
           <article class="stat">
-            <div class="label">Total Coins</div>
+            <div class="label">🪙 Total Coins</div>
             <p class="value" id="totalCoins">—</p>
           </article>
 
           <article class="stat">
-            <div class="label">Mood</div>
-            <p class="value" id="mood">—</p>
+            <div class="label">💗 Mood</div>
+            <p class="value mood" id="mood">—</p>
           </article>
 
           <article class="stat">
-            <div class="label">Current Streak</div>
+            <div class="label">⭐ Current Streak</div>
             <p class="value" id="currentStreak">—</p>
           </article>
         </div>
@@ -247,11 +264,13 @@
     function cleanNumber(v, fallback = 0, decimals = 2) {
       if (v === null || v === undefined || Number.isNaN(v)) return fallback;
       const n = Number(v);
-      if (Number.isInteger(n)) return n.toLocaleString();
+      if (Number.isInteger(n) || decimals === 0) {
+        return n.toLocaleString();
+      }
       return n.toFixed(decimals);
     }
 
-    function friendlyMoodLine(mood, streak) {
+    function friendlyMoodLine(mood) {
       if (mood >= 40) return "Mood is glowing today — your forecasts are showing care and clarity. ✨";
       if (mood >= 30) return "Good rhythm. You’re keeping your forecasts in a solid, steady place. 🌿";
       if (mood >= 20) return "Solid progress. A small win every day compounds into stronger score days. ☀️";
@@ -270,14 +289,23 @@
       });
     }
 
+    function setMoodDisplay(mood) {
+      const moodTag = mood > 0 ? " (HAPPY)" : mood < 0 ? " (SAD)" : "";
+      moodEl.textContent = `${cleanNumber(mood, 0, 2)}${moodTag}`;
+
+      moodEl.classList.remove("happy", "sad", "neutral");
+      if (mood > 0) moodEl.classList.add("happy");
+      else if (mood < 0) moodEl.classList.add("sad");
+      else moodEl.classList.add("neutral");
+    }
+
     async function loadStats() {
       statusEl.className = "loading";
       statusEl.textContent = "Loading your personal stats…";
       panel.style.display = "none";
 
       try {
-        const localUserId = localStorage.getItem("temps_user_id");   // localStorage identity
-        // const authUserId = userData?.user?.id;              // auth identity
+        const localUserId = localStorage.getItem("temps_user_id");
 
         if (!localUserId) {
           statusEl.className = "error";
@@ -306,9 +334,9 @@
         totalCoinsEl.textContent = cleanNumber(Number(data.total_coins ?? 0), 0, 2);
         coinsEl.textContent = cleanNumber(Number(data.coins ?? 0), 0, 2);
         currentStreakEl.textContent = cleanNumber(streak, 0, 0);
-        moodEl.textContent = cleanNumber(mood, 0, 2);
 
-        moodLine.textContent = friendlyMoodLine(mood, streak);
+        setMoodDisplay(mood);
+        moodLine.textContent = friendlyMoodLine(mood);
         lastActiveEl.textContent = `Last active: ${formatDate(data.last_active)}`;
 
         statusEl.style.display = "none";
