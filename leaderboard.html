@@ -349,7 +349,7 @@
         return { ...p, rank };
       });
 
-      statusEl.textContent = `Loaded ${ranked.length} players • Updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+      statusEl.textContent = `Updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 
       for (const p of ranked) {
         const li = document.createElement("li");
