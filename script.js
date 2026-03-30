@@ -19,11 +19,14 @@ const HOURLY_LABELS = [
   "8PM"
 ];
 
+const HOURLY_GAME_SWITCH_HOUR_ET = 20; // 19
+
 const isDailyPage = !!document.getElementById('tempsForm');
 const isHourlyPage = !!document.getElementById('hourlyForm');
 
 let selectedHour = null;
 let userId;
+let hourlyCurrentDateKey = '';
 
 // Helper to get existing user or create new
 async function getOrCreateUser() {
@@ -108,6 +111,39 @@ function isPastCutoffForHour(etNow, useTomorrow, hourValue) {
   return etNow >= getHourlyCutoff(etNow, hourValue);
 }
 
+function getHourlyGameDateMeta() {
+  const etNow = getETNow();
+
+  const switchTime = new Date(etNow);
+  switchTime.setHours(HOURLY_GAME_SWITCH_HOUR_ET, 0, 0, 0);
+
+  const useTomorrow = etNow >= switchTime;
+
+  const labelDate = new Date(etNow);
+  if (useTomorrow) {
+    labelDate.setDate(labelDate.getDate() + 1);
+  }
+
+  return {
+    etNow,
+    useTomorrow,
+    gameDate: getETGameDateISO(useTomorrow),
+    gameDateLabel: labelDate.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric"
+    })
+  };
+}
+
+function updateHourlyCurrentDate() {
+  const el = document.getElementById('currentHourlyDate');
+  if (!el) return getHourlyGameDateMeta().gameDate;
+
+  const state = getHourlyGameDateMeta();
+  el.textContent = `Forecast date (ET): ${state.gameDateLabel}`;
+  return state.gameDate;
+}
+
 // Load cities
 
 async function loadCities() {
@@ -131,12 +167,15 @@ async function loadCities() {
   cities = data;
   buildDailyGrid();
   updateCurrentDate();
+
+  if (isHourlyPage) {
+    hourlyCurrentDateKey = updateHourlyCurrentDate();
+  }
 }
 
-// Update current date label
+// Update current date label on daily page
 
 function updateCurrentDate() {
-
   const dateDisplay = document.getElementById('currentDate');
   const forecastDaySelect = document.getElementById('forecastDay');
 
@@ -153,9 +192,9 @@ function updateCurrentDate() {
 
   const dateKey = `${ptNow.getFullYear()}-${String(ptNow.getMonth() + 1).padStart(2, "0")}-${String(ptNow.getDate()).padStart(2, "0")}`;
   const autoSwitchKey = `temps_auto_switched_${dateKey}`;
-  
+
   const hasAutoSwitched = sessionStorage.getItem(autoSwitchKey);
-  
+
   if (ptNow >= ptCutoff && !hasAutoSwitched) {
     forecastDaySelect.value = "tomorrow";
     sessionStorage.setItem(autoSwitchKey, "true");
@@ -195,7 +234,7 @@ async function loadDailyData() {
 
   const { data: actuals } = await client
     .from('daily_actuals')
-    .select('city_id, high, low, date')
+    .select('city_id, high, low, date');
 
   const { data: guesses } = await client
     .from('daily_forecasts')
@@ -232,9 +271,6 @@ async function buildDailyGrid() {
 
     const showYesterday = forecastDay === 'today';
 
-    console.log("cityYesterday:", cityYesterday);
-    console.log("actuals:", actuals);
-
     const cityActuals = actuals
       .filter(a => a.city_id === city.id && a.date <= cityYesterday)
       .sort((a, b) => b.date.localeCompare(a.date));
@@ -268,10 +304,7 @@ async function buildDailyGrid() {
     cutoff.setHours(12, 0, 0, 0);
 
     const ptCutoff = new Date(ptNow);
-    ptCutoff.setHours(12, 0, 0, 0); // noon PT last city cutoff
-
-    const ptMidnight = new Date(ptNow);
-    ptMidnight.setHours(0, 0, 0, 0);
+    ptCutoff.setHours(12, 0, 0, 0);
 
     const isPastCutoff =
       forecastDay === 'today' &&
@@ -289,7 +322,7 @@ async function buildDailyGrid() {
           : ''}
 
         ${hasPrevGuess
-          ? `<p><small>Your last forecast: H ${prevGuess.high ?? '-'}° / L ${prevGuess.low ?? '-'}°</small></p>`
+          ? `<p><small>Your current forecast: H ${prevGuess.high ?? '-'}° / L ${prevGuess.low ?? '-'}°</small></p>`
           : ''}
 
         <label>High Temp °F:
@@ -349,39 +382,34 @@ function buildHourSelector() {
 async function buildHourlyGrid() {
   const { hourlyGuesses } = await loadDailyData();
   const grid = document.getElementById('hourlyGrid');
-  if (!grid) return;
+  if (!grid || !selectedHour) return;
 
-  grid.innerHTML = '';
-  if (!selectedHour) return;
-
-  const etNow = getETNow();
-  const lastCutoff = new Date(etNow); // last cutoff of day
-  lastCutoff.setHours(19, 0, 0, 0);
-  lastCutoff.setMinutes(lastCutoff.getMinutes() - 30);
-
-  const useTomorrow = etNow >= lastCutoff;
+  const hourlyState = getHourlyGameDateMeta();
+  const etNow = hourlyState.etNow;
+  const useTomorrow = hourlyState.useTomorrow;
+  const selectedForecastDate = hourlyState.gameDate;
 
   const hourNum = convertHourLabel(selectedHour);
   const sixHrHourNum = hourNum + 0.5;
 
+  grid.innerHTML = '';
+
   cities.forEach(city => {
-
     const localLabel = convertETToCityHourLabel(hourNum, city.timezone);
-
     const isPastCutoff = isPastCutoffForHour(etNow, useTomorrow, hourNum);
 
     const prevGuess = hourlyGuesses.find(
       g =>
         g.city_id === city.id &&
         g.hour === hourNum &&
-        g.date === getETGameDateISO(useTomorrow)
+        g.date === selectedForecastDate
     );
 
     const prev6HrGuess = sixHrHourNum !== null ? hourlyGuesses.find(
       g =>
         g.city_id === city.id &&
         g.hour === sixHrHourNum &&
-        g.date === getETGameDateISO(useTomorrow)
+        g.date === selectedForecastDate
     ) : null;
 
     const card = document.createElement('div');
@@ -427,11 +455,8 @@ async function buildHourlyGrid() {
 }
 
 function convertHourLabel(label) {
-  // if (label === "Noon") return 12;
-
   let num = parseInt(label);
   if (label.includes("PM") && num !== 12) num += 12;
-
   return num;
 }
 
@@ -586,6 +611,7 @@ async function handleHourlySubmit(e) {
     input.style.boxShadow = "";
     input.style.backgroundColor = "";
   };
+
   const markInvalid = (input) => {
     if (!input) return;
     input.style.borderColor = "#dc2626";
@@ -593,20 +619,17 @@ async function handleHourlySubmit(e) {
     input.style.backgroundColor = "#fef2f2";
   };
 
-  // clear old validation
+  // Clear old validation
   document.querySelectorAll(".hourly-validation-msg").forEach(el => el.remove());
   document.querySelectorAll(".hourly-input").forEach(clearInput);
 
-  const etNow = getETNow();
-  const lastCutoff = new Date(etNow);
-  lastCutoff.setHours(19, 0, 0, 0);
-  lastCutoff.setMinutes(lastCutoff.getMinutes() - 30);
-
-  const useTomorrow = etNow >= lastCutoff;
-  const selectedForecastDate = getETGameDateISO(useTomorrow);
-  const selectedHourNum = convertHourLabel(selectedHour);          
+  const hourlyState = getHourlyGameDateMeta();
+  const etNow = hourlyState.etNow;
+  const useTomorrow = hourlyState.useTomorrow;
+  const selectedForecastDate = hourlyState.gameDate;
+  const selectedHourNum = convertHourLabel(selectedHour);
   const selectedCutoff = getHourlyCutoff(etNow, selectedHourNum);
-  const sixHrHourNum = selectedHourNum + 0.5;                    
+  const sixHrHourNum = selectedHourNum + 0.5;
 
   if (!Number.isFinite(selectedHourNum)) {
     status.innerHTML = '<span style="color:red;">Invalid selected hour.</span>';
@@ -615,7 +638,7 @@ async function handleHourlySubmit(e) {
 
   let blocked = false;
   const payload = [];
-  const cityRows = new Map(); // cityId -> { cityName, hourlyVal, sixHrVal, sixHrInput }
+  const cityRows = new Map(); // cityId -> { cityName, cityId, hourlyVal, sixHrVal, sixHrInput }
 
   const EPS = 1e-6;
   const sameHour = (a, b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) < EPS;
@@ -639,15 +662,19 @@ async function handleHourlySubmit(e) {
     const city = cities.find((c) => c.id === cityId);
     if (!city) return;
 
-    const row = cityRows.get(cityId) || { cityName: city.name, hourlyVal: undefined, sixHrVal: undefined, sixHrInput: null };
+    const row = cityRows.get(cityId) || {
+      cityName: city.name,
+      cityId,
+      hourlyVal: undefined,
+      sixHrVal: undefined,
+      sixHrInput: null
+    };
 
-    // integer hour = hourly input at selected hour
-    if (sameHour(inputHour, selectedHourNum)) {
+    if (sameHour(inputHour, selectedHourNum)) { // integer hour = hourly input at selected hour
       row.hourlyVal = numVal;
     }
 
-    // half-hour (selectedHour + 0.5) = 6-hr input for this selected hour card
-    if (sameHour(inputHour, sixHrHourNum)) {
+    if (sameHour(inputHour, sixHrHourNum)) { // hour + 0.5 = 6-hr input at selected hour
       row.sixHrVal = numVal;
       row.sixHrInput = input;
     }
@@ -665,7 +692,7 @@ async function handleHourlySubmit(e) {
   });
 
   if (blocked) {
-    status.innerHTML = '<span style="color:red;">Cutoff passed for the hour selection.</span>';
+    status.innerHTML = '<span style="color:red;">Cutoff passed for this hour selection.</span>';
     return;
   }
 
@@ -676,7 +703,7 @@ async function handleHourlySubmit(e) {
 
   const validationMessages = [];
   cityRows.forEach((row, cityId) => {
-    if (!row.sixHrInput) return; // no rule needed if no 6-hr entered
+    if (!row.sixHrInput) return; // no 6-hr rule needed if no 6-hr entered
 
     const cityCard = document.querySelector(`#hourlyGrid .city-card[data-city-id="${cityId}"]`);
     const msgHost = cityCard?.querySelector(".city-card-content");
@@ -692,10 +719,12 @@ async function handleHourlySubmit(e) {
     }
 
     if (validationMessages.length && msgHost) {
-      msgHost.insertAdjacentHTML(
-        "beforeend",
-        `<div class="hourly-validation-msg" style="color:#dc2626; margin-top:.4rem;">Fix invalid 6-hr input.</div>`
-      );
+      if (!msgHost.querySelector('.hourly-validation-msg')) {
+        msgHost.insertAdjacentHTML(
+          "beforeend",
+          `<div class="hourly-validation-msg" style="color:#dc2626; margin-top:.4rem;">Fix invalid 6-hr input.</div>`
+        );
+      }
     }
   });
 
@@ -719,8 +748,8 @@ async function handleHourlySubmit(e) {
 if (hourlyForm) {
   hourlyForm.addEventListener('submit', handleHourlySubmit);
 }
-                              
-// Change dropdown
+
+// Advance dropdown
 
 const forecastDaySelect = document.getElementById('forecastDay');
 
@@ -751,9 +780,19 @@ setInterval(() => {
     updateCurrentDate();
     buildDailyGrid();
   }
+
+  if (isHourlyPage) {
+    const current = updateHourlyCurrentDate();
+    if (current !== hourlyCurrentDateKey) {
+      hourlyCurrentDateKey = current;
+      if (selectedHour) {
+        buildHourlyGrid();
+      }
+    }
+  }
 }, 60000);
 
-// Connect Show button to user score page
+// Connect Show Score button to user score page
 document.addEventListener("DOMContentLoaded", function () {
   const btn = document.getElementById("revealBtn");
 
