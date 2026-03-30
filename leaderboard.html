@@ -253,7 +253,6 @@
       <div class="title-box">
         <h1>🔮 Temps Leaderboard 🔮</h1>
         <p class="subtitle">View top users & you</p>
-        <span class="pill" id="countPill">— players</span>
       </div>
       <div class="toolbar">
         <button id="refreshBtn">Refresh</button>
@@ -342,7 +341,7 @@
       });
 
       countPill.textContent = `${ranked.length} players`;
-      statusEl.textContent = `Loaded from ${SOURCE_LABEL} • Updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+      statusEl.textContent = `Updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 
       for (const p of ranked) {
         const li = document.createElement("li");
