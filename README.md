@@ -1,5 +1,5 @@
-Temps App
+🐰 Temps With Friends 🔮
 
-A cozy fun social forecasting app :)
+A cozy fun social forecasting puzzle 😊
 
-Guess Temps, Help Buns, Win Cash
+Guess Temps, Help Buns, Win Cash 👯
