@@ -14,6 +14,9 @@
       --muted: #6b647d;
       --line: #e9e3f7;
       --shadow: 0 14px 30px rgba(78, 56, 128, 0.14);
+      --fw-heavy: 650;
+      --fw-body: 500;
+      --fw-title: 760;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; min-height: 100%; }
@@ -28,6 +31,9 @@
       display: flex;
       justify-content: center;
       align-items: flex-start;
+      font-size: 17px;
+      line-height: 1.45;
+      font-weight: var(--fw-body);
     }
 
     .app { width: min(980px, 100%); }
@@ -45,7 +51,7 @@
       text-align: center;
     }
 
-    .title-box { 
+    .title-box {
       width: 100%;
       display: flex;
       flex-direction: column;
@@ -56,15 +62,16 @@
 
     h1 {
       margin: 0;
-      font-size: 1.7rem;
-      font-weight: 750;
+      font-size: 1.95rem;
+      font-weight: var(--fw-title);
       letter-spacing: 0.2px;
     }
 
     .subtitle {
       margin: 0;
       color: var(--muted);
-      font-size: 0.97rem;
+      font-size: 1.08rem;
+      font-weight: 540;
       max-width: 680px;
     }
 
@@ -81,26 +88,13 @@
       border: 0;
       border-radius: 999px;
       padding: 10px 16px;
-      font-size: 0.92rem;
-      font-weight: 650;
+      font-size: 1.02rem;
+      font-weight: var(--fw-heavy);
       cursor: pointer;
       background: linear-gradient(120deg, #b77cff, #a78bfa);
       color: #fff;
       transition: transform .12s ease, filter .12s ease;
       box-shadow: 0 8px 18px rgba(158, 106, 255, 0.28);
-    }
-
-    .pill {
-      display: inline-block;
-      padding: 6px 11px;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      background: #f3ecff;
-      color: #6244a1;
-      border: 1px solid #d8c9f3;
-      font-weight: 650;
-      text-align: center;
-      margin-top: 2px;
     }
 
     .board {
@@ -124,18 +118,20 @@
     }
 
     .board-head strong {
-      font-size: 1rem;
+      font-size: 1.12rem;
       letter-spacing: 0.2px;
       display: block;
+      font-weight: 700;
     }
 
     .status {
-      font-size: 0.85rem;
+      font-size: 0.97rem;
       color: var(--muted);
       display: block;
       word-break: break-word;
       text-align: center;
       max-width: 100%;
+      font-weight: 530;
     }
 
     .list-wrap {
@@ -177,7 +173,7 @@
       height: 44px;
       border-radius: 12px;
       font-weight: 700;
-      font-size: 0.95rem;
+      font-size: 1rem;
       background: #fff7eb;
       border: 1px solid #ffe0ba;
       color: #7d560b;
@@ -189,7 +185,7 @@
 
     .name {
       font-weight: 650;
-      font-size: 1rem;
+      font-size: 1.08rem;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -205,17 +201,20 @@
       color: #0b5565;
       border: 1px solid #c7f0f7;
       font-variant-numeric: tabular-nums;
-      font-size: 0.9rem;
+      font-size: 1.04rem;
       white-space: nowrap;
     }
 
-    .coins .spark { margin-right: 6px; }
+    .coins .coin-emoji {
+      margin-right: 6px;
+    }
 
     .empty, .error {
       text-align: center;
       color: var(--muted);
       padding: 26px 16px;
-      font-size: 0.95rem;
+      font-size: 1rem;
+      font-weight: 520;
     }
 
     .error { color: #8b1a2f; text-align: left; }
@@ -224,26 +223,34 @@
       font-weight: 700;
       margin-bottom: 8px;
       text-align: center;
+      font-size: 1.06rem;
     }
 
     .error-line {
       margin: 0 0 6px 0;
       white-space: pre-wrap;
       word-break: break-word;
-      font-size: 0.82rem;
+      font-size: 0.93rem;
       text-align: left;
       background: #fff3f4;
       border-radius: 10px;
       padding: 8px;
       border: 1px solid #ffd0d8;
+      font-weight: 520;
     }
 
     @media (max-width: 560px) {
-      body { padding: 10px; }
-      h1 { font-size: 1.4rem; }
+      body { padding: 10px; font-size: 16px; }
+      h1 { font-size: 1.7rem; }
+      .subtitle { font-size: 1.01rem; }
+      .board-head strong { font-size: 1.05rem; }
+      .status { font-size: 0.93rem; }
       .row { grid-template-columns: 52px 1fr auto; padding: 10px; }
       .rank { width: 40px; height: 40px; }
-      .coins { font-size: 0.82rem; padding: 7px 10px; }
+      .name { font-size: 1.01rem; }
+      .coins { font-size: 0.96rem; padding: 7px 10px; }
+      .empty, .error { font-size: 0.95rem; }
+      .error-title, .error-line { font-size: 0.92rem; }
     }
   </style>
 </head>
@@ -275,6 +282,7 @@
   <script>
     const SUPABASE_URL = "https://ckyqknlxmjqlkqnxhgef.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0";
+
     const statusEl = document.getElementById("status");
     const rowsEl = document.getElementById("rows");
     const refreshBtn = document.getElementById("refreshBtn");
@@ -322,6 +330,7 @@
 
       if (!players.length) {
         rowsEl.innerHTML = `<li class="empty">No users yet.</li>`;
+        statusEl.textContent = "No users yet";
         return;
       }
 
@@ -340,16 +349,17 @@
         return { ...p, rank };
       });
 
-      statusEl.textContent = `Updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+      statusEl.textContent = `Loaded ${ranked.length} players • Updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 
       for (const p of ranked) {
         const li = document.createElement("li");
         li.className = "row";
         const rankClass = getRankClass(p.rank);
+
         li.innerHTML = `
           <div class="rank ${rankClass}">${rankEmoji(p.rank)}</div>
           <div class="name" title="${p.username}">${p.username}</div>
-          <div class="coins"><span class="spark">⭐</span>${formatNumber(p.coins)} coins</div>
+          <div class="coins"><span class="coin-emoji">🪙</span>${formatNumber(p.coins)} coins</div>
         `;
         rowsEl.appendChild(li);
       }
