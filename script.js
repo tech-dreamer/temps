@@ -701,7 +701,7 @@ async function handleHourlySubmit(e) {
 
   if (validationMessages.length) {
     status.innerHTML = `<span style="color:red;">${validationMessages.join("<br>")}</span>`;
-    return; // strict: save nothing if any invalid
+    return; // save nothing if any invalid
   }
 
   const { error } = await client
@@ -753,7 +753,7 @@ setInterval(() => {
   }
 }, 60000);
 
-// connect Reveal button to user score page
+// Connect Show button to user score page
 document.addEventListener("DOMContentLoaded", function () {
   const btn = document.getElementById("revealBtn");
 
