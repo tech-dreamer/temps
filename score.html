@@ -35,7 +35,7 @@
     #scoreList {
       display: flex;
       justify-content: space-between;
-      gap: 12px;
+      gap: 8px;
       flex-wrap: nowrap;
       overflow-x: auto;
       overflow-y: visible;
@@ -58,7 +58,7 @@
       transform: scale(0.9) translateY(8px);
       transition: 0.45s ease;
       border-bottom: none;
-      padding: 12px;
+      padding: 10px 6px;
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
@@ -104,15 +104,14 @@
     }
     
     .city {
-      font-size: 20px;
-      font-weight: 600;
+      font-size: clamp(16px, 2.9vw, 18px); /* 16 → 18px responsive */
+      font-weight: 700;
       margin-bottom: 4px;
       text-align: center;
       width: 100%;
-      white-space: normal;
-      overflow: visible;
+      white-space: nowrap;
+      overflow: visible;   /* no ellipsis/truncation */
       text-overflow: clip;
-      overflow-wrap: anywhere;
       line-height: 1.2;
     }
 
@@ -233,6 +232,13 @@
       
       button {
         width: 100%;
+      }
+      #scoreList {
+        gap: 6px;
+      }
+
+      .score-row {
+        padding: 10px 4px;
       }
     }
   </style>
