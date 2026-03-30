@@ -349,7 +349,7 @@
         return { ...p, rank };
       });
 
-      statusEl.textContent = `Updated ${new Date().toLocaleTimeString("en-US", {timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit"})}`;
+      statusEl.textContent = `Updated ${new Date().toLocaleTimeString("en-US", {timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit", hour12: true})}`;
 
       for (const p of ranked) {
         const li = document.createElement("li");
