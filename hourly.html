@@ -1,14 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Temps App</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title> Hourly Forecasts </title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="style.css"/>
-</head>
+  <link rel="stylesheet" href="style.css" />
 
+  <style>
+    .et-info {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1rem;
+      height: 1rem;
+      border-radius: 9999px;
+      border: 1px solid #6b7280;
+      color: #4b5563;
+      font-size: 0.75rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-left: 0.35rem;
+      user-select: none;
+      cursor: help;
+      vertical-align: middle;
+    }
+  </style>
+</head>
 <body>
 
   <div style="text-align:center;margin:1rem 0;">
@@ -17,10 +36,19 @@
     </a>
   </div>
 
-  <h1 style="text-align:center;">My Hourly Forecasts</h1>
+  <h1 style="text-align:center;"> My Hourly Forecasts </h1>
 
-  <p style="text-align:center;">
-    Cutoff = 30 mins before the hour (local time)
+  <p id="currentHourlyDate" style="text-align:center;font-weight:600;margin:0.5rem auto;">
+    Forecast date (ET): loading...
+  </p>
+
+  <p style="text-align:center; margin:0.5rem auto 1rem; color:#4b5563;">
+    Cutoff = 30 mins before the hour
+    <span
+      class="et-info"
+      title="Hourly times are in Eastern Time"
+      aria-label="Hourly times are in Eastern Time"
+    >i</span>
   </p>
 
   <!-- Hour Selector -->
@@ -28,7 +56,6 @@
 
   <!-- Forecast Form -->
   <form id="hourlyForm">
-
     <div id="hourlyGrid" class="city-grid"></div>
 
     <div style="text-align:center;margin:2rem 0;">
@@ -36,13 +63,11 @@
         Choose an Hour
       </button>
     </div>
-
   </form>
 
   <!-- Status Messages -->
   <div id="status" style="text-align:center;margin-top:1rem;"></div>
 
   <script src="script.js"></script>
-
 </body>
 </html>
