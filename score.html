@@ -33,28 +33,35 @@
     }
 
     #scoreList {
-      display: flex;
-      justify-content: flex-start;
+      display: grid;
+      grid-template-columns: 1fr;
       gap: 12px;
-      flex-wrap: nowrap;
-      overflow-x: hidden;
+      width: 100%;
     }
 
     #scoreList p {
       width: 100%;
-      flex: 1 1 100%;
       text-align: center;
       margin: 24px 0;
+      white-space: normal;
     }
 
     .score-row {
-      flex: 1;
-      min-width: 140px;
+      width: 100%;
+      min-width: 0;
       opacity: 0;
       transform: scale(0.9) translateY(8px);
       transition: 0.45s ease;
       border-bottom: none;
       padding: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      box-sizing: border-box;
+      text-align: left;
     }
 
     .score-row.visible {
@@ -107,8 +114,9 @@
     .detail {
       font-size: 18px;
       margin-top: 6px;
-      line-height: 1.5;
-      white-space: nowrap;
+      line-height: 1.45;
+      white-space: normal;
+      overflow-wrap: anywhere;
       display: flex;
       flex-direction: column;
       gap: 4px;
@@ -118,14 +126,20 @@
       display: flex;
       align-items: baseline;
       gap: 10px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      flex-wrap: wrap;
+      min-width: 0;
     }
 
     .detail-label {
-      flex: 0 0 110px;
+      flex: 0 0 120px;
+      font-weight: 600;
       white-space: nowrap;
+    }
+
+    .detail-value {
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow-wrap: anywhere;
     }
 
     .coin, .mood {
@@ -514,13 +528,20 @@
         const icon = resultCircle(s);
         const detailHtml = forecasted
           ? `
-              My Forecasts: &nbsp;&nbsp; H ${s.forecast_high}° / L ${s.forecast_low}°
-              <br />
-              Actual Temps: &nbsp;&nbsp; H ${s.actual_high}° / L ${s.actual_low}°
-              <br />
-              Accuracy (Error): &nbsp;&nbsp; H ${format(s.error_high)}° / L ${format(s.error_low)}°
+              <div class="detail-line">
+                <span class="detail-label">My Forecasts:</span>
+                <span class="detail-value">H ${s.forecast_high}° / L ${s.forecast_low}°</span>
+              </div>
+              <div class="detail-line">
+                <span class="detail-label">Actual Temps:</span>
+                <span class="detail-value">H ${s.actual_high}° / L ${s.actual_low}°</span>
+              </div>
+              <div class="detail-line">
+                <span class="detail-label">Accuracy (Error):</span>
+                <span class="detail-value">H ${format(s.error_high)}° / L ${format(s.error_low)}°</span>
+              </div>
             `
-          : `No forecasts submitted for yesterday`;
+          : `<div class="detail-line">No forecasts submitted for yesterday</div>`;
 
         const coinText = forecasted ? `🪙 +${Number(s.coins || 0)}` : `🪙 +0`;
         const moodText = forecasted ? `💗 ${formatSignedNumber(s.mood)}` : `💗 —`;
