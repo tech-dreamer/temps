@@ -55,30 +55,34 @@
       transform: scale(1) translateY(0);
     }
 
+    .page-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .menu-btn,
+    .top-nav a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 40px;          /* forces same height */
+      padding: 0 14px;
+      font-size: 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      background: #f9fafb;
+      color: #111827;
+      text-decoration: none;
+      box-sizing: border-box;
+    }
+    
     .top-nav {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
-      justify-content: center;
-      margin-bottom: 16px;
     }
     
-    .top-nav a {
-      text-decoration: none;
-      border: 1px solid #d1d5db;
-      border-radius: 10px;
-      padding: 6px 10px;
-      font-size: 14px;
-      background: #f9fafb;
-      color: #111827;
-    }
-    
-    .top-nav a.active {
-      background: #111827;
-      color: white;
-      border-color: #111827;
-    }
-
     .city {
       font-size: 20px;
       font-weight: 600;
@@ -193,16 +197,16 @@
   </style>
 </head>
 <body>
-  <a href="index.html">
-    <button> ← Back </button>
-  </a>
-
-  <nav class="top-nav">
-    <a href="index.html">Home</a>
-    <a href="stats.html">Stats</a>
-    <a href="history.html">History</a>
-    <a href="leaderboard.html">Leaderboard</a>
-  </nav>
+  <div class="page-controls">
+    <a href="index.html" class="menu-btn">← Back</a>
+  
+    <nav class="top-nav">
+      <a href="stats.html" class="menu-btn">My Stats</a>
+      <a href="history.html" class="menu-btn">History</a>
+      <a href="leaderboard.html" class="menu-btn">Leaderboard</a>
+      <a href="daily.html" class="menu-btn">Daily Forecasts</a>
+    </nav>
+  </div>
 
   <h1> My Score </h1>
   <p id="scoreDate"></p>
