@@ -55,6 +55,30 @@
       transform: scale(1) translateY(0);
     }
 
+    .top-nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    
+    .top-nav a {
+      text-decoration: none;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 14px;
+      background: #f9fafb;
+      color: #111827;
+    }
+    
+    .top-nav a.active {
+      background: #111827;
+      color: white;
+      border-color: #111827;
+    }
+
     .city {
       font-size: 20px;
       font-weight: 600;
