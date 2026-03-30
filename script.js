@@ -390,7 +390,8 @@ async function buildHourlyGrid() {
   const selectedForecastDate = hourlyState.gameDate;
 
   const hourNum = convertHourLabel(selectedHour);
-  const sixHrHourNum = hourNum + 0.5;
+  const showSixHrHigh = hourNum === 14 || hourNum === 20; // hourNum === 13 || hourNum === 19;
+  const sixHrHourNum = showSixHrHigh ? hourNum + 0.5 : null;
 
   grid.innerHTML = '';
 
@@ -628,8 +629,9 @@ async function handleHourlySubmit(e) {
   const useTomorrow = hourlyState.useTomorrow;
   const selectedForecastDate = hourlyState.gameDate;
   const selectedHourNum = convertHourLabel(selectedHour);
+  const showSixHrHigh = selectedHourNum === 14 || selectedHourNum === 20;
   const selectedCutoff = getHourlyCutoff(etNow, selectedHourNum);
-  const sixHrHourNum = selectedHourNum + 0.5;
+  const sixHrHourNum = showSixHrHigh ? selectedHourNum + 0.5 : null;
 
   if (!Number.isFinite(selectedHourNum)) {
     status.innerHTML = '<span style="color:red;">Invalid selected hour.</span>';
