@@ -4,755 +4,786 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My Score</title>
-
-  <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.47.10/dist/umd/supabase.min.js"></script>
-
   <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+
     body {
+      margin: 0 auto;
+      max-width: 980px;
+      padding: 20px 14px 28px;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      max-width: 500px;
-      margin: auto;
-      padding: 20px;
+      color: #111827;
       text-align: center;
+      background: #fff;
     }
 
     h1 {
-      margin-bottom: 10px;
+      margin: 0 0 8px;
+      font-size: clamp(1.4rem, 4vw, 2rem);
     }
-    
+
     #scoreDate {
-      margin: 4px 0 16px;
-      color: #000000;
-      font-size: 2rem;
-      font-weight: 600;
-      text-align: center;
+      margin: 4px 0 14px;
       display: inline-block;
-      width: fit-content;
-      max-width: 100%;
-    }
-
-    #scoreList {
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      overflow-y: visible;
-      align-items: flex-start;
-      width: 100%;
-    }
-
-    #scoreList p {
-      width: auto;
-      flex: 0 0 auto;
-      text-align: center;
-      margin: 24px 0;
-      white-space: normal;
-    }
-
-    .score-row {
-      flex: 1 1 0;
-      min-width: 0;
-      opacity: 0;
-      transform: scale(0.9) translateY(8px);
-      transition: 0.45s ease;
-      border-bottom: none;
-      padding: 10px 6px;
-      box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: left;
-    }
-
-    .score-row.visible {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
-
-    .page-controls{
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      align-items: center;
-    }
-    
-    .menu-btn{
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      height: 40px;
-      min-width: 140px;
-      padding: 0 14px;
-      font-size: 16px;
+      padding: 2px 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 999px;
+      background: #f8fafc;
+      font-size: 1.25rem;
       font-weight: 700;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+
+    .page-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .top-nav,
+    .mode-toggle {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .top-nav {
+      gap: 8px;
+    }
+
+    .menu-btn,
+    .mode-toggle button,
+    #shareBtn {
+      min-height: 38px;
+      padding: 8px 12px;
       border: 1px solid #d1d5db;
       border-radius: 10px;
       background: #f9fafb;
       color: #111827;
+      font-weight: 700;
       text-decoration: none;
-      box-sizing: border-box;
-      text-align: center;
-      white-space: nowrap;
-    }
-    
-    .menu-btn:hover {
-      filter: brightness(0.98);
-    }
-    
-    .top-nav{
-      display: flex;
-      gap: 8px;
-      flex-wrap: nowrap;
+      appearance: none;
+      cursor: pointer;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
       justify-content: center;
+      white-space: nowrap;
+      transition: 0.18s ease;
     }
+
+    .menu-btn:hover,
+    .mode-toggle button:hover,
+    #shareBtn:hover { filter: brightness(0.98); }
 
     .top-nav .menu-btn {
-      background: #a78bfa;      /* cozy purple */
+      background: #a78bfa;
       border-color: #8b5cf6;
-      color: #ffffff;
-      font-weight: 700;
+      color: #fff;
     }
 
-    .top-nav .menu-btn:hover {
-      background: #8b5cf6;
-    }
+    .top-nav .menu-btn:hover { background: #8b5cf6; }
 
-    .back-btn {
-      background: #93c5fd;      /* cozy blue */
+    .back-btn { 
+      background: #93c5fd;
       border-color: #60a5fa;
       color: #1e3a8a;
-      font-weight: 700;
+    }
+    .back-btn:hover { background: #60a5fa; color: #1e40af; }
+
+    .mode-toggle {
+      border: 1px solid #d1d5db;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 4px 0 10px;
+      background: #f9fafb;
     }
 
-    .back-btn:hover {
-      background: #60a5fa;
-      color: #1e40af;
+    #dailyModeBtn,
+    #hourlyModeBtn {
+      border: none;
+      border-right: 1px solid #e5e7eb;
+      min-width: 95px;
+      border-radius: 0;
     }
 
-    .city-block {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 100%;
-      text-align: center;
-    }
+    #hourlyModeBtn { border-right: none; }
 
-    .result-circle {
-      font-size: 1.4rem;
-      line-height: 1.2;
-      margin-bottom: 6px;
-    }
-
-    .city {
-      font-size: clamp(16px, 2.9vw, 18px); /* 16 → 18px responsive */
-      font-weight: 700;
-      margin-bottom: 4px;
-      text-align: center;
-      width: 100%;
-      white-space: nowrap;
-      overflow: visible;   /* no ellipsis/truncation */
-      text-overflow: clip;
-      line-height: 1.2;
-    }
-
-    .msg {
-      font-size: 16px;
-      margin-top: 4px;
-      text-align: center;
-      width: 100%;
-    }
-
-    .detail {
-      font-size: 18px;
-      margin-top: 6px;
-      line-height: 1.5;
-      white-space: normal;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      width: 100%;
-      overflow-wrap: anywhere;
-      text-align: center;
-    }
-
-    .detail-line {
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-      white-space: normal;
-      flex-wrap: wrap;
-      width: 100%;
-      overflow-wrap: anywhere;
-    }
-
-    .detail-label {
-      flex: 0 0 110px;
-      white-space: nowrap;
-    }
-
-    .coin, .mood {
-      margin-top: 8px;
-      font-weight: 600;
-      width: 100%;
-      text-align: center;
-    }
-
-    .missing {
-      opacity: 0.75;
+    #dailyModeBtn.active,
+    #hourlyModeBtn.active {
+      background: #111827;
+      color: #fff;
     }
 
     #stats {
-      margin-top: 32px;
-      margin-bottom: 32px;
-      font-size: 22px;
-      font-weight: bold;
+      margin: 10px 0 12px;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 8px;
-    }
-    
-    .stat-row {
-      display: flex;
-      justify-content: center;
-      gap: 14px;
-      width: 100%;
-      flex-wrap: wrap;
+      font-size: 22px;
+      font-weight: 700;
     }
 
     .stat-item {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-    }
-
-    #cityCircles {
-      margin-bottom: 32px;
-      width: 100%;
-      min-height: 34px;
-      font-size: 1.5rem;
-      line-height: 1.2;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 8px;
-      overflow: hidden;
-    }
-    
-    button {
-      padding: 10px 16px;
-      font-size: 24px;
-      font-weight: 700;
-      cursor: pointer;
-      border-radius: 10px;
-      border: 1px solid transparent;
-      color: #14532d;
-      letter-spacing: 0.2px;
-    }
-
-    #shareBtn {
-      background: #86efac;       /* cozy green */
-      border-color: #4ade80;
-      color: #14532d;
-    }
-
-    #shareBtn:hover {
-      background: #6ee7b7;
+      white-space: nowrap;
+      font-size: 1rem;
     }
 
     #scoreErrorBanner {
-      margin-top: 10px;
-      color: #b91c1c;
       min-height: 20px;
+      margin-bottom: 6px;
+      color: #b91c1c;
       font-size: 14px;
     }
 
-    @media (max-width: 500px) {
-      body {
-        padding: 14px 12px;
-      }
-      
-      .city {
-        font-size: 16px;
-        white-space: normal;
-      }
-    
-      .detail {
-        font-size: 15px;
-        text-align: center;
-      }
+    #shareSection {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+    }
 
-      .menu-btn {
-        font-size: 14px;
-        padding: 0 6px;
-      }
-      
-      button {
-        width: 100%;
-        font-size: 22px;
-      }
-      #scoreList {
-        gap: 6px;
-      }
+    #shareStatus { min-height: 19px; color: #0369a1; font-size: 13px; }
+    .hidden { display: none !important; }
 
-      .score-row {
-        padding: 10px 4px;
-      }
+    #scoreList {
+      width: 100%;
+      margin-bottom: 12px;
+    }
+
+    #scoreList.daily-mode {
+      display: flex;
+      justify-content: flex-start;
+      align-items: flex-start;
+      gap: 8px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overflow-y: visible;
+      padding-bottom: 4px;
+    }
+
+    #scoreList.hourly-mode {
+      display: grid;
+      gap: 8px;
+      width: 100%;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    }
+
+    #scoreList .empty-state {
+      width: 100%;
+      padding: 28px 8px;
+      border: 1px dashed #d1d5db;
+      border-radius: 12px;
+      background: #fafafa;
+      color: #374151;
+      opacity: 0.85;
+    }
+
+    .score-row {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 0;
+      opacity: 0;
+      transform: translateY(8px) scale(0.99);
+      transition: opacity 0.28s ease, transform 0.28s ease;
+    }
+
+    .score-row.visible { opacity: 1; transform: translateY(0) scale(1); }
+    .score-row.missing { opacity: 0.75; border-style: dashed; }
+
+    .daily-mode .score-row { flex: 0 0 235px; max-width: 235px; }
+
+    .city {
+      font-size: clamp(15px, 3vw, 18px);
+      font-weight: 800;
+      line-height: 1.25;
+      text-align: center;
+      width: 100%;
+      overflow-wrap: anywhere;
+    }
+
+    .result-circle {
+      text-align: center;
+      font-size: 1.45rem;
+      line-height: 1.1;
+      margin-top: 3px;
+    }
+
+    .msg {
+      text-align: center;
+      font-size: 13px;
+      color: #374151;
+      margin-top: 2px;
+    }
+
+    .detail {
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 14px;
+      width: 100%;
+    }
+
+    .detail-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .detail-label {
+      color: #374151;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .detail-value {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .coin {
+      margin-top: 7px;
+      font-weight: 700;
+      width: 100%;
+      text-align: right;
+    }
+
+    .daily-mode .coin { text-align: center; }
+
+    .hourly-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .hourly-hour {
+      font-size: 11px;
+      font-weight: 800;
+      border-radius: 999px;
+      background: #f3f4f6;
+      color: #111827;
+      border: 1px solid #e5e7eb;
+      padding: 2px 8px;
+      white-space: nowrap;
+    }
+
+    .hourly-city {
+      font-weight: 800;
+      text-align: right;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 900px) {
+      .daily-mode .score-row { flex: 0 0 210px; max-width: 210px; }
+      #scoreList.hourly-mode { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+      #stats { font-size: 20px; }
+    }
+
+    @media (max-width: 600px) {
+      body { padding: 14px 10px 26px; }
+      #scoreList.hourly-mode { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+      .daily-mode .score-row { flex: 0 0 188px; max-width: 188px; }
+      .detail { font-size: 12px; }
+      .coin { font-size: 15px; }
+      .stat-item { font-size: 15px; }
+      .menu-btn,
+      .mode-toggle button,
+      #shareBtn { font-size: 13px; min-height: 36px; padding: 8px 10px; }
     }
   </style>
 </head>
 <body>
+  <h1>My Score</h1>
+  <div id="scoreDate">Loading date…</div>
+
   <div class="page-controls">
-    <a href="index.html" class="menu-btn back-btn">← Back</a>
-  
-    <nav class="top-nav">
-      <a href="stats.html" class="menu-btn">My Stats</a>
-      <a href="history.html" class="menu-btn">History</a>
-      <a href="leaderboard.html" class="menu-btn">Leaderboard</a>
-      <a href="daily.html" class="menu-btn">Daily Forecasts</a>
-    </nav>
-  </div>
+    <div class="top-nav">
+      <a class="menu-btn back-btn" href="/"> ←Back </a>
+      <a class="menu-btn" href="./daily.html"> Daily </a>
+    </div>
 
-  <h1> My Score </h1>
-  <p id="scoreDate"></p>
-
-  <div id="scoreList"></div>
-
-  <div id="stats">
-    <div class="stat-item">🪙 <span id="coinTotal">0</span></div>
-    <div class="stat-row">
-      <div class="stat-item">💗 <span id="moodTotal">0</span></div>
-      <div class="stat-item">⭐ <span id="currentStreak">0</span></div>
+    <div class="mode-toggle" role="tablist" aria-label="Score mode">
+      <button id="dailyModeBtn" type="button">Daily</button>
     </div>
   </div>
 
-  <div id="cityCircles"> ⚪ ⚪ ⚪ </div>
-  <button id="shareBtn"> Share </button>
+  <div id="stats"></div>
   <div id="scoreErrorBanner"></div>
-  
+  <div id="scoreList" class="daily-mode"></div>
+
+  <div id="shareSection">
+    <button id="shareBtn" type="button"> Share </button>
+    <div id="shareStatus"></div>
+  </div>
+
   <script>
     const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
-    
-    if (!SUPABASE_ANON_KEY) {
-      console.error("Missing Supabase anon key.");
-    }
+    const SCORES_TABLE = 'scores';
 
-    const { createClient } = supabase;
-    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-      },
-    });
-
-    const userId = localStorage.getItem("temps_user_id");
-    const GAME_TZ = "America/Los_Angeles";
-
-    const MONTH_NAMES = [
-      "January","February","March","April","May","June",
-      "July","August","September","October","November","December"
-    ];
-
-    function ymdToShift(ymd, deltaDays) {
-      const [y, m, d] = ymd.split("-").map(Number);
-      const dt = new Date(Date.UTC(y, m - 1, d));
-      dt.setUTCDate(dt.getUTCDate() + deltaDays);
-
-      const yy = dt.getUTCFullYear();
-      const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
-      const dd = String(dt.getUTCDate()).padStart(2, "0");
-      return `${yy}-${mm}-${dd}`;
-    }
-
-    function dateLabelFromYMD(ymd) {
-      const [, m, d] = ymd.split("-");
-      return `${MONTH_NAMES[Number(m) - 1]} ${Number(d)}`;
-    }
-
-    const todayInGameTz = new Intl.DateTimeFormat("en-CA", {
-      timeZone: GAME_TZ,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
-
-    const ydayDate = ymdToShift(todayInGameTz, -1);
-    const ydayLabel = dateLabelFromYMD(ydayDate);
-    document.getElementById("scoreDate").textContent = ydayLabel;
-
-    const CITY_BY_ID = {
-      1: "Los Angeles",
-      2: "Austin",
-      3: "New York City"
+    const MODE_KEYS = {
+      daily: { modeColumn: 'mode', modeValue: 'daily' },
+      hourly: { modeColumn: 'mode', modeValue: 'hourly' }
     };
 
-    const CITY_ORDER = Object.keys(CITY_BY_ID)
-      .map((id) => Number(id))
-      .sort((a, b) => a - b);
+    const DATE_KEYS = ['score_date', 'date', 'created_at', 'played_at', 'submitted_at', 'timestamp'];
 
-    let cityCircleString = "⚪ ⚪ ⚪";
+    const state = {
+      targetDate: getDateFromQuery(),
+      mode: new URLSearchParams(location.search).get('from') === 'hourly' ? 'hourly' : 'daily',
+      rowsCache: { daily: null, hourly: null },
+      rows: { daily: [], hourly: [] },
+      supabase: null,
+      loading: false
+    };
 
-    function cityCirclesFromScores(scores) {
-      return CITY_ORDER
-        .map((id) => {
-          const row = scores.find((r) => Number(r.city_id) === id);
-          return resultCircle(row || {});
-        })
-        .join(" ");
-    }
+    const el = {
+      date: document.getElementById('scoreDate'),
+      dailyBtn: document.getElementById('dailyModeBtn'),
+      hourlyBtn: document.getElementById('hourlyModeBtn'),
+      stats: document.getElementById('stats'),
+      error: document.getElementById('scoreErrorBanner'),
+      list: document.getElementById('scoreList'),
+      shareSection: document.getElementById('shareSection'),
+      shareBtn: document.getElementById('shareBtn'),
+      shareStatus: document.getElementById('shareStatus')
+    };
 
-    function renderCityCircles(scores) {
-      cityCircleString = cityCirclesFromScores(scores || []);
-      const el = document.getElementById("cityCircles");
-      if (el) el.textContent = cityCircleString;
-    }
-
-    let totalCoins = 0;
-    let totalMood = 0;
-    let currentStreak = 0;
-
-    function showBanner(message, isError = false) {
-      const banner = document.getElementById("scoreErrorBanner");
-      if (!banner) return;
-      banner.textContent = message || "";
-      banner.style.color = isError ? "#b91c1c" : "#166534";
-      if (message) {
-        setTimeout(() => (banner.textContent = ""), 5000);
+    function init() {
+      if (!window.supabase || !window.supabase.createClient) {
+        setError('Supabase library failed to load.');
+        return;
       }
-    }
-
-    function easeOutCubic(t) {
-      return 1 - Math.pow(1 - t, 3);
-    }
-
-    function animateNumber(elementId, target, duration = 800) {
-      const el = document.getElementById(elementId);
-      const startTime = performance.now();
-      const safeTarget = Number(target) || 0;
-
-      function update(now) {
-        const rawProgress = Math.min((now - startTime) / duration, 1);
-        const eased = easeOutCubic(rawProgress);
-        const value = Math.floor(eased * safeTarget);
-        el.textContent = value;
-
-        if (rawProgress < 1) {
-          requestAnimationFrame(update);
-        } else {
-          el.textContent = safeTarget;
-          el.style.transform = "scale(1.2)";
-          setTimeout(() => (el.style.transform = "scale(1)"), 125);
-        }
-      }
-
-      requestAnimationFrame(update);
-    }
-
-    function formatSignedNumber(v) {
-      if (v === null || v === undefined || v === "" || Number.isNaN(Number(v))) {
-        return "—";
-      }
-      const n = Math.round(Number(v));
-      return `${n > 0 ? "+" : ""}${n}`;
-    }
-
-    function animateSignedNumber(elementId, target, duration = 800) {
-      const el = document.getElementById(elementId);
-      const startTime = performance.now();
-      const safeTarget = Number(target) || 0;
-
-      function update(now) {
-        const rawProgress = Math.min((now - startTime) / duration, 1);
-        const eased = easeOutCubic(rawProgress);
-        const value = safeTarget * eased;
-        el.textContent = formatSignedNumber(value);
-
-        if (rawProgress < 1) requestAnimationFrame(update);
-        else {
-          el.textContent = formatSignedNumber(safeTarget);
-          el.style.transform = "scale(1.2)";
-          setTimeout(() => (el.style.transform = "scale(1)"), 125);
-        }
-      }
-
-      requestAnimationFrame(update);
-    }
-
-    function format(v) {
-      if (v === null || v === undefined || v === "" || Number.isNaN(Number(v))) {
-        return "—";
-      }
-      return `${Math.abs(Math.round(Number(v)))}`;
-    }
-
-    function cityDisplay(row) {
-      if (row.city && String(row.city).trim()) return String(row.city).trim();
-      if (row.city_id !== null && row.city_id !== undefined) {
-        return CITY_BY_ID[row.city_id] || CITY_BY_ID[String(row.city_id)] || `City ${row.city_id}`;
-      }
-      return "Unknown City";
-    }
-
-    function hasForecast(row) {
-      return row.forecast_high != null && row.forecast_low != null;
-    }
-
-    function resultCircle(row) {
-      if (!row || !hasForecast(row)) return "⚪";
-      const errorHigh = Number(row.error_high);
-      if (!Number.isFinite(errorHigh)) return "⚪";
-
-      const e = Math.abs(Math.round(errorHigh));
-      if (e <= 1) return "🟢";
-      if (e <= 3) return "🟡";
-      return "🔴";
-    }
-
-    async function checkAuth() {
-      const { error } = await client
-        .from("daily_scores")
-        .select("id", { head: true, count: "exact" })
-        .limit(1);
-
-      if (error) {
-        console.error("Auth probe failed:", error);
-        showBanner(`Auth probe failed: ${error.message}`, true);
-        return false;
-      }
-
-      console.log("Auth probe OK.");
-      return true;
-    }
-
-    async function loadScore() {
-      console.log("User ID:", userId);
-      console.log("Yesterday's Date:", ydayDate);
-
-      if (!userId) {
-        document.getElementById("scoreList").innerHTML = "<p>No user found. Please make a forecast.</p>";
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_URL.includes('YOUR_SUPABASE_URL') || SUPABASE_ANON_KEY.includes('YOUR_SUPABASE_ANON_KEY')) {
+        setError('Set SUPABASE_URL and SUPABASE_ANON_KEY in this file.');
         return;
       }
 
-      const { data: scores, error: scoreError } = await client
-        .from("daily_scores")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("date", ydayDate)
-        .order("city_id");
+      state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-      if (scoreError) {
-        console.error("Score Fetch Error:", scoreError);
-        document.getElementById("scoreList").innerHTML = "<p>Could not load scores.</p>";
-        showBanner(`Could not load scores: ${scoreError.message || "Unknown error"}`, true);
-        return;
-      }
+      setDateHeader(state.targetDate);
+      el.dailyBtn.addEventListener('click', () => setMode('daily'));
+      el.hourlyBtn.addEventListener('click', () => setMode('hourly'));
+      el.shareBtn.addEventListener('click', handleShare);
 
-      let { data: userStats, error: statsError } = await client
-        .from("user_stats")
-        .select("current_streak")
-        .eq("user_id", userId)
-        .maybeSingle();
+      setMode(state.mode, false);
+    }
 
-      if (statsError) {
-        console.error("User Stats Fetch Error:", statsError);
-      }
+    function getDateFromQuery() {
+      const params = new URLSearchParams(location.search);
+      const raw = params.get('date');
+      if (!raw) return new Date();
+      const parsed = new Date(raw);
+      return isNaN(parsed.getTime()) ? new Date() : parsed;
+    }
 
-      if (!userStats) {
-        console.log("Creating user_stats for:", userId);
-        const { error: upsertError } = await client.from("user_stats").upsert(
-          {
-            user_id: userId,
-            current_streak: 0
-          },
-          { onConflict: "user_id" }
-        );
+    function isoDate(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
 
-        if (upsertError) {
-          console.error("user_stats upsert Error:", upsertError);
-        }
-        currentStreak = 0;
+    function setDateHeader(date) {
+      el.date.textContent = `Scores for ${date.toLocaleDateString(undefined, {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      })}`;
+    }
+
+    function setError(msg) {
+      el.error.textContent = msg || '';
+    }
+
+    function setMode(nextMode, animate = true) {
+      if (state.loading || (nextMode !== 'daily' && nextMode !== 'hourly')) return;
+
+      state.mode = nextMode;
+
+      el.dailyBtn.classList.toggle('active', nextMode === 'daily');
+      el.hourlyBtn.classList.toggle('active', nextMode === 'hourly');
+      el.list.classList.toggle('daily-mode', nextMode === 'daily');
+      el.list.classList.toggle('hourly-mode', nextMode === 'hourly');
+
+      // Hourly has no sharing block
+      el.shareSection.classList.toggle('hidden', nextMode === 'hourly');
+
+      renderFromCache(nextMode, animate);
+      maybeUpdateQuery(nextMode);
+      loadAndRender(nextMode, animate);
+    }
+
+    function maybeUpdateQuery(mode) {
+      const params = new URLSearchParams(location.search);
+      params.set('date', isoDate(state.targetDate));
+      if (mode === 'hourly') {
+        params.set('from', 'hourly');
       } else {
-        currentStreak = userStats.current_streak || 0;
+        params.delete('from');
       }
-
-      if (!scores || scores.length === 0) {
-        document.getElementById("scoreList").innerHTML = "<p>No score yet. Stay tuned & keep forecasting.</p>";
-        renderCityCircles([]);
-        animateNumber("coinTotal", 0, 800);
-        animateSignedNumber("moodTotal", 0, 800);
-        animateNumber("currentStreak", currentStreak, 800);
-        return;
-      }
-
-      const list = document.getElementById("scoreList");
-      list.innerHTML = "";
-      totalCoins = 0;
-      totalMood = 0;
-
-      scores.forEach((s) => {
-        const forecasted = hasForecast(s);
-
-        if (forecasted) {
-          totalCoins += Number(s.coins || 0);
-          totalMood += Number(s.mood || 0);
-        }
-
-        const icon = resultCircle(s);
-        const detailHtml = forecasted
-          ? `
-              My Forecasts:<br>
-              H ${s.forecast_high}° / L ${s.forecast_low}°
-              <br>
-              Actual Temps:
-              <br>
-              H ${s.actual_high}° / L ${s.actual_low}°
-              <br>
-              Accuracy (Error):
-              <br>
-              H ${format(s.error_high)}° / L ${format(s.error_low)}°
-            `
-          : `No forecasts submitted for yesterday`;
-
-        const coinText = forecasted ? `🪙 +${Number(s.coins || 0)}` : `🪙 +0`;
-        const moodText = forecasted ? `💗 ${formatSignedNumber(s.mood)}` : `💗 —`;
-        const rowClass = forecasted ? "score-row" : "score-row missing";
-
-        const row = document.createElement("div");
-        row.className = rowClass;
-        row.innerHTML = `
-          <div class="city-block">
-            <div class="result-circle">${icon}</div>
-            <div class="city">${cityDisplay(s)}</div>
-          </div>
-          <div class="msg">${s.message || (forecasted ? "" : "No submission")}</div>
-          <div class="detail">${detailHtml}</div>
-          <div class="coin">${coinText}</div>
-          <div class="mood">${moodText}</div>
-        `;
-        list.appendChild(row);
-      });
-
-      renderCityCircles(scores);
-      document.getElementById("coinTotal").textContent = "0";
-      document.getElementById("moodTotal").textContent = "0";
-      document.getElementById("currentStreak").textContent = "0";
-      revealRows(scores.length);
-      buildShare(scores, totalCoins, totalMood, currentStreak);
+      const nextUrl = `${location.pathname}?${params.toString()}`;
+      history.replaceState({}, '', nextUrl);
     }
 
-    function revealRows(rowCount) {
-      const rows = document.querySelectorAll(".score-row");
-
-      rows.forEach((row, i) => {
-        setTimeout(() => {
-          row.classList.add("visible");
-        }, i * 300);
-      });
-
-      setTimeout(() => {
-        animateNumber("coinTotal", totalCoins, 800);
-        animateSignedNumber("moodTotal", totalMood, 800);
-        animateNumber("currentStreak", currentStreak, 800);
-      }, rowCount * 300);
+    function pick(row, keys) {
+      for (const key of keys) {
+        const value = row?.[key];
+        if (value !== undefined && value !== null && value !== '') return value;
+      }
+      return undefined;
     }
 
-    function showShareStatus(msg, type = "ok") {
-      let status = document.getElementById("shareStatus");
-      if (!status) {
-        status = document.createElement("div");
-        status.id = "shareStatus";
-        status.style.marginTop = "8px";
-        status.style.fontSize = "13px";
-        status.style.minHeight = "18px";
-        document.getElementById("shareBtn").insertAdjacentElement("afterend", status);
-      }
-      status.style.color = type === "error" ? "#b91c1c" : "#166534";
-      status.textContent = msg;
-      clearTimeout(window.__shareTimer);
-      window.__shareTimer = setTimeout(() => (status.textContent = ""), 2000);
+    function formatTemp(v) {
+      if (v === undefined || v === null || v === '') return '—';
+      const n = Number(v);
+      if (!Number.isFinite(n)) return String(v);
+      return `${n.toFixed(1)}°`;
     }
 
-    function showManualShareFallback(text) {
-      let box = document.getElementById("manualShareBox");
-      if (!box) {
-        box = document.createElement("textarea");
-        box.id = "manualShareBox";
-        box.setAttribute("readonly", "");
-        box.style.width = "100%";
-        box.style.minHeight = "110px";
-        box.style.marginTop = "10px";
-        box.style.padding = "8px";
-        box.style.fontFamily = "inherit";
-        box.style.fontSize = "14px";
-        document.getElementById("shareBtn").insertAdjacentElement("afterend", box);
-      }
-      box.value = text;
-      box.style.display = "block";
-      box.focus();
-      box.select();
+    function formatError(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return '—';
+      const sign = n > 0 ? '+' : '';
+      return `${sign}${n.toFixed(1)}°`;
     }
 
-    async function copyText(text) {
-      if (window.isSecureContext && navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-        try {
-          await navigator.clipboard.writeText(text);
-          return true;
-        } catch (e) {
-          console.warn("Clipboard API failed:", e);
-        }
-      }
-
-      try {
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        ta.setAttribute("readonly", "");
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        document.body.appendChild(ta);
-        ta.select();
-        const ok = document.execCommand("copy");
-        document.body.removeChild(ta);
-        if (ok) return true;
-      } catch (e) {
-        console.warn("execCommand fallback failed:", e);
-      }
-
-      return false;
+    function toHour(v) {
+      if (v === undefined || v === null) return 999;
+      if (typeof v === 'number' && Number.isFinite(v)) return v;
+      const m = String(v).match(/^(\d{1,2})/);
+      return m ? Number(m[1]) : 999;
     }
 
-    function buildShare(scores, totalCoins, totalMood, currentStreak) {
-      const btn = document.getElementById("shareBtn");
-    
-      btn.onclick = async () => {
-        const circles = cityCirclesFromScores(scores || []);
-        const gameDate = ydayLabel;
-    
-        const text = `Temps with Friends — ${gameDate}\n${circles}\n🪙 ${totalCoins}\n💗 ${formatSignedNumber(totalMood)}\n⭐ ${currentStreak}`;
-    
-        const ok = await copyText(text);
-        if (ok) {
-          showShareStatus("✅ Score copied!");
-        } else {
-          showShareStatus("⚠️ Clipboard is blocked here. Use text box below.", "error");
-          showManualShareFallback(text);
-        }
+    function resultCircle(errorValue) {
+      const n = Number(errorValue);
+      if (!Number.isFinite(n)) return '⚪';
+      const a = Math.abs(n);
+      if (a <= 1) return '🟢';
+      if (a <= 3) return '🟡';
+      return '🔴';
+    }
+
+    function normalizeRow(row, mode) {
+      return {
+        city: pick(row, ['city', 'location', 'name']) || 'Unknown city',
+        hour: pick(row, ['hour', 'slot', 'forecast_hour', 'time']) || '—',
+        forecast: pick(row, ['forecast', 'forecast_temp', 'predicted', 'prediction', 'guess']),
+        actual: pick(row, ['actual', 'actual_temp', 'observed', 'result_temp', 'real']),
+        error: pick(row, ['error', 'error_value', 'difference', 'delta']),
+        coins: Number(pick(row, ['coins', 'coin', 'score', 'points'])) || 0,
+        message: pick(row, ['message', 'result_message']),
+        mood: pick(row, ['mood', 'mood_bonus_reason']),
+        streak: Number(pick(row, ['streak', 'streak_count', 'streak_total'])) || 0,
+        isMissing: Boolean(pick(row, ['missing', 'is_missing']) || row.status === 'missing'),
+        raw: row
       };
     }
 
-    (async () => {
-      const ok = await checkAuth();
-      if (ok) {
-        loadScore();
-      } else {
-        document.getElementById("scoreList").innerHTML =
-          "<p>Could not connect. Check your Supabase key/project settings.</p>";
+    function toDateIso(value) {
+      if (!value && value !== 0) return null;
+
+      // already yyyy-mm-dd
+      if (typeof value === 'string') {
+        const s = value.trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
       }
-    })();
+
+      // date object/timestamp/string date
+      const d = new Date(value);
+      if (!isNaN(d.getTime())) return isoDate(d);
+
+      return null;
+    }
+
+    function rowMatchesDate(row) {
+      const target = isoDate(state.targetDate);
+      let hadDateLikeField = false;
+
+      for (const key of DATE_KEYS) {
+        const raw = row?.[key];
+        if (raw === undefined || raw === null || raw === '') continue;
+        hadDateLikeField = true;
+        const parsed = toDateIso(raw);
+        if (parsed === target) return true;
+      }
+
+      // If row has no date-like field at all, show it (avoids dropping legacy rows)
+      return !hadDateLikeField;
+    }
+
+    function line(label, value) {
+      const row = document.createElement('div');
+      row.className = 'detail-line';
+
+      const a = document.createElement('span');
+      a.className = 'detail-label';
+      a.textContent = label;
+
+      const b = document.createElement('span');
+      b.className = 'detail-value';
+      b.textContent = value;
+
+      row.append(a, b);
+      return row;
+    }
+
+    function clearRows() {
+      el.list.innerHTML = '';
+      el.stats.innerHTML = '';
+      el.shareStatus.textContent = '';
+    }
+
+    function renderFromCache(mode, animate = true) {
+      clearRows();
+      const rows = state.rows[mode];
+      if (!rows || rows.length === 0) {
+        el.list.innerHTML = `<div class="empty-state">No ${mode} scores for this date yet.</div>`;
+        return;
+      }
+
+      const frag = document.createDocumentFragment();
+
+      if (mode === 'daily') {
+        const cities = rows.length;
+        const totalCoins = rows.reduce((acc, r) => acc + (Number(r.coins) || 0), 0);
+        const absErrors = rows
+          .map((r) => Number(r.error))
+          .filter((n) => Number.isFinite(n))
+          .map((n) => Math.abs(n));
+
+        const avg = absErrors.length ? absErrors.reduce((a, b) => a + b, 0) / absErrors.length : null;
+        const bestStreak = rows.reduce((m, r) => Math.max(m, Number(r.streak) || 0), 0);
+
+        const a = document.createElement('div');
+        a.className = 'stat-item';
+        a.textContent = `🏙️ Cities: ${cities}`;
+
+        const b = document.createElement('div');
+        b.className = 'stat-item';
+        b.textContent = `🪙 Coins: ${totalCoins}`;
+
+        const c = document.createElement('div');
+        c.className = 'stat-item';
+        c.textContent = `🔥 Streak: ${bestStreak}`;
+
+        const d = document.createElement('div');
+        d.className = 'stat-item';
+        d.textContent = `📏 Avg |error|: ${avg === null ? '—' : avg.toFixed(2)}°`;
+
+        el.stats.append(a, b, c, d);
+
+        rows.forEach((r, i) => {
+          const card = document.createElement('article');
+          card.className = 'score-row';
+          if (r.isMissing) card.classList.add('missing');
+
+          const city = document.createElement('div');
+          city.className = 'city';
+          city.textContent = r.city;
+
+          const icon = document.createElement('div');
+          icon.className = 'result-circle';
+          icon.textContent = resultCircle(r.error);
+
+          const msg = document.createElement('div');
+          msg.className = 'msg';
+          msg.textContent = r.message || '';
+
+          const details = document.createElement('div');
+          details.className = 'detail';
+          details.append(
+            line('Forecast', formatTemp(r.forecast)),
+            line('Actual', formatTemp(r.actual)),
+            line('Error', formatError(r.error)),
+            line('Mood', r.mood || '—')
+          );
+
+          const coins = document.createElement('div');
+          coins.className = 'coin';
+          coins.textContent = `🪙 ${r.coins}`;
+
+          const streak = document.createElement('div');
+          streak.className = 'coin';
+          streak.textContent = `🔥 ${r.streak}`;
+
+          card.append(city, icon, msg, details, coins, streak);
+          frag.append(card);
+
+          if (animate) setTimeout(() => card.classList.add('visible'), 25 * i);
+          else card.classList.add('visible');
+        });
+      } else {
+        const cityCount = new Set(rows.map((r) => r.city)).size;
+        const totalCoins = rows.reduce((acc, r) => acc + (Number(r.coins) || 0), 0);
+        const absErrors = rows.map((r) => Number(r.error)).filter((n) => Number.isFinite(n)).map((n) => Math.abs(n));
+        const avg = absErrors.length ? absErrors.reduce((a, b) => a + b, 0) / absErrors.length : null;
+
+        const a = document.createElement('div');
+        a.className = 'stat-item';
+        a.textContent = `🕒 Hourlies: ${rows.length}`;
+
+        const b = document.createElement('div');
+        b.className = 'stat-item';
+        b.textContent = `🏙️ Cities: ${cityCount}`;
+
+        const c = document.createElement('div');
+        c.className = 'stat-item';
+        c.textContent = `🪙 Coins: ${totalCoins}`;
+
+        const d = document.createElement('div');
+        d.className = 'stat-item';
+        d.textContent = `📏 Avg |error|: ${avg === null ? '—' : avg.toFixed(2)}°`;
+
+        el.stats.append(a, b, c, d);
+
+        rows.forEach((r, i) => {
+          const card = document.createElement('article');
+          card.className = 'score-row';
+          if (r.isMissing) card.classList.add('missing');
+
+          const top = document.createElement('div');
+          top.className = 'hourly-top';
+
+          const hour = document.createElement('span');
+          hour.className = 'hourly-hour';
+          hour.textContent = `⏰ ${r.hour}`;
+
+          const city = document.createElement('span');
+          city.className = 'hourly-city';
+          city.textContent = r.city;
+
+          top.append(hour, city);
+
+          const details = document.createElement('div');
+          details.className = 'detail';
+          details.append(
+            line('Forecast', formatTemp(r.forecast)),
+            line('Actual', formatTemp(r.actual)),
+            line('Error', formatError(r.error))
+          );
+
+          const coins = document.createElement('div');
+          coins.className = 'coin';
+          coins.textContent = `🪙 ${r.coins}`;
+
+          // NOTE: No circles, no message, no streak in hourly
+          card.append(top, details, coins);
+          frag.append(card);
+
+          if (animate) setTimeout(() => card.classList.add('visible'), 25 * i);
+          else card.classList.add('visible');
+        });
+      }
+
+      el.list.append(frag);
+    }
+
+    async function loadMode(mode) {
+      if (state.rowsCache[mode]) return state.rowsCache[mode];
+
+      const { modeColumn, modeValue } = MODE_KEYS[mode];
+      const query = state.supabase.from(SCORES_TABLE).select('*').eq(modeColumn, modeValue);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const rows = (data || [])
+        .filter((r) => rowMatchesDate(r))
+        .map((r) => normalizeRow(r, mode));
+
+      if (mode === 'hourly') {
+        rows.sort((a, b) => {
+          const ah = toHour(a.hour);
+          const bh = toHour(b.hour);
+          if (ah !== bh) return ah - bh;
+          return a.city.localeCompare(b.city, 'en', { sensitivity: 'base' });
+        });
+      } else {
+        rows.sort((a, b) => a.city.localeCompare(b.city, 'en', { sensitivity: 'base' }));
+      }
+
+      state.rowsCache[mode] = rows;
+      return rows;
+    }
+
+    async function loadAndRender(mode, animate = true) {
+      setError('');
+      state.loading = true;
+      try {
+        const rows = await loadMode(mode);
+        state.rows[mode] = rows;
+        renderFromCache(mode, animate);
+      } catch (err) {
+        console.error(err);
+        setError('Failed to load scores. Check your Supabase table/permissions.');
+        el.list.innerHTML = `<div class="empty-state">Failed to load ${mode} scores.</div>`;
+      } finally {
+        state.loading = false;
+      }
+    }
+
+    function buildShareText() {
+      const modeRows = state.rows.daily || [];
+      const totalCoins = modeRows.reduce((acc, r) => acc + (Number(r.coins) || 0), 0);
+      const header = `Daily score for ${isoDate(state.targetDate)}: ${totalCoins} coins`;
+      const lines = modeRows
+        .slice(0, 8)
+        .map((r) => `• ${r.city}: ${formatTemp(r.forecast)} -> ${formatTemp(r.actual)} (${formatError(r.error)})`);
+      if (!lines.length) return `${header}\nNo results yet.`;
+      return `${header}\n${lines.join('\n')}`;
+    }
+
+    async function handleShare() {
+      if (state.mode === 'hourly') return;
+      const text = buildShareText();
+
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: 'My Score', text, url: location.href });
+          el.shareStatus.textContent = 'Shared!';
+          return;
+        }
+
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          el.shareStatus.textContent = 'Copied to clipboard.';
+          return;
+        }
+
+        el.shareStatus.textContent = 'Share API and clipboard unavailable.';
+      } catch (err) {
+        console.error(err);
+        el.shareStatus.textContent = 'Could not share/copy.';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
 </html>
