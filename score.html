@@ -163,13 +163,8 @@
     }
 
     #scoreList.daily-mode {
-      display: flex;
-      justify-content: flex-start;
-      align-items: flex-start;
-      gap: 8px;
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      overflow-y: visible;
+      display: block;
+      width: 100%;
       padding-bottom: 4px;
     }
 
@@ -208,15 +203,15 @@
     .score-row.visible { opacity: 1; transform: translateY(0) scale(1); }
     .score-row.missing { opacity: 0.75; border-style: dashed; }
 
-    .daily-mode .score-row { flex: 0 0 235px; max-width: 235px; }
+    .daily-mode .score-row { width: 100%; }
 
     .city {
       font-size: clamp(15px, 3vw, 18px);
       font-weight: 800;
       line-height: 1.25;
-      text-align: center;
       width: 100%;
       overflow-wrap: anywhere;
+      text-align: left;
     }
 
     .result-circle {
@@ -224,13 +219,6 @@
       font-size: 1.45rem;
       line-height: 1.1;
       margin-top: 3px;
-    }
-
-    .msg {
-      text-align: center;
-      font-size: 13px;
-      color: #374151;
-      margin-top: 2px;
     }
 
     .detail {
@@ -267,7 +255,7 @@
       text-align: right;
     }
 
-    .daily-mode .coin { text-align: center; }
+    .daily-mode .coin { text-align: left; }
 
     .hourly-top {
       display: flex;
@@ -298,7 +286,6 @@
     }
 
     @media (max-width: 900px) {
-      .daily-mode .score-row { flex: 0 0 210px; max-width: 210px; }
       #scoreList.hourly-mode { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
       #stats { font-size: 20px; }
     }
@@ -306,7 +293,7 @@
     @media (max-width: 600px) {
       body { padding: 14px 10px 26px; }
       #scoreList.hourly-mode { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-      .daily-mode .score-row { flex: 0 0 188px; max-width: 188px; }
+      .daily-mode .score-row { margin-bottom: 7px; }
       .detail { font-size: 12px; }
       .coin { font-size: 15px; }
       .stat-item { font-size: 15px; }
@@ -345,7 +332,7 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
 
     const state = {
-      targetDate: getDateFromQuery(),
+      targetDate: new Date(),
       mode: new URLSearchParams(location.search).get('from') === 'hourly' ? 'hourly' : 'daily',
       rows: { daily: [], hourly: [] },
       supabase: null,
@@ -400,14 +387,6 @@
       setMode(state.mode, false);
     }
 
-    function getDateFromQuery() {
-      const params = new URLSearchParams(location.search);
-      const raw = params.get('date');
-      if (!raw) return new Date();
-      const parsed = new Date(raw);
-      return isNaN(parsed.getTime()) ? new Date() : parsed;
-    }
-
     function isoDate(date) {
       const y = date.getFullYear();
       const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -438,29 +417,26 @@
       el.list.classList.toggle('daily-mode', nextMode === 'daily');
       el.list.classList.toggle('hourly-mode', nextMode === 'hourly');
 
-      // Hourly has no sharing block
+      // Keep sharing only for Daily mode
       el.shareSection.classList.toggle('hidden', nextMode === 'hourly');
 
       renderFromCache(nextMode, animate);
-      maybeUpdateQuery(nextMode);
       loadAndRender(nextMode, animate);
     }
 
-    function maybeUpdateQuery(mode) {
-      const params = new URLSearchParams(location.search);
-      params.set('date', isoDate(state.targetDate));
-      if (mode === 'hourly') {
-        params.set('from', 'hourly');
-      } else {
-        params.delete('from');
-      }
-      const nextUrl = `${location.pathname}?${params.toString()}`;
-      history.replaceState({}, '', nextUrl);
+    function getByPath(row, key) {
+      if (!row || !key) return undefined;
+      if (!key.includes('.')) return row[key];
+
+      return key.split('.').reduce((acc, part) => {
+        if (acc && typeof acc === 'object') return acc[part];
+        return undefined;
+      }, row);
     }
 
     function pick(row, keys) {
       for (const key of keys) {
-        const value = row?.[key];
+        const value = getByPath(row, key);
         if (value !== undefined && value !== null && value !== '') return value;
       }
       return undefined;
@@ -497,14 +473,26 @@
     }
 
     function normalizeRow(row, mode) {
+      const cityName = pick(row, [
+        'city',
+        'city_name',
+        'cityName',
+        'name',
+        'location',
+        'location_name',
+        'cities.name',
+        'cities.city_name',
+        'city.name',
+        'city.city_name'
+      ]);
+
       return {
-        city: pick(row, ['city', 'location', 'name', 'city_name']) || (row.city_id != null ? `City ${row.city_id}` : 'Unknown city'),
+        city: cityName || 'Unknown city',
         hour: pick(row, ['hour', 'slot', 'forecast_hour', 'time']) || '—',
         forecast: pick(row, ['forecast', 'forecast_temp', 'predicted', 'prediction', 'guess']),
         actual: pick(row, ['actual', 'actual_temp', 'observed', 'result_temp', 'real']),
         error: pick(row, ['error', 'error_value', 'difference', 'delta']),
         coins: Number(pick(row, ['coins', 'coin', 'score', 'points'])) || 0,
-        mood: pick(row, ['mood', 'mood_bonus_reason']),
         streak: Number(pick(row, ['streak', 'streak_count', 'streak_total'])) || 0,
         isMissing: Boolean(pick(row, ['missing', 'is_missing']) || row.status === 'missing'),
         raw: row
@@ -564,20 +552,21 @@
       const target = isoDate(state.targetDate);
       const cfg = MODE_CONFIG[mode];
       const dateKeys = cfg?.dateKeys || ["date"];
-    
+
       for (const key of dateKeys) {
         const raw = row?.[key];
         if (raw === undefined || raw === null || raw === "") continue;
         const parsed = toDateIso(raw);
         if (parsed === target) return true;
       }
-    
+
       return false; // if schema mismatch, do not include rows
     }
 
     function renderFromCache(mode, animate = true) {
       clearRows();
       const rows = sortRows(state.rows[mode] || [], mode);
+
       if (!rows.length) {
         el.list.innerHTML = `<div class="empty-state">No ${mode} scores for this date yet.</div>`;
         return;
@@ -586,25 +575,6 @@
       const frag = document.createDocumentFragment();
 
       if (mode === 'daily') {
-        const cities = rows.length;
-        const totalCoins = rows.reduce((acc, r) => acc + (Number(r.coins) || 0), 0);
-
-        const bestStreak = rows.reduce((m, r) => Math.max(m, Number(r.streak) || 0), 0);
-
-        const a = document.createElement('div');
-        a.className = 'stat-item';
-        a.textContent = `🏙️ Cities: ${cities}`;
-
-        const b = document.createElement('div');
-        b.className = 'stat-item';
-        b.textContent = `🪙 Coins: ${totalCoins}`;
-
-        const c = document.createElement('div');
-        c.className = 'stat-item';
-        c.textContent = `🔥 Streak: ${bestStreak}`;
-
-        el.stats.append(a, b, c);
-
         rows.forEach((r, i) => {
           const card = document.createElement('article');
           card.className = 'score-row';
@@ -623,8 +593,7 @@
           details.append(
             line('Forecast', formatTemp(r.forecast)),
             line('Actual', formatTemp(r.actual)),
-            line('Error', formatError(r.error)),
-            line('Mood', r.mood || '—')
+            line('Error', formatError(r.error))
           );
 
           const coins = document.createElement('div');
@@ -709,32 +678,32 @@
     async function loadMode(mode) {
       const cfg = MODE_CONFIG[mode];
       if (!cfg) throw new Error(`Unknown mode: ${mode}`);
-    
+
       if (state.rows[mode] && state.rows[mode].length) return state.rows[mode]; // return cache
-    
+
       let rows = null;
       let lastError = null;
-    
+
       for (const order of cfg.orderBy || []) { // try configured order-by columns
         const result = await state.supabase
           .from(cfg.table)
           .select("*")
           .order(order.column, { ascending: order.ascending });
-    
+
         if (!result.error) {
           rows = result.data || [];
           break;
         }
-    
+
         if (isColumnMissingError(result.error)) {
           lastError = result.error;
           continue; // try next candidate if any
         }
-    
+
         lastError = result.error;
         break;
       }
-    
+
       if (rows === null) {
         const fallback = await state.supabase.from(cfg.table).select("*");
         if (fallback.error) throw fallback.error;
@@ -742,11 +711,11 @@
       } else if (lastError) {
         console.warn("Ordering fallback used due to schema difference:", lastError);
       }
-    
+
       const normalized = (rows || [])
         .map((r) => normalizeRow(r, mode))
         .filter((r) => rowMatchesDate(r.raw, mode));
-    
+
       state.rows[mode] = normalized;
       return normalized;
     }
@@ -772,9 +741,10 @@
       const modeRows = state.rows.daily || [];
       const totalCoins = modeRows.reduce((acc, r) => acc + (Number(r.coins) || 0), 0);
       const header = `Daily score for ${isoDate(state.targetDate)}: ${totalCoins} coins`;
+
       const lines = modeRows
-        .slice(0, 8)
-        .map((r) => `• ${r.city}: ${formatTemp(r.forecast)} -> ${formatTemp(r.actual)} (${formatError(r.error)})`);
+        .map((r) => `${resultCircle(r.error)} ${r.city}: ${formatTemp(r.forecast)} → ${formatTemp(r.actual)} (${formatError(r.error)})`);
+
       if (!lines.length) return `${header}\nNo results yet.`;
       return `${header}\n${lines.join('\n')}`;
     }
@@ -785,7 +755,7 @@
 
       try {
         if (navigator.share) {
-          await navigator.share({ title: 'My Score', text, url: location.href });
+          await navigator.share({ title: 'My Score', text });
           el.shareStatus.textContent = 'Shared!';
           return;
         }
