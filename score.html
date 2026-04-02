@@ -293,7 +293,6 @@
     @media (max-width: 600px) {
       body { padding: 14px 10px 26px; }
       #scoreList.hourly-mode { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-      .daily-mode .score-row { margin-bottom: 7px; }
       .detail { font-size: 12px; }
       .coin { font-size: 15px; }
       .stat-item { font-size: 15px; }
@@ -331,9 +330,39 @@
     const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
 
+    const PTDate = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+
+    const PTDateHeader = new Intl.DateTimeFormat(undefined, {
+      timeZone: 'America/Los_Angeles',
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+
+    function getYesterdayDate() {
+      const todayPT = PTDate.format(new Date()); // e.g. "2026-03-31"
+      const [y, m, d] = todayPT.split('-').map(Number);
+
+      // Build a Date in UTC at noon for the PT "yesterday" date.
+      // Noon UTC avoids DST/local-midnight edge confusion.
+      return new Date(Date.UTC(y, m - 1, d - 1, 12, 0, 0));
+    }
+
+    function isoDate(date) {
+      return PTDate.format(new Date(date));
+    }
+
+    const params = new URLSearchParams(location.search);
+
     const state = {
-      targetDate: new Date(),
-      mode: new URLSearchParams(location.search).get('from') === 'hourly' ? 'hourly' : 'daily',
+      targetDate: getYesterdayDate(),
+      mode: params.get('from') === 'hourly' ? 'hourly' : 'daily',
       rows: { daily: [], hourly: [] },
       supabase: null,
       loading: false
@@ -387,20 +416,8 @@
       setMode(state.mode, false);
     }
 
-    function isoDate(date) {
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, '0');
-      const d = String(date.getDate()).padStart(2, '0');
-      return `${y}-${m}-${d}`;
-    }
-
     function setDateHeader(date) {
-      el.date.textContent = `Scores for ${date.toLocaleDateString(undefined, {
-        weekday: 'long',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      })}`;
+      el.date.textContent = `Scores for ${PTDateHeader.format(date)}`;
     }
 
     function setError(msg) {
@@ -502,13 +519,16 @@
     function toDateIso(value) {
       if (!value && value !== 0) return null;
 
-      // already yyyy-mm-dd
       if (typeof value === 'string') {
         const s = value.trim();
-        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+        // Best fit for your tables: extract the leading YYYY-MM-DD from either date or datetime.
+        const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+        if (m) return m[1];
+
+        return null;
       }
 
-      // date object/timestamp/string date
       const d = new Date(value);
       if (!isNaN(d.getTime())) return isoDate(d);
 
@@ -560,7 +580,7 @@
         if (parsed === target) return true;
       }
 
-      return false; // if schema mismatch, do not include rows
+      return false;
     }
 
     function renderFromCache(mode, animate = true) {
@@ -572,14 +592,33 @@
         return;
       }
 
+      if (mode === 'hourly') {
+        const cityCount = new Set(rows.map((r) => r.city)).size;
+        const totalCoins = rows.reduce((acc, r) => acc + (Number(r.coins) || 0), 0);
+
+        const a = document.createElement('div');
+        a.className = 'stat-item';
+        a.textContent = `🕒 Hourlies: ${rows.length}`;
+
+        const b = document.createElement('div');
+        b.className = 'stat-item';
+        b.textContent = `🏙️ Cities: ${cityCount}`;
+
+        const c = document.createElement('div');
+        c.className = 'stat-item';
+        c.textContent = `🪙 Coins: ${totalCoins}`;
+
+        el.stats.append(a, b, c);
+      }
+
       const frag = document.createDocumentFragment();
 
-      if (mode === 'daily') {
-        rows.forEach((r, i) => {
-          const card = document.createElement('article');
-          card.className = 'score-row';
-          if (r.isMissing) card.classList.add('missing');
+      rows.forEach((r, i) => {
+        const card = document.createElement('article');
+        card.className = 'score-row';
+        if (r.isMissing) card.classList.add('missing');
 
+        if (mode === 'daily') {
           const city = document.createElement('div');
           city.className = 'city';
           city.textContent = r.city;
@@ -605,34 +644,7 @@
           streak.textContent = `⭐ ${r.streak}`;
 
           card.append(city, icon, details, coins, streak);
-          frag.append(card);
-
-          if (animate) setTimeout(() => card.classList.add('visible'), 25 * i);
-          else card.classList.add('visible');
-        });
-      } else {
-        const cityCount = new Set(rows.map((r) => r.city)).size;
-        const totalCoins = rows.reduce((acc, r) => acc + (Number(r.coins) || 0), 0);
-
-        const a = document.createElement('div');
-        a.className = 'stat-item';
-        a.textContent = `🕒 Hourlies: ${rows.length}`;
-
-        const b = document.createElement('div');
-        b.className = 'stat-item';
-        b.textContent = `🏙️ Cities: ${cityCount}`;
-
-        const c = document.createElement('div');
-        c.className = 'stat-item';
-        c.textContent = `🪙 Coins: ${totalCoins}`;
-
-        el.stats.append(a, b, c);
-
-        rows.forEach((r, i) => {
-          const card = document.createElement('article');
-          card.className = 'score-row';
-          if (r.isMissing) card.classList.add('missing');
-
+        } else {
           const top = document.createElement('div');
           top.className = 'hourly-top';
 
@@ -659,12 +671,13 @@
           coins.textContent = `🪙 ${r.coins}`;
 
           card.append(top, details, coins);
-          frag.append(card);
+        }
 
-          if (animate) setTimeout(() => card.classList.add('visible'), 25 * i);
-          else card.classList.add('visible');
-        });
-      }
+        frag.append(card);
+
+        if (animate) setTimeout(() => card.classList.add('visible'), 25 * i);
+        else card.classList.add('visible');
+      });
 
       el.list.append(frag);
     }
@@ -679,12 +692,12 @@
       const cfg = MODE_CONFIG[mode];
       if (!cfg) throw new Error(`Unknown mode: ${mode}`);
 
-      if (state.rows[mode] && state.rows[mode].length) return state.rows[mode]; // return cache
+      if (state.rows[mode] && state.rows[mode].length) return state.rows[mode];
 
       let rows = null;
       let lastError = null;
 
-      for (const order of cfg.orderBy || []) { // try configured order-by columns
+      for (const order of cfg.orderBy || []) {
         const result = await state.supabase
           .from(cfg.table)
           .select("*")
@@ -697,7 +710,7 @@
 
         if (isColumnMissingError(result.error)) {
           lastError = result.error;
-          continue; // try next candidate if any
+          continue;
         }
 
         lastError = result.error;
@@ -742,34 +755,57 @@
       const totalCoins = modeRows.reduce((acc, r) => acc + (Number(r.coins) || 0), 0);
       const header = `Daily score for ${isoDate(state.targetDate)}: ${totalCoins} coins`;
 
-      const lines = modeRows
-        .map((r) => `${resultCircle(r.error)} ${r.city}: ${formatTemp(r.forecast)} → ${formatTemp(r.actual)} (${formatError(r.error)})`);
-
+      const lines = modeRows.map((r) => `${resultCircle(r.error)} ${r.city}: ${formatTemp(r.forecast)} → ${formatTemp(r.actual)} (${formatError(r.error)})`);
       if (!lines.length) return `${header}\nNo results yet.`;
       return `${header}\n${lines.join('\n')}`;
     }
 
+    function fallbackCopyText(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'absolute';
+      ta.style.left = '-9999px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+
+      let ok = false;
+      try {
+        ok = document.execCommand('copy');
+      } catch (e) {
+        ok = false;
+      }
+
+      document.body.removeChild(ta);
+      return ok;
+    }
+
     async function handleShare() {
       if (state.mode === 'hourly') return;
+
       const text = buildShareText();
 
       try {
-        if (navigator.share) {
-          await navigator.share({ title: 'My Score', text });
-          el.shareStatus.textContent = 'Shared!';
-          return;
-        }
-
         if (navigator.clipboard && window.isSecureContext) {
           await navigator.clipboard.writeText(text);
-          el.shareStatus.textContent = 'Copied to clipboard.';
+          el.shareStatus.textContent = 'Copied score ✅';
           return;
         }
 
-        el.shareStatus.textContent = 'Share API and clipboard unavailable.';
+        if (fallbackCopyText(text)) {
+          el.shareStatus.textContent = 'Copied score ✅';
+        } else {
+          el.shareStatus.textContent = 'Clipboard not available in this browser';
+        }
       } catch (err) {
         console.error(err);
-        el.shareStatus.textContent = 'Could not share/copy.';
+        if (fallbackCopyText(text)) {
+          el.shareStatus.textContent = 'Copied score ✅';
+        } else {
+          el.shareStatus.textContent = 'Could not copy. Please copy manually.';
+        }
       }
     }
 
