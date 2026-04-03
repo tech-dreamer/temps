@@ -202,6 +202,34 @@
       line-height: 1.2;
     }
 
+    .hourly-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    
+    .hourly-card {
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px 12px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+    
+    .hour-label {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 6px;
+      color: #111827;
+    }
+    
+    .hourly-sub {
+      font-size: 0.9rem;
+      color: #374151;
+      line-height: 1.35;
+    }
+
     .msg {
       font-size: 16px;
       margin-top: 4px;
@@ -786,7 +814,8 @@
         }
 
         if (isHourly) { // hourly score
-          const hourlyForecast = hourlyForecastText(s);
+          renderHourlyScores(response.hourly ?? response.scores ?? []);
+          /* const hourlyForecast = hourlyForecastText(s);
           const hourlyActual = hourlyActualText(s);
           const hourlyError = hourlyErrorText(s);
 
@@ -807,7 +836,7 @@
             </div>
             <div class="coin">${coinText}</div>
           `;
-          list.appendChild(row);
+          list.appendChild(row); */
         } else { // daily score
           const icon = resultCircle(s);
           const detailHtml = forecasted
@@ -882,6 +911,34 @@
           animateNumber("currentStreak", currentStreak, 800);
         }
       }, rowCount * 300);
+    }
+
+    function renderHourlyScores(items = []) {
+      const container = document.getElementById("hourly-scores");
+      if (!container) return;
+    
+      container.className = "hourly-grid";
+      container.innerHTML = "";
+    
+      if (!items.length) {
+        container.innerHTML = '<p class="hourly-empty">No hourly scores found</p>';
+        return;
+      }
+    
+      items.forEach((s) => {
+        const card = document.createElement("div");
+        card.className = "hourly-card";
+        card.innerHTML = `
+          <div class="hour-label">Hour: ${s.hour ?? "-"}</div>
+          <div class="hourly-sub">City: ${s.city_name ?? s.city_id}</div>
+          <div class="hourly-sub">Forecast: ${s.forecast_temp ?? s.forecast ?? "-"}</div>
+          <div class="hourly-sub">Actual: ${s.actual_temp ?? s.actual ?? "-"}</div>
+          <div class="hourly-sub">Error: ${s.error ?? "-"}</div>
+          <div class="hourly-sub">Coins: ${s.coins ?? "-"}</div>
+          const coinText = forecasted ? `🪙 +${Number(s.coins || 0)}` : `🪙 +0`;
+        `;
+        container.appendChild(card);
+      });
     }
 
     function showShareStatus(msg, type = "ok") {
