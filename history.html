@@ -86,7 +86,7 @@
 
     .controls {
       display: grid;
-      grid-template-columns: repeat(6, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 10px;
       align-items: end;
       margin-bottom: 12px;
@@ -139,6 +139,7 @@
     .button.secondary {
       background: #e5e7eb;
       color: #111827;
+      border: 1px solid #d1d5db;
     }
 
     .button.ghost {
@@ -159,6 +160,27 @@
       flex-wrap: wrap;
     }
 
+    .mode-toggle {
+      width: 100%;
+    }
+
+    .mode-toggle .button {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .mode-toggle .button.active {
+      background: var(--accent);
+      color: #fff;
+      border: 1px solid transparent;
+    }
+
+    .mode-toggle .button:not(.active) {
+      background: #e5e7eb;
+      color: #111827;
+      border: 1px solid #d1d5db;
+    }
+
     .table-wrap {
       border: 1px solid var(--line);
       border-radius: 12px;
@@ -174,7 +196,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 860px;
+      min-width: 1080px;
     }
 
     thead th {
@@ -237,8 +259,6 @@
       background: #f9fafb;
     }
 
-    .muted { color: #6b7280; }
-
     .empty {
       text-align: center;
       color: #6b7280;
@@ -270,6 +290,26 @@
       flex-wrap: wrap;
     }
 
+    .accuracy-cell {
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .accuracy-dot {
+      width: 0.85rem;
+      height: 0.85rem;
+      border-radius: 9999px;
+      display: inline-block;
+      box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    .accuracy-dot.green { background: #10b981; }
+    .accuracy-dot.yellow { background: #facc15; }
+    .accuracy-dot.red { background: #ef4444; }
+    .accuracy-dot.gray { background: #9ca3af; }
+
     @media (max-width: 960px) {
       .controls {
         grid-template-columns: repeat(2, minmax(150px, 1fr));
@@ -298,16 +338,24 @@
   <main class="wrap">
     <header>
       <h1 class="title">📖 My Forecast History</h1>
-      <p class="subtitle">Filter, search, sort by clicking headers, and paginate forecasts from <strong>My Hourly Scores</strong>.</p>
+      <p class="subtitle">Filter, search, sort by clicking headers, and paginate your forecast scores.</p>
     </header>
 
     <section class="card">
-      <div id="status" class="status loading">Loading my forecast history…</div>
+      <div id="status" class="status loading">Loading your forecast history…</div>
 
       <div class="controls">
         <div class="control">
+          <label>Mode</label>
+          <div class="btn-group mode-toggle">
+            <button id="dailyModeBtn" class="button active" type="button">Daily</button>
+            <button id="hourlyModeBtn" class="button secondary" type="button">Hourly</button>
+          </div>
+        </div>
+
+        <div class="control">
           <label for="searchInput">Search</label>
-          <input id="searchInput" type="text" placeholder="City or date…" />
+          <input id="searchInput" type="text" placeholder="City or date…">
         </div>
 
         <div class="control">
@@ -319,17 +367,18 @@
 
         <div class="control">
           <label for="fromDate">From date</label>
-          <input id="fromDate" type="date" />
+          <input id="fromDate" type="date">
         </div>
 
         <div class="control">
           <label for="toDate">To date</label>
-          <input id="toDate" type="date" />
+          <input id="toDate" type="date">
         </div>
 
         <div class="control">
           <label for="pageSize">Rows / page</label>
           <select id="pageSize">
+            <option value="25">25</option>
             <option value="50" selected>50</option>
             <option value="100">100</option>
             <option value="150">150</option>
@@ -351,12 +400,13 @@
             <thead>
               <tr>
                 <th data-sort="date" data-label="Date">Date <span class="sort-arrow"></span></th>
-                <th data-sort="hour" data-label="Hr">Hr <span class="sort-arrow"></span></th>
                 <th data-sort="city" data-label="City">City <span class="sort-arrow"></span></th>
                 <th data-sort="forecast" data-label="Forecast">Forecast <span class="sort-arrow"></span></th>
                 <th data-sort="actual" data-label="Actual">Actual <span class="sort-arrow"></span></th>
                 <th data-sort="accuracy" data-label="Accuracy (Error)">Accuracy (Error) <span class="sort-arrow"></span></th>
+                <th data-sort="color" data-label="Color">Color <span class="sort-arrow"></span></th>
                 <th data-sort="coins" data-label="Coins">Coins <span class="sort-arrow"></span></th>
+                <th data-sort="mood" data-label="Mood">Mood <span class="sort-arrow"></span></th>
               </tr>
             </thead>
             <tbody id="historyBody"></tbody>
@@ -365,7 +415,7 @@
       </div>
 
       <div class="pager">
-        <span id="pagerInfo" class="meta">0 of 0 entries</span>
+        <span id="pagerInfo" class="meta">0 entries</span>
         <div class="pager-actions">
           <button id="prevPage" class="button secondary" type="button">Previous</button>
           <button id="nextPage" class="button secondary" type="button">Next</button>
@@ -386,6 +436,7 @@
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const statusEl = document.getElementById("status");
+    const subtitleEl = document.querySelector(".subtitle");
 
     const searchInput = document.getElementById("searchInput");
     const cityFilter = document.getElementById("cityFilter");
@@ -396,41 +447,76 @@
     const refreshBtn = document.getElementById("refreshBtn");
     const statsBtn = document.getElementById("statsBtn");
 
+    const dailyModeBtn = document.getElementById("dailyModeBtn");
+    const hourlyModeBtn = document.getElementById("hourlyModeBtn");
+
     const prevPageBtn = document.getElementById("prevPage");
     const nextPageBtn = document.getElementById("nextPage");
     const pagerInfo = document.getElementById("pagerInfo");
-
     const tbody = document.getElementById("historyBody");
     const tableHeaders = document.querySelectorAll("th[data-sort]");
+    const dateHeader = document.querySelector('th[data-sort="date"]');
+
+    const modeConfig = {
+      daily: {
+        table: "daily_scores",
+        label: "Daily",
+        dateLabel: "Date",
+        hasHour: false,
+        select:
+          "id, user_id, city_id, date, forecast_high, forecast_low, actual_high, actual_low, error_high, error_low, coins, mood"
+      },
+      hourly: {
+        table: "hourly_scores",
+        label: "Hourly",
+        dateLabel: "Date & Hour",
+        hasHour: true,
+        select:
+          "id, user_id, city_id, date, hour, forecast_high, forecast_low, actual_high, actual_low, error_high, error_low, coins, mood"
+      }
+    };
 
     const defaultSortDirection = {
       date: "desc",
-      hour: "desc",
       city: "asc",
       forecast: "desc",
       actual: "desc",
       accuracy: "desc",
-      coins: "desc"
+      color: "asc",
+      coins: "desc",
+      mood: "desc"
     };
 
     const state = {
+      mode: "daily",
       rows: [],
       filteredRows: [],
       sortBy: "date",
       sortDir: "desc",
       page: 1,
-      pageSize: 50,
+      pageSize: 50
     };
 
+    function modeConfigFor(mode) {
+      return modeConfig[mode] || modeConfig.daily;
+    }
+
+    function setStatus(msg, type = "default") {
+      statusEl.textContent = msg;
+      if (type === "error") statusEl.className = "status error";
+      else if (type === "loading") statusEl.className = "status loading";
+      else statusEl.className = "status";
+    }
+
     function getUserId() {
-      const qs = new URLSearchParams(location.search).get("user_id");
-      if (qs && qs.trim()) {
-        localStorage.setItem("temps_user_id", qs.trim());
-        return qs.trim();
+      const fromQuery = new URLSearchParams(location.search).get("user_id");
+      if (fromQuery && fromQuery.trim()) {
+        localStorage.setItem("temps_user_id", fromQuery.trim());
+        return fromQuery.trim();
       }
-      const legacy = localStorage.getItem("user_id");
       const stored = localStorage.getItem("temps_user_id");
       if (stored && stored.trim()) return stored.trim();
+      const legacy = localStorage.getItem("user_id");
       if (legacy && legacy.trim()) {
         localStorage.setItem("temps_user_id", legacy.trim());
         return legacy.trim();
@@ -438,401 +524,523 @@
       return null;
     }
 
-    function safeNumber(v) {
+    function toNumber(v) {
       const n = Number(v);
-      return Number.isFinite(n) ? n : 0;
+      return Number.isFinite(n) ? n : null;
     }
 
-    function resolveValue(row, keys) {
-      for (const k of keys) {
-        if (Object.prototype.hasOwnProperty.call(row, k)) {
-          const v = row[k];
-          if (v !== null && v !== undefined && v !== "") return v;
-        }
+    function fmtInt(v, fallback = "—") {
+      const n = toNumber(v);
+      return n === null ? fallback : Math.round(n).toLocaleString();
+    }
+
+    function fmtSigned(v, fallback = "—") {
+      const n = toNumber(v);
+      if (n === null) return fallback;
+      const rounded = Math.round(n);
+      return `${rounded > 0 ? "+" : ""}${rounded}\u00b0`;
+    }
+
+    function parseDateValue(raw) {
+      const ts = Date.parse(raw);
+      return Number.isNaN(ts) ? 0 : ts;
+    }
+
+    function parseHourValue(raw) {
+      if (raw === null || raw === undefined || raw === "") return null;
+      if (typeof raw === "number" && Number.isFinite(raw)) {
+        const h = Math.trunc(raw);
+        return h >= 0 && h <= 23 ? h : null;
       }
-      return null;
-    }
 
-    function fmtIntOrDecimal(v, fallback = "—") {
-      if (v === null || v === undefined || v === "") return fallback;
-      const n = Number(v);
-      if (Number.isNaN(n) || !Number.isFinite(n)) return fallback;
-      if (Number.isInteger(n)) {
-        return Math.trunc(n).toLocaleString();
+      const s = String(raw).trim();
+      const m = s.match(/^(\d{1,2})(?::\d{1,2})?\s*(am|pm)?$/i);
+      if (m) {
+        let h = Number(m[1]);
+        const ap = (m[2] || "").toLowerCase();
+        if (ap === "pm" && h < 12) h += 12;
+        if (ap === "am" && h === 12) h = 0;
+        return h >= 0 && h <= 23 ? h : null;
       }
-      return n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+      const k = s.match(/^(\d{1,2})$/);
+      if (k) {
+        const h = Number(k[1]);
+        return h >= 0 && h <= 23 ? h : null;
+      }
+      const ts = Date.parse(s);
+      if (Number.isNaN(ts)) return null;
+      return new Date(ts).getHours();
     }
 
-    function fmtDate(raw) {
-      if (!raw) return "—";
-      const d = new Date(raw);
-      if (Number.isNaN(d.getTime())) return String(raw);
-      return d.toLocaleDateString(undefined, {
+    function formatDisplayDate(row) {
+      const hasHour = modeConfigFor(state.mode).hasHour;
+      if (!row.date) return "—";
+
+      const base = parseDateValue(row.date);
+      if (base === 0) return String(row.date);
+
+      const d = new Date(base);
+
+      if (!hasHour) return d.toLocaleDateString(undefined, {
         year: "numeric",
         month: "short",
         day: "numeric"
       });
-    }
 
-    function parseDate(raw) {
-      const t = Date.parse(raw);
-      return Number.isNaN(t) ? 0 : t;
-    }
-
-    function toDateObj(raw) {
-      const d = new Date(raw);
-      return Number.isNaN(d.getTime()) ? null : d;
-    }
-
-    function hourFromRow(row) {
-      const direct = resolveValue(row, ["hour", "hr", "hour_of_day", "forecast_hour"]);
-      if (direct !== null) {
-        const h = Number(direct);
-        if (Number.isFinite(h)) {
-          return ((h % 24) + 24) % 24;
-        }
-      }
-
-      const d = toDateObj(resolveValue(row, ["date", "created_at", "forecast_at", "timestamp", "createdAt"]));
-      if (!d) return null;
-      return d.getHours();
-    }
-
-    function formatHourLabel(hour, rowDate) {
-      const h = Number(hour);
-      if (Number.isFinite(h)) return String(Math.trunc(((h % 24) + 24) % 24)).padStart(2, "0");
-      const d = toDateObj(rowDate);
-      if (!d) return "—";
-      return String(d.getHours()).padStart(2, "0");
-    }
-
-    function buildCityOptions(rows) {
-      const seen = new Map();
-      rows.forEach(r => {
-        if (r.city_key && !seen.has(r.city_key)) {
-          seen.set(r.city_key, r.city_name || "Unknown city");
-        }
+      const hour = parseHourValue(row.hour);
+      if (hour === null) return d.toLocaleString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit"
       });
-      const arr = [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+
+      d.setHours(hour, 0, 0, 0);
+      return d.toLocaleString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit"
+      });
+    }
+
+    function formatRange(high, low) {
+      const h = toNumber(high);
+      const l = toNumber(low);
+      if (h === null && l === null) return "—";
+      if (h === null) return `Low ${fmtInt(l)}°`;
+      if (l === null) return `High ${fmtInt(h)}°`;
+      return `High ${fmtInt(h)}° / Low ${fmtInt(l)}°`;
+    }
+
+    function accuracyColor(value) {
+      const n = toNumber(value);
+      if (n === null) return "gray";
+      const abs = Math.abs(n);
+      if (abs <= 2) return "green";
+      if (abs <= 5) return "yellow";
+      return "red";
+    }
+
+    function accuracyRank(value) {
+      const c = accuracyColor(value);
+      if (c === "green") return 0;
+      if (c === "yellow") return 1;
+      if (c === "red") return 2;
+      return 3;
+    }
+
+    function dateSortValue(row) {
+      const base = parseDateValue(row.date);
+      if (base === 0) return 0;
+      const cfg = modeConfigFor(state.mode);
+      if (!cfg.hasHour) return base;
+
+      const hour = parseHourValue(row.hour);
+      if (hour === null) return base;
+
+      const d = new Date(base);
+      d.setHours(hour, 0, 0, 0);
+      return d.getTime();
+    }
+
+    function avgValue(...values) {
+      const nums = values.map(toNumber).filter((n) => n !== null);
+      if (!nums.length) return null;
+      return nums.reduce((s, n) => s + n, 0) / nums.length;
+    }
+
+    function sortRows(list) {
+      const dir = state.sortBy && state.sortDir === "asc" ? 1 : -1;
+      const key = state.sortBy;
+
+      return list.sort((a, b) => {
+        let aV, bV;
+
+        if (key === "date") {
+          aV = dateSortValue(a);
+          bV = dateSortValue(b);
+          if (aV === bV) return a.id > b.id ? dir : a.id < b.id ? -dir : 0;
+          return (aV > bV ? 1 : -1) * dir;
+        }
+
+        if (key === "city") {
+          aV = (a.city_name || "").toLowerCase();
+          bV = (b.city_name || "").toLowerCase();
+          if (aV === bV) return 0;
+          return (aV > bV ? 1 : -1) * dir;
+        }
+
+        if (key === "forecast") {
+          aV = avgValue(a.forecast_high, a.forecast_low);
+          bV = avgValue(b.forecast_high, b.forecast_low);
+          if (aV === null && bV === null) return 0;
+          if (aV === null) return 1;
+          if (bV === null) return -1;
+          if (aV === bV) return 0;
+          return (aV > bV ? 1 : -1) * dir;
+        }
+
+        if (key === "actual") {
+          aV = avgValue(a.actual_high, a.actual_low);
+          bV = avgValue(b.actual_high, b.actual_low);
+          if (aV === null && bV === null) return 0;
+          if (aV === null) return 1;
+          if (bV === null) return -1;
+          if (aV === bV) return 0;
+          return (aV > bV ? 1 : -1) * dir;
+        }
+
+        if (key === "accuracy") {
+          aV = toNumber(a.error_high);
+          bV = toNumber(b.error_high);
+          if (aV === null && bV === null) return 0;
+          if (aV === null) return 1;
+          if (bV === null) return -1;
+          if (Math.abs(aV) === Math.abs(bV)) return 0;
+          return (Math.abs(aV) > Math.abs(bV) ? 1 : -1) * dir;
+        }
+
+        if (key === "color") {
+          aV = accuracyRank(a.error_high);
+          bV = accuracyRank(b.error_high);
+          if (aV === bV) return 0;
+          return (aV > bV ? 1 : -1) * dir;
+        }
+
+        if (key === "coins") {
+          aV = toNumber(a.coins);
+          bV = toNumber(b.coins);
+          if (aV === null && bV === null) return 0;
+          if (aV === null) return 1;
+          if (bV === null) return -1;
+          if (aV === bV) return 0;
+          return (aV > bV ? 1 : -1) * dir;
+        }
+
+        if (key === "mood") {
+          aV = (a.mood || "").toLowerCase();
+          bV = (b.mood || "").toLowerCase();
+          if (aV === bV) return 0;
+          return (aV > bV ? 1 : -1) * dir;
+        }
+
+        return 0;
+      });
+    }
+
+    function buildCityOptions() {
+      const current = cityFilter.value;
+      const names = [...new Set(state.rows.map(r => r.city_name || "Unknown"))].sort((a, b) => a.localeCompare(b));
       cityFilter.innerHTML = '<option value="">All cities</option>';
-      arr.forEach(([key, name]) => {
+      names.forEach((name) => {
         const opt = document.createElement("option");
-        opt.value = key;
+        opt.value = name;
         opt.textContent = name;
         cityFilter.appendChild(opt);
       });
+      if (names.includes(current)) cityFilter.value = current;
+      else cityFilter.value = "";
+    }
+
+    function applyFilters(resetPage = true) {
+      if (resetPage) state.page = 1;
+
+      const query = searchInput.value.trim().toLowerCase();
+      const city = cityFilter.value;
+      const fromVal = fromDateInput.value;
+      const toVal = toDateInput.value;
+
+      let filtered = [...state.rows];
+
+      if (city) {
+        filtered = filtered.filter((row) => (row.city_name || "Unknown") === city);
+      }
+
+      if (fromVal || toVal) {
+        const fromTs = fromVal ? new Date(fromVal).getTime() : null;
+        const toTs = toVal ? (() => {
+          const d = new Date(toVal);
+          d.setHours(23, 59, 59, 999);
+          return d.getTime();
+        })() : null;
+
+        filtered = filtered.filter((row) => {
+          const t = parseDateValue(row.date);
+          if (t === 0) return false;
+          if (fromTs !== null && t < fromTs) return false;
+          if (toTs !== null && t > toTs) return false;
+          return true;
+        });
+      }
+
+      if (query) {
+        filtered = filtered.filter((row) => {
+          const hay = [
+            formatDisplayDate(row),
+            row.city_name || "",
+            row.forecast_high,
+            row.forecast_low,
+            row.actual_high,
+            row.actual_low,
+            row.error_high,
+            row.error_low,
+            row.mood || "",
+            row.hour || "",
+            row.coins
+          ].join(" ").toLowerCase();
+
+          return hay.includes(query);
+        });
+      }
+
+      state.filteredRows = sortRows(filtered);
+      updateSortIndicators();
+      renderRows();
+      updatePager();
     }
 
     function updateSortIndicators() {
-      tableHeaders.forEach(th => {
-        const isSorted = th.dataset.sort === state.sortBy;
-        th.classList.toggle("active-sort", isSorted);
-
-        const label = th.dataset.label || th.textContent.replace("▲", "").replace("▼", "").trim();
-        th.innerHTML = `${label} <span class="sort-arrow">${isSorted ? (state.sortDir === "asc" ? "▲" : "▼") : ""}</span>`;
-      });
-    }
-
-    function getValueForSort(row, key) {
-      if (key === "forecast") return safeNumber(row.forecast_value);
-      if (key === "actual") return safeNumber(row.actual_value);
-      if (key === "accuracy") return safeNumber(row.error_value);
-      if (key === "coins") return safeNumber(row.coins);
-      return 0;
-    }
-
-    function applyFiltersAndSort() {
-      const search = searchInput.value.trim().toLowerCase();
-      const cityValue = cityFilter.value;
-      const sortBy = state.sortBy;
-      const from = fromDateInput.value ? Date.parse(fromDateInput.value) : null;
-      const toRaw = toDateInput.value ? Date.parse(toDateInput.value) : null;
-      const to = Number.isFinite(toRaw) ? (toRaw + 24 * 60 * 60 * 1000 - 1) : null;
-
-      let rows = state.rows.filter(row => {
-        if (cityValue && row.city_key !== cityValue) return false;
-
-        const rowDate = row.date || "";
-        const dateNum = parseDate(rowDate);
-        if (search) {
-          const searchable =
-            `${row.city_name || ""} ${row.date || ""} ${formatHourLabel(row.hour, rowDate)} ${fmtDate(rowDate)}`.toLowerCase();
-          if (!searchable.includes(search)) return false;
-        }
-
-        if (from !== null && dateNum !== 0 && dateNum < from) return false;
-        if (to !== null && dateNum !== 0 && dateNum > to) return false;
-
-        return true;
+      tableHeaders.forEach((th) => {
+        th.classList.remove("active-sort");
+        const arrow = th.querySelector(".sort-arrow");
+        if (arrow) arrow.textContent = "";
       });
 
-      rows.sort((a, b) => {
-        let cmp = 0;
-
-        if (sortBy === "date") {
-          cmp = parseDate(a.date) - parseDate(b.date);
-          if (cmp === 0) cmp = (a.hour || 0) - (b.hour || 0);
-          if (cmp === 0) cmp = safeNumber(a.id) - safeNumber(b.id);
-        } else if (sortBy === "hour") {
-          cmp = (a.hour || -1) - (b.hour || -1);
-          if (cmp === 0) {
-            cmp = parseDate(a.date) - parseDate(b.date);
-            if (cmp === 0) cmp = safeNumber(a.id) - safeNumber(b.id);
-          }
-        } else if (sortBy === "city") {
-          cmp = (a.city_name || "Unknown city").localeCompare(b.city_name || "Unknown city");
-          if (cmp === 0) {
-            cmp = parseDate(a.date) - parseDate(b.date);
-            if (cmp === 0) cmp = (a.hour || 0) - (b.hour || 0);
-            if (cmp === 0) cmp = safeNumber(a.id) - safeNumber(b.id);
-          }
-        } else if (sortBy === "forecast" || sortBy === "actual" || sortBy === "accuracy" || sortBy === "coins") {
-          cmp = getValueForSort(a, sortBy) - getValueForSort(b, sortBy);
-          if (cmp === 0) {
-            cmp = parseDate(a.date) - parseDate(b.date);
-            if (cmp === 0) cmp = (a.hour || 0) - (b.hour || 0);
-            if (cmp === 0) cmp = safeNumber(a.id) - safeNumber(b.id);
-          }
-        }
-
-        return state.sortDir === "asc" ? cmp : -cmp;
-      });
-
-      state.filteredRows = rows;
-      state.page = 1;
-      renderCurrentPage();
-      renderStatus();
-      updateSortIndicators();
+      const active = document.querySelector(`th[data-sort="${state.sortBy}"]`);
+      if (active) {
+        active.classList.add("active-sort");
+        const arrow = active.querySelector(".sort-arrow");
+        if (arrow) arrow.textContent = state.sortDir === "asc" ? "▲" : "▼";
+      }
     }
 
-    function renderCurrentPage() {
-      state.pageSize = Math.max(1, Number(pageSizeInput.value) || 50);
-
-      const total = state.filteredRows.length;
-      const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
-      state.page = Math.min(Math.max(1, state.page), totalPages);
-
-      const start = (state.page - 1) * state.pageSize;
-      const end = Math.min(start + state.pageSize, total);
-      const visibleRows = state.filteredRows.slice(start, end);
-
+    function renderRows() {
       tbody.innerHTML = "";
 
-      if (!visibleRows.length) {
+      const pageSize = state.pageSize;
+      const total = state.filteredRows.length;
+      const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+      if (state.page > totalPages) state.page = totalPages;
+      const start = (state.page - 1) * pageSize;
+      const end = Math.min(start + pageSize, total);
+      const pageRows = state.filteredRows.slice(start, end);
+
+      if (!pageRows.length) {
         const tr = document.createElement("tr");
         const td = document.createElement("td");
         td.className = "empty";
-        td.colSpan = 7;
-        td.textContent = total === 0 ? "No records found." : "No records on this page.";
+        td.colSpan = 8;
+        td.textContent = total === 0 ? "No matching records found." : "No records on this page.";
         tr.appendChild(td);
         tbody.appendChild(tr);
-      } else {
-        for (const row of visibleRows) {
-          const tr = document.createElement("tr");
-
-          const tdDate = document.createElement("td");
-          tdDate.textContent = fmtDate(row.date);
-
-          const tdHour = document.createElement("td");
-          tdHour.textContent = formatHourLabel(row.hour, row.date);
-
-          const tdCity = document.createElement("td");
-          tdCity.textContent = row.city_name || "Unknown city";
-
-          const tdForecast = document.createElement("td");
-          tdForecast.textContent = fmtIntOrDecimal(row.forecast_value, "—");
-
-          const tdActual = document.createElement("td");
-          tdActual.textContent = fmtIntOrDecimal(row.actual_value, "—");
-
-          const tdErrors = document.createElement("td");
-          tdErrors.textContent = fmtIntOrDecimal(row.error_value, "—");
-
-          const tdCoins = document.createElement("td");
-          tdCoins.textContent = fmtIntOrDecimal(row.coins, "—");
-
-          tr.appendChild(tdDate);
-          tr.appendChild(tdHour);
-          tr.appendChild(tdCity);
-          tr.appendChild(tdForecast);
-          tr.appendChild(tdActual);
-          tr.appendChild(tdErrors);
-          tr.appendChild(tdCoins);
-          tbody.appendChild(tr);
-        }
+        return;
       }
 
+      pageRows.forEach((row) => {
+        const tr = document.createElement("tr");
+
+        const tdDate = document.createElement("td");
+        tdDate.textContent = formatDisplayDate(row);
+
+        const tdCity = document.createElement("td");
+        tdCity.textContent = row.city_name || "Unknown";
+
+        const tdForecast = document.createElement("td");
+        tdForecast.textContent = formatRange(row.forecast_high, row.forecast_low);
+
+        const tdActual = document.createElement("td");
+        tdActual.textContent = formatRange(row.actual_high, row.actual_low);
+
+        const tdAccuracy = document.createElement("td");
+        tdAccuracy.className = "accuracy-cell";
+        tdAccuracy.textContent = `${fmtSigned(row.error_high)} / ${fmtSigned(row.error_low)}`;
+
+        const tdColor = document.createElement("td");
+        tdColor.className = "accuracy-cell";
+        const dot = document.createElement("span");
+        dot.className = `accuracy-dot ${accuracyColor(row.error_high)}`;
+        const colorLabel = accuracyColor(row.error_high);
+        tdColor.appendChild(dot);
+        tdColor.appendChild(document.createTextNode(
+          colorLabel.charAt(0).toUpperCase() + colorLabel.slice(1)
+        ));
+
+        const tdCoins = document.createElement("td");
+        tdCoins.textContent = fmtInt(row.coins);
+
+        const tdMood = document.createElement("td");
+        tdMood.textContent = row.mood || "—";
+
+        tr.append(tdDate, tdCity, tdForecast, tdActual, tdAccuracy, tdColor, tdCoins, tdMood);
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updatePager() {
+      const total = state.filteredRows.length;
+      const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
+      const start = total === 0 ? 0 : (state.page - 1) * state.pageSize + 1;
+      const end = total === 0 ? 0 : Math.min(start + state.pageSize - 1, total);
+
       pagerInfo.textContent = total === 0
-        ? "No entries to display."
-        : `Showing ${start + 1}-${end} of ${total} entries • Page ${state.page} of ${totalPages}`;
+        ? "0 entries"
+        : `Showing ${start}-${end} of ${total} entries`;
 
       prevPageBtn.disabled = state.page <= 1;
       nextPageBtn.disabled = state.page >= totalPages;
     }
 
-    function renderStatus() {
-      if (state.rows.length === 0) {
-        statusEl.className = "status";
-        statusEl.textContent = "No forecast entries found for this user yet.";
+    function updateDateHeaderLabel() {
+      const cfg = modeConfigFor(state.mode);
+      dateHeader.innerHTML = `${cfg.dateLabel} <span class="sort-arrow"></span>`;
+      subtitleEl.textContent = `Filter, search, sort by clicking headers, and paginate your ${cfg.label.toLowerCase()} forecasts.`;
+      updateSortIndicators();
+    }
+
+    function setModeStyles() {
+      const isDaily = state.mode === "daily";
+      dailyModeBtn.classList.toggle("active", isDaily);
+      hourlyModeBtn.classList.toggle("active", !isDaily);
+      dailyModeBtn.classList.toggle("secondary", !isDaily);
+      hourlyModeBtn.classList.toggle("secondary", isDaily);
+    }
+
+    async function loadData() {
+      const userId = getUserId();
+      if (!userId) {
+        setStatus("No user_id found. Add ?user_id=... in the URL or save it in localStorage under temps_user_id.", "error");
         return;
       }
 
-      statusEl.className = "status";
-      statusEl.textContent = `Loaded ${state.rows.length} total record${state.rows.length === 1 ? "" : "s"} from My Hourly Scores.`;
+      setStatus("Loading forecast history...", "loading");
 
-      if (state.filteredRows.length === 0) {
-        statusEl.className = "status error";
-        statusEl.textContent = "No entries match your current filters.";
+      const cfg = modeConfigFor(state.mode);
+      state.page = 1;
+      state.sortBy = "date";
+      state.sortDir = "desc";
+
+      const [scoreResult, cityResult] = await Promise.all([
+        supabase.from(cfg.table).select(cfg.select).eq("user_id", userId).order("date", { ascending: false }),
+        supabase.from("cities").select("id,name")
+      ]);
+
+      if (scoreResult.error) {
+        setStatus(`Failed to load ${cfg.label.toLowerCase()} scores: ${scoreResult.error.message}`, "error");
+        tbody.innerHTML = "";
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.className = "empty";
+        td.colSpan = 8;
+        td.textContent = `Could not load ${cfg.label.toLowerCase()} history.`;
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        return;
       }
+
+      const cityRows = cityResult.data || [];
+      const cityMap = new Map();
+      cityRows.forEach((c) => {
+        cityMap.set(String(c.id), c.name || "Unknown");
+      });
+
+      state.rows = (scoreResult.data || []).map((r) => ({
+        ...r,
+        city_name: cityMap.get(String(r.city_id)) || "Unknown"
+      }));
+
+      buildCityOptions();
+      state.filteredRows = [...state.rows];
+      setStatus(`Loaded ${state.rows.length} ${cfg.label} record(s).`, "default");
+      state.page = 1;
+      state.pageSize = parseInt(pageSizeInput.value, 10) || 50;
+      applyFilters(false);
+      updatePager();
+      updateSortIndicators();
     }
 
-    async function loadCityNames(cityIds) {
-      if (!cityIds.length) return new Map();
-
-      const { data, error } = await supabase
-        .from("cities")
-        .select("id, name")
-        .in("id", cityIds);
-
-      if (error || !Array.isArray(data)) return new Map();
-
-      const map = new Map();
-      data.forEach(c => map.set(String(c.id), c.name || `City ${c.id}`));
-      return map;
+    function setMode(mode) {
+      if (state.mode === mode) return;
+      state.mode = mode;
+      setModeStyles();
+      updateDateHeaderLabel();
+      loadData();
     }
 
-    async function loadHistory() {
-      statusEl.className = "status loading";
-      statusEl.textContent = "Loading my forecast history…";
-      tbody.innerHTML = "";
-      cityFilter.innerHTML = '<option value="">All cities</option>';
-
-      try {
-        const userId = getUserId();
-        if (!userId) {
-          statusEl.className = "status error";
-          statusEl.textContent = "No user ID found. Open this page from the session that created the forecasts.";
-          return;
+    // Event bindings
+    tableHeaders.forEach((th) => {
+      th.addEventListener("click", () => {
+        const key = th.dataset.sort;
+        if (state.sortBy === key) {
+          state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+        } else {
+          state.sortBy = key;
+          state.sortDir = defaultSortDirection[key] || "desc";
         }
+        applyFilters(false);
+      });
+    });
 
-        const { data, error } = await supabase
-          .from("score_forecasts")
-          .select("*")
-          .eq("user_id", userId)
-          .order("id", { ascending: false });
+    dailyModeBtn.addEventListener("click", () => setMode("daily"));
+    hourlyModeBtn.addEventListener("click", () => setMode("hourly"));
 
-        if (error) throw error;
+    searchInput.addEventListener("input", () => applyFilters());
+    cityFilter.addEventListener("change", () => applyFilters());
+    fromDateInput.addEventListener("change", () => applyFilters());
+    toDateInput.addEventListener("change", () => applyFilters());
 
-        const rows = Array.isArray(data) ? data : [];
-        const cityIds = [...new Set(rows.map(r => r.city_id).filter(v => v !== null && v !== undefined))];
-        const cityMap = await loadCityNames(cityIds);
+    pageSizeInput.addEventListener("change", () => {
+      state.pageSize = parseInt(pageSizeInput.value, 10) || 50;
+      state.page = 1;
+      applyFilters(false);
+      updatePager();
+    });
 
-        state.rows = rows.map(r => {
-          const cityKey = r.city_id == null ? "__unknown__" : String(r.city_id);
-          return {
-            ...r,
-            date: resolveValue(r, ["date", "created_at", "forecast_at", "timestamp", "createdAt"]) || "",
-            hour: hourFromRow(r),
-            city_key: cityKey,
-            city_name: cityMap.get(cityKey) || (r.city_id == null ? "Unknown city" : `City ${r.city_id}`),
-            forecast_value: resolveValue(r, [
-              "forecast", "forecast_temp", "temp_forecast", "forecast_value",
-              "predicted_temp", "predicted", "forecast_high", "forecast_low"
-            ]),
-            actual_value: resolveValue(r, [
-              "actual", "actual_temp", "temp_actual", "actual_value",
-              "actual_high", "actual_low"
-            ]),
-            error_value: resolveValue(r, [
-              "error", "error_temp", "temp_error", "accuracy_error", "error_high", "error_low"
-            ])
-          };
-        });
+    clearBtn.addEventListener("click", () => {
+      searchInput.value = "";
+      cityFilter.value = "";
+      fromDateInput.value = "";
+      toDateInput.value = "";
+      pageSizeInput.value = "50";
+      state.pageSize = 50;
+      applyFilters(true);
+    });
 
-        buildCityOptions(state.rows);
-        state.sortBy = "date";
-        state.sortDir = "desc";
-        updateSortIndicators();
-        applyFiltersAndSort();
-      } catch (error) {
-        statusEl.className = "status error";
-        statusEl.textContent = `Could not load history: ${error.message || String(error)}`;
+    refreshBtn.addEventListener("click", () => {
+      loadData();
+    });
+
+    prevPageBtn.addEventListener("click", () => {
+      if (state.page > 1) {
+        state.page--;
+        renderRows();
+        updatePager();
       }
-    }
+    });
 
-    function wireEvents() {
-      searchInput.addEventListener("input", () => {
-        state.page = 1;
-        applyFiltersAndSort();
-      });
+    nextPageBtn.addEventListener("click", () => {
+      const totalPages = Math.max(1, Math.ceil(state.filteredRows.length / state.pageSize));
+      if (state.page < totalPages) {
+        state.page++;
+        renderRows();
+        updatePager();
+      }
+    });
 
-      cityFilter.addEventListener("change", () => {
-        state.page = 1;
-        applyFiltersAndSort();
-      });
+    statsBtn.addEventListener("click", () => {
+      // keep as you had it; this just goes to stats page
+      window.location.href = "stats.html";
+    });
 
-      fromDateInput.addEventListener("change", () => {
-        state.page = 1;
-        applyFiltersAndSort();
-      });
-
-      toDateInput.addEventListener("change", () => {
-        state.page = 1;
-        applyFiltersAndSort();
-      });
-
-      pageSizeInput.addEventListener("change", () => {
-        state.page = 1;
-        renderCurrentPage();
-      });
-
-      clearBtn.addEventListener("click", () => {
-        searchInput.value = "";
-        cityFilter.value = "";
-        fromDateInput.value = "";
-        toDateInput.value = "";
-        pageSizeInput.value = "50";
-        state.page = 1;
-        state.pageSize = 50;
-        applyFiltersAndSort();
-      });
-
-      refreshBtn.addEventListener("click", loadHistory);
-
-      prevPageBtn.addEventListener("click", () => {
-        state.page = Math.max(1, state.page - 1);
-        renderCurrentPage();
-      });
-
-      nextPageBtn.addEventListener("click", () => {
-        state.page += 1;
-        renderCurrentPage();
-      });
-
-      statsBtn.addEventListener("click", () => {
-        window.location.href = "stats.html";
-      });
-
-      tableHeaders.forEach(th => {
-        th.addEventListener("click", () => {
-          const sortKey = th.dataset.sort;
-          if (!sortKey) return;
-
-          if (state.sortBy === sortKey) {
-            state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
-          } else {
-            state.sortBy = sortKey;
-            state.sortDir = defaultSortDirection[sortKey] || "desc";
-          }
-
-          state.page = 1;
-          applyFiltersAndSort();
-        });
-      });
-    }
-
-    wireEvents();
-    loadHistory();
+    // Initialize
+    state.pageSize = parseInt(pageSizeInput.value, 10) || 50;
+    setModeStyles();
+    updateDateHeaderLabel();
+    loadData();
   </script>
 </body>
 </html>
