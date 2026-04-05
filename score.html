@@ -860,8 +860,8 @@
           );
         }
     
-        scoreQuery = scoreQuery.order("date", { ascending: true })
-                               .order("hour", { ascending: true })
+        scoreQuery = scoreQuery.order("date", { ascending: false })
+                               .order("hour", { ascending: false })
                                .order("city_id");
       } else {
         scoreQuery = scoreQuery.eq("date", ydayDate).order("city_id");
@@ -1088,11 +1088,8 @@
       const sorted = [...items].sort((a, b) => {
         const dtA = dateTimeMs(a);
         const dtB = dateTimeMs(b);
-        if (dtA !== dtB) return dtA - dtB;
-    
-        const cA = String(a.city_name ?? a.city_id ?? "").localeCompare(String(b.city_name ?? b.city_id ?? ""));
-        if (cA !== 0) return cA;
-        return 0;
+        if (dtA !== dtB) return dtB - dtA; // newest first
+        return String(a.city_name ?? a.city_id ?? "").localeCompare(String(b.city_name ?? b.city_id ?? ""));
       });
     
       const groups = new Map();
@@ -1109,16 +1106,16 @@
       const groupKeys = [...groups.keys()].sort((a, b) => {
         const [dayA, hA] = a.split("|");
         const [dayB, hB] = b.split("|");
-    
+      
         if (dayA !== dayB) {
           if (dayA === "unknown") return 1;
           if (dayB === "unknown") return -1;
-          return dayA.localeCompare(dayB);
+          return dayB.localeCompare(dayA); // newest date first
         }
-    
-        const ha = hA === "na" ? 9999 : Number(hA);
-        const hb = hB === "na" ? 9999 : Number(hB);
-        return ha - hb;
+      
+        const ha = hA === "na" ? -1 : Number(hA);
+        const hb = hB === "na" ? -1 : Number(hB);
+        return hb - ha; // newest hour first
       });
     
       const wrapper = document.createElement("div");
