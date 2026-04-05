@@ -37,33 +37,29 @@
     }
     
     #scoreList:not(.is-hourly) {
-      display: flex;
-      justify-content: space-between;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: stretch !important;
+      justify-content: center !important;
       gap: 8px;
-      flex-wrap: nowrap;
-      overflow-x: auto;
+      width: 100%;
+      overflow-x: visible;
       overflow-y: visible;
-      align-items: center !important;
-      text-align: center !important
+      text-align: center !important;
     }
 
     #scoreList:not(.is-hourly) .score-row {
-      justify-content: center !important;
       width: 100% !important;
-    }
-
-    #scoreList:not(.is-hourly) .score-row .detail {
+      justify-content: center !important;
       text-align: center !important;
     }
 
-    #scoreList:not(.is-hourly) .score-row .msg {
-      display: block !important;
+    #scoreList:not(.is-hourly) .score-row .detail-line,
+    #scoreList:not(.is-hourly) .msg {
       width: 100% !important;
-      margin-left: 0 !important;
-      margin-right: 0 !important;
-      text-align: center !important;
+      display: flex !important;
       justify-content: center !important;
-      align-self: center !important;
+      text-align: center !important;
     }
     
     #scoreList.is-hourly {
