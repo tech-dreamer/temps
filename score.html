@@ -43,7 +43,25 @@
       flex-wrap: nowrap;
       overflow-x: auto;
       overflow-y: visible;
-      align-items: flex-start;
+      align-items: center !important;
+      text-align: center !important
+    }
+
+    #scoreList:not(.is-hourly) .score-row .detail {
+      text-align: center !important;
+    }
+    
+    #scoreList:not(.is-hourly) .score-row .detail-line {
+      justify-content: center !important;
+      width: 100%;
+      text-align: center !important;
+    }
+    
+    #scoreList:not(.is-hourly) .score-row .city,
+    #scoreList:not(.is-hourly) .score-row .msg,
+    #scoreList:not(.is-hourly) .score-row .coin,
+    #scoreList:not(.is-hourly) .score-row .mood {
+      text-align: center !important;
     }
     
     #scoreList.is-hourly {
