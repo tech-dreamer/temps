@@ -33,6 +33,10 @@
     }
 
     #scoreList {
+      width: 100%;
+    }
+    
+    #scoreList:not(.is-hourly) {
       display: flex;
       justify-content: space-between;
       gap: 8px;
@@ -40,15 +44,14 @@
       overflow-x: auto;
       overflow-y: visible;
       align-items: flex-start;
-      width: 100%;
     }
-
-    #scoreList p {
-      width: auto;
-      flex: 0 0 auto;
-      text-align: center;
-      margin: 24px 0;
-      white-space: normal;
+    
+    #scoreList.is-hourly {
+      display: grid !important;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      overflow: visible;
+      justify-content: stretch;
     }
 
     .score-row {
@@ -210,25 +213,18 @@
     }
     
     .hourly-card {
-      border: 1px solid #ddd;
-      background: #fff;
+      border: 1px solid #d1d5db;
       border-radius: 10px;
+      background: #fff;
       padding: 10px 12px;
       box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+      overflow: hidden;
+      min-width: 0;
     }
     
-    .hour-label {
-      font-weight: 700;
-      font-size: 0.95rem;
-      margin-bottom: 6px;
-      color: #111827;
-    }
-    
-    .hourly-sub {
-      font-size: 0.9rem;
-      color: #374151;
-      line-height: 1.35;
-    }
+    .hour-label { font-weight: 700; margin-bottom: 6px; color: #111827; }
+    .hourly-sub { font-size: 0.9rem; line-height: 1.35; color: #374151; }
+    .hourly-empty { color: #6b7280; }
 
     .msg {
       font-size: 16px;
@@ -541,9 +537,9 @@
       if (hourlyStatsHide) hourlyStatsHide.style.display = isDaily ? "flex" : "none";
     }
 
-    // Render circles for daily only
+    // render circles for daily only
     function renderCityCircles(scores) {
-      cityCircleString = cityCirclesFromScores(scores || []);
+      const cityCircleString = cityCirclesFromScores(scores || []);
       const el = document.getElementById("cityCircles");
       if (el) el.textContent = cityCircleString;
     }
@@ -553,8 +549,6 @@
       updateModeUI(activeMode);
       loadScore();
     }
-
-    let cityCircleString = "⚪ ⚪ ⚪";
 
     function cityCirclesFromScores(scores) {
       return CITY_ORDER
@@ -567,7 +561,6 @@
 
     let totalCoins = 0;
     let totalMood = 0;
-    let currentStreak = 0;
 
     function showBanner(message, isError = false) {
       const banner = document.getElementById("scoreErrorBanner");
@@ -692,75 +685,74 @@
     async function loadScore() {
       console.log("User ID:", userId);
       console.log("Yesterday's Date:", ydayDate);
-
+    
       const scoreTable = activeMode === "hourly" ? "hourly_scores" : "daily_scores";
       const isHourly = activeMode === "hourly";
-
+    
       const list = document.getElementById("scoreList");
       if (!list) return;
-
+    
+      if (isHourly) {
+        list.classList.add("is-hourly");
+      } else {
+        list.classList.remove("is-hourly");
+      }
+    
       if (!userId) {
         list.innerHTML = "<p>No user found. Please make a forecast.</p>";
+    
         if (isHourly) {
-          if (typeof animateNumber === "function") {
-            animateNumber("coinTotal", 0, 800);
-          } else {
-            document.getElementById("coinTotal").textContent = "0";
-          }
+          document.getElementById("coinTotal").textContent = "0";
+    
           const moodEl = document.getElementById("moodTotal");
           const streakEl = document.getElementById("currentStreak");
           if (moodEl) moodEl.textContent = "—";
           if (streakEl) streakEl.textContent = "—";
         } else {
-          if (typeof animateNumber === "function" && typeof animateSignedNumber === "function") {
-            animateNumber("coinTotal", 0, 800);
-            animateSignedNumber("moodTotal", 0, 800);
-            animateNumber("currentStreak", 0, 800);
-          } else {
-            document.getElementById("coinTotal").textContent = "0";
-            document.getElementById("moodTotal").textContent = "0";
-            document.getElementById("currentStreak").textContent = "0";
-          }
+          document.getElementById("coinTotal").textContent = "0";
+          document.getElementById("moodTotal").textContent = "0";
+          document.getElementById("currentStreak").textContent = "0";
         }
+    
         return;
       }
-
-      const { data: scores, error: scoreError } = await client
+    
+      const { data: scores, error: scoreError } = await client // get score rows
         .from(scoreTable)
         .select("*")
         .eq("user_id", userId)
         .eq("date", ydayDate)
         .order("city_id");
-
+    
       if (scoreError) {
         console.error("Score Fetch Error:", scoreError);
         list.innerHTML = `<p>Could not load ${isHourly ? "hourly" : "daily"} scores.</p>`;
         showBanner(`Could not load ${isHourly ? "hourly" : "daily"} scores: ${scoreError.message || "Unknown error"}`, true);
         return;
       }
-
-      let userStats = null;
-      if (!isHourly) {
-        let { data: userStatsData, error: statsError } = await client
+    
+      let currentStreak = 0;
+    
+      if (!isHourly) { // get daily streak
+        const { data: userStatsData, error: statsError } = await client
           .from("user_stats")
           .select("current_streak")
           .eq("user_id", userId)
           .maybeSingle();
-
+    
         if (statsError) {
           console.error("User Stats Fetch Error:", statsError);
         }
-
+    
         if (!userStatsData) {
           console.log("Creating user_stats for:", userId);
           const { error: upsertError } = await client.from("user_stats").upsert(
             {
               user_id: userId,
-              current_streak: 0
+              current_streak: 0,
             },
             { onConflict: "user_id" }
           );
-
           if (upsertError) {
             console.error("user_stats upsert Error:", upsertError);
           }
@@ -768,84 +760,63 @@
         } else {
           currentStreak = userStatsData.current_streak || 0;
         }
-        userStats = userStatsData;
       }
-
-      if (!scores || scores.length === 0) {
+    
+      if (!scores || scores.length === 0) { // empty state
         list.innerHTML = `<p>No ${isHourly ? "hourly" : "daily"} score yet. Stay tuned & keep forecasting.</p>`;
-
+      
         if (isHourly) {
-          if (typeof animateNumber === "function") {
-            animateNumber("coinTotal", 0, 800);
-          } else {
-            document.getElementById("coinTotal").textContent = "0";
-          }
           const moodEl = document.getElementById("moodTotal");
           const streakEl = document.getElementById("currentStreak");
+          const coinEl = document.getElementById("coinTotal");
           if (moodEl) moodEl.textContent = "—";
           if (streakEl) streakEl.textContent = "—";
+          if (coinEl) coinEl.textContent = "0";
+          revealRows(0, true, 0, 0, 0);
         } else {
           renderCityCircles([]);
-          if (typeof animateNumber === "function" && typeof animateSignedNumber === "function") {
-            animateNumber("coinTotal", 0, 800);
-            animateSignedNumber("moodTotal", 0, 800);
-            animateNumber("currentStreak", currentStreak, 800);
-          } else {
-            document.getElementById("coinTotal").textContent = "0";
-            document.getElementById("moodTotal").textContent = "0";
-            document.getElementById("currentStreak").textContent = String(currentStreak);
-          }
+          document.getElementById("coinTotal").textContent = "0";
+          document.getElementById("moodTotal").textContent = "0";
+          document.getElementById("currentStreak").textContent = String(currentStreak);
+          buildShare([], 0, 0, currentStreak);      
+          revealRows(0, false, currentStreak, 0, 0);
         }
-
-        revealRows(0, isHourly);
+      
         return;
       }
-
+    
       list.innerHTML = "";
       totalCoins = 0;
       totalMood = 0;
-
+    
+      if (isHourly) {
+        renderHourlyScores(scores);
+    
+        totalCoins = scores.reduce((sum, s) => {
+          return hasHourlyForecast(s) ? sum + Number(s.coins || 0) : sum;
+        }, 0);
+    
+        // no direct total assignment, animate in revealRows
+        const moodEl = document.getElementById("moodTotal");
+        const streakEl = document.getElementById("currentStreak");
+        if (moodEl) moodEl.textContent = "—";
+        if (streakEl) streakEl.textContent = "—";
+    
+        revealRows(scores.length, true, 0, totalCoins, 0);
+        return;
+      }
+    
       scores.forEach((s) => {
-        const forecasted = isHourly ? hasHourlyForecast(s) : hasForecast(s); // check if there are forecasts for each mode
-
+        const forecasted = hasForecast(s);
+    
         if (forecasted) {
           totalCoins += Number(s.coins || 0);
-          if (!isHourly) totalMood += Number(s.mood || 0);
+          totalMood += Number(s.mood || 0);
         }
-
-        if (isHourly) { // hourly score
-          scores.forEach((s) => {
-            const forecasted = hasHourlyForecast(s);
-            if (forecasted) totalCoins += Number(s.coins || 0);
-          });
-
-          renderHourlyScores(scores);
-          /* const hourlyForecast = hourlyForecastText(s);
-          const hourlyActual = hourlyActualText(s);
-          const hourlyError = hourlyErrorText(s);
-
-          const coinText = forecasted ? `🪙 +${Number(s.coins || 0)}` : `🪙 +0`;
-          const rowClass = forecasted ? "score-row" : "score-row missing";
-
-          const row = document.createElement("div");
-          row.className = rowClass;
-          row.innerHTML = `
-            <div class="city-block">
-              <div class="city">${cityDisplay(s)}</div>
-            </div>
-            <div class="msg">${forecasted ? "" : "No submission"}</div>
-            <div class="detail">
-              Forecast: ${hourlyForecast}<br>
-              Actual: ${hourlyActual}<br>
-              Error: ${hourlyError}
-            </div>
-            <div class="coin">${coinText}</div>
-          `;
-          list.appendChild(row); */
-        } else { // daily score
-          const icon = resultCircle(s);
-          const detailHtml = forecasted
-            ? `
+    
+        const icon = resultCircle(s);
+        const detailHtml = forecasted
+          ? `
               My Forecasts:<br>
               H ${toNumOrDash(s.forecast_high)}° / L ${toNumOrDash(s.forecast_low)}°
               <br>
@@ -857,92 +828,85 @@
               <br>
               H ${formatAbs(s.error_high)}° / L ${formatAbs(s.error_low)}°
             `
-            : `No forecasts submitted for yesterday`;
-
-          const coinText = forecasted ? `🪙 +${Number(s.coins || 0)}` : `🪙 +0`;
-          const moodText = forecasted ? `💗 ${formatSignedNumber(s.mood)}` : `💗 —`;
-          const rowClass = forecasted ? "score-row" : "score-row missing";
-
-          const row = document.createElement("div");
-          row.className = rowClass;
-          row.innerHTML = `
-            <div class="city-block">
-              <div class="result-circle">${icon}</div>
-              <div class="city">${cityDisplay(s)}</div>
-            </div>
-            <div class="msg">${s.message || (forecasted ? "" : "No submission")}</div>
-            <div class="detail">${detailHtml}</div>
-            <div class="coin">${coinText}</div>
-            <div class="mood">${moodText}</div>
-          `;
-          list.appendChild(row);
-        }
+          : `No forecasts submitted for yesterday`;
+    
+        const coinText = forecasted ? `🪙 +${Number(s.coins || 0)}` : `🪙 +0`;
+        const moodText = forecasted ? `💗 ${formatSignedNumber(s.mood)}` : `💗 —`;
+        const rowClass = forecasted ? "score-row" : "score-row missing";
+    
+        const row = document.createElement("div");
+        row.className = rowClass;
+        row.innerHTML = `
+          <div class="city-block">
+            <div class="result-circle">${icon}</div>
+            <div class="city">${cityDisplay(s)}</div>
+          </div>
+          <div class="msg">${s.message || (forecasted ? "" : "No submission")}</div>
+          <div class="detail">${detailHtml}</div>
+          <div class="coin">${coinText}</div>
+          <div class="mood">${moodText}</div>
+        `;
+        list.appendChild(row);
       });
-
-      if (isHourly) {
-        if (typeof animateNumber === "function") {
-          animateNumber("coinTotal", totalCoins, 800);
-        } else {
-          document.getElementById("coinTotal").textContent = String(totalCoins);
-        }
-        const moodEl = document.getElementById("moodTotal");
-        const streakEl = document.getElementById("currentStreak");
-        if (moodEl) moodEl.textContent = "—";
-        if (streakEl) streakEl.textContent = "—";
-      } else {
-        renderCityCircles(scores);
-        document.getElementById("coinTotal").textContent = "0";
-        document.getElementById("moodTotal").textContent = "0";
-        document.getElementById("currentStreak").textContent = "0";
-        buildShare(scores, totalCoins, totalMood, currentStreak);
-      }
-
-      revealRows(scores.length, isHourly);
+    
+      renderCityCircles(scores);
+    
+      // no direct total assignment here — animate in revealRows
+      buildShare(scores, totalCoins, totalMood, currentStreak);
+      revealRows(scores.length, false, currentStreak, totalCoins, totalMood);
     }
 
-    function revealRows(rowCount, isHourlyMode) {
+    function revealRows(rowCount, isHourlyMode, streakValue = 0, coins = 0, mood = 0) {
       const rows = document.querySelectorAll(".score-row");
-
+    
       rows.forEach((row, i) => {
-        setTimeout(() => {
-          row.classList.add("visible");
-        }, i * 300);
+        setTimeout(() => row.classList.add("visible"), i * 300);
       });
-
+    
       setTimeout(() => {
-        animateNumber("coinTotal", totalCoins, 800);
+        animateNumber("coinTotal", coins, 800);
         if (!isHourlyMode) {
-          animateSignedNumber("moodTotal", totalMood, 800);
-          animateNumber("currentStreak", currentStreak, 800);
+          animateSignedNumber("moodTotal", mood, 800);
+          animateNumber("currentStreak", streakValue, 800);
         }
       }, rowCount * 300);
     }
 
     function renderHourlyScores(items = []) {
-      const container = document.getElementById("hourly-scores");
+      const container = document.getElementById("scoreList");
       if (!container) return;
     
-      container.className = "hourly-grid";
       container.innerHTML = "";
     
       if (!items.length) {
-        container.innerHTML = '<p class="hourly-empty">No hourly scores found</p>';
+        container.innerHTML = '<p class="hourly-empty">No hourly scores yet.</p>';
         return;
       }
     
+      const frag = document.createDocumentFragment();
+    
       items.forEach((s) => {
-        const card = document.createElement("div");
-        card.className = "hourly-card";
-        card.innerHTML = `
+        const forecasted = hasHourlyForecast(s);
+        const row = document.createElement("div");
+        row.className = `score-row hourly-card ${forecasted ? "" : "missing"}`;
+    
+        const cityName =
+          s.city_name ??
+          (typeof cityDisplay === "function" ? cityDisplay(s) : String(s.city_id ?? "-"));
+    
+        row.innerHTML = `
+          <div class="hour-label">Date: ${s.date ?? "-"}</div>
           <div class="hour-label">Hour: ${s.hour ?? "-"}</div>
-          <div class="hourly-sub">City: ${s.city_name ?? s.city_id}</div>
+          <div class="hourly-sub">City: ${cityName}</div>
           <div class="hourly-sub">Forecast: ${s.forecast_temp ?? s.forecast ?? "-"}</div>
           <div class="hourly-sub">Actual: ${s.actual_temp ?? s.actual ?? "-"}</div>
           <div class="hourly-sub">Error: ${s.error ?? "-"}</div>
-          <div class="hourly-sub">Coins: 🪙 +${Number(s.coins || 0)}</div>
+          <div class="hourly-sub">Coins: ${forecasted ? `🪙 +${Number(s.coins || 0)}` : "🪙 +0"}</div>
         `;
-        container.appendChild(card);
+        frag.appendChild(row);
       });
+    
+      container.appendChild(frag);
     }
 
     function showShareStatus(msg, type = "ok") {
@@ -1030,17 +994,17 @@
 
     (async () => {
       const ok = await checkAuth();
-      if (ok) {
-        loadScore();
-      } else {
+      if (!ok) {
         document.getElementById("scoreList").innerHTML =
           "<p>Could not connect. Check your Supabase key/project settings.</p>";
+        return;
       }
+    
+      if (modeDailyBtn) modeDailyBtn.addEventListener("click", () => setMode("daily")); // bind controls first
+      if (modeHourlyBtn) modeHourlyBtn.addEventListener("click", () => setMode("hourly"));
+    
+      setMode(getInitialMode());
     })();
-
-    if (modeDailyBtn) modeDailyBtn.addEventListener("click", () => setMode("daily"));
-    if (modeHourlyBtn) modeHourlyBtn.addEventListener("click", () => setMode("hourly"));
-    setMode(getInitialMode());
   </script>
 </body>
 </html>
