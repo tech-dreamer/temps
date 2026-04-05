@@ -301,6 +301,23 @@
       white-space: nowrap;
     }
 
+    /* Daily-specific: keep accuracy centered */
+    .history-table th.accuracy-col,
+    .history-table td.accuracy-cell {
+      width: 125px;
+      min-width: 125px;
+      text-align: center;
+    }
+
+    /* Color column: left aligned + compact to sit nearer to Accuracy */
+    .history-table.daily-mode th.color-col,
+    .history-table.daily-mode td.color-cell {
+      text-align: left;
+      width: 58px;
+      min-width: 58px;
+      white-space: nowrap;
+    }
+
     .accuracy-dot {
       width: 0.85rem;
       height: 0.85rem;
@@ -412,8 +429,8 @@
                 <th data-sort="city" data-label="City">City <span class="sort-arrow"></span></th>
                 <th data-sort="forecast" data-label="Forecast">Forecast <span class="sort-arrow"></span></th>
                 <th data-sort="actual" data-label="Actual">Actual <span class="sort-arrow"></span></th>
-                <th data-sort="accuracy" data-label="Accuracy (Error)">Accuracy (Error) <span class="sort-arrow"></span></th>
-                <th data-sort="color" data-label="Color" class="mode-daily-col">Color <span class="sort-arrow"></span></th>
+                <th data-sort="accuracy" data-label="Accuracy (Error)" class="accuracy-col">Accuracy (Error) <span class="sort-arrow"></span></th>
+                <th data-sort="color" data-label="Color" class="color-col mode-daily-col">Color <span class="sort-arrow"></span></th>
                 <th data-sort="coins" data-label="Coins">Coins <span class="sort-arrow"></span></th>
                 <th data-sort="mood" data-label="Mood" class="mode-daily-col">Mood <span class="sort-arrow"></span></th>
               </tr>
@@ -738,8 +755,8 @@
         }
 
         if (key === "actual") {
-          const aActual = getActualValueForSort(a);
-          const bActual = getActualValueForSort(b);
+          const aActual = getActualValueForSort(b);
+          const bActual = getActualValueForSort(a);
           if (aActual === null && bActual === null) return 0;
           if (aActual === null) return 1;
           if (bActual === null) return -1;
@@ -946,7 +963,7 @@
         tdActual.textContent = formatRange(row, false);
 
         const tdAccuracy = document.createElement("td");
-        tdAccuracy.className = "accuracy-cell";
+        tdAccuracy.className = "accuracy-cell accuracy-col";
         tdAccuracy.textContent = formatAccuracy(row);
 
         const tdCoins = document.createElement("td");
@@ -960,7 +977,7 @@
 
         if (state.mode === "daily") {
           const tdColor = document.createElement("td");
-          tdColor.className = "accuracy-cell";
+          tdColor.className = "color-cell color-col";
           const dot = document.createElement("span");
           const err = getErrorPrimary(row);
           const color = accuracyColor(err);
