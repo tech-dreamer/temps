@@ -391,19 +391,12 @@
       .hourly-hour-label {
         flex: 0 0 110px;
         min-width: 90px;
-        font-weight: 700;
+        font-weight: 800;
+        font-size: 1.125rem;
         color: #0f172a;
         text-align: right;
         padding-top: 9px;
         white-space: nowrap;
-      }
-      
-      .hourly-hour-label .hourly-day {
-        display: block;
-        margin-top: 2px;
-        font-size: 12px;
-        color: #475569;
-        font-weight: 600;
       }
       
       .hourly-table-wrap {
@@ -444,8 +437,20 @@
         .hourly-hour-label {
           text-align: left;
           padding-top: 0;
+          font-size: 1.125rem;
         }
       }
+    }
+
+    .hourly-hour-label {
+      flex: 0 0 110px;
+      min-width: 90px;
+      font-weight: 800;
+      font-size: 1.125rem;
+      color: #0f172a;
+      text-align: right;
+      padding-top: 9px;
+      white-space: nowrap;
     }
   </style>
 </head>
@@ -799,8 +804,7 @@
       if (dateEl) {
         if (isHourly) {
           const w = getHourlyWindow();
-          const label = w.startDate;
-          dateEl.textContent = label;
+          dateEl.textContent = dateLabelFromYMD(w.startDate) || w.startDate;
         } else {
           dateEl.textContent = ydayLabel;
         }
@@ -1054,22 +1058,6 @@
         });
       };
     
-      const formatDateShort = (ymdOrObj) => {
-        if (!ymdOrObj) return "";
-        let d;
-        if (typeof ymdOrObj === "string" && /^\d{4}-\d{2}-\d{2}$/.test(ymdOrObj)) {
-          d = new Date(`${ymdOrObj}T00:00:00`);
-        } else {
-          d = new Date(ymdOrObj);
-        }
-        if (Number.isNaN(d.getTime())) return "";
-        return d.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          timeZone: "America/New_York",
-        });
-      };
-    
       const dateTimeMs = (row) => {
         const ymd = parseDateValue(row);
         const h = parseHour(row.hour);
@@ -1127,16 +1115,15 @@
           return cA.localeCompare(cB);
         });
     
-        const [dayKey, hKey] = key.split("|");
+        const [, hKey] = key.split("|");
         const hourLabel = hKey === "na" ? "-" : formatHour(Number(hKey));
-        const dayLabel = formatDateShort(dayKey);
     
         const groupRow = document.createElement("div");
         groupRow.className = "hourly-hour-group";
     
         const label = document.createElement("div");
         label.className = "hourly-hour-label";
-        label.innerHTML = `${escapeHtml(hourLabel)}${dayLabel ? `<span class="hourly-day">${escapeHtml(dayLabel)}</span>` : ""}`;
+        label.textContent = hourLabel;
     
         const tableWrap = document.createElement("div");
         tableWrap.className = "hourly-table-wrap";
