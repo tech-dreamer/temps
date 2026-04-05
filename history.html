@@ -195,10 +195,14 @@
       width: 100%;
     }
 
-    table {
+    .history-table {
       width: 100%;
       border-collapse: collapse;
       min-width: 1080px;
+    }
+
+    .history-table.hourly-mode {
+      min-width: 860px;
     }
 
     thead th {
@@ -311,6 +315,10 @@
     .accuracy-dot.red { background: #ef4444; }
     .accuracy-dot.gray { background: #9ca3af; }
 
+    .mode-daily-col {
+      display: table-cell;
+    }
+
     @media (max-width: 960px) {
       .controls {
         grid-template-columns: repeat(2, minmax(150px, 1fr));
@@ -397,7 +405,7 @@
 
       <div class="table-wrap">
         <div class="table-scroll">
-          <table>
+          <table id="historyTable" class="history-table">
             <thead>
               <tr>
                 <th data-sort="date" data-label="Date">Date <span class="sort-arrow"></span></th>
@@ -405,9 +413,9 @@
                 <th data-sort="forecast" data-label="Forecast">Forecast <span class="sort-arrow"></span></th>
                 <th data-sort="actual" data-label="Actual">Actual <span class="sort-arrow"></span></th>
                 <th data-sort="accuracy" data-label="Accuracy (Error)">Accuracy (Error) <span class="sort-arrow"></span></th>
-                <th data-sort="color" data-label="Color">Color <span class="sort-arrow"></span></th>
+                <th data-sort="color" data-label="Color" class="mode-daily-col">Color <span class="sort-arrow"></span></th>
                 <th data-sort="coins" data-label="Coins">Coins <span class="sort-arrow"></span></th>
-                <th data-sort="mood" data-label="Mood">Mood <span class="sort-arrow"></span></th>
+                <th data-sort="mood" data-label="Mood" class="mode-daily-col">Mood <span class="sort-arrow"></span></th>
               </tr>
             </thead>
             <tbody id="historyBody"></tbody>
@@ -433,7 +441,7 @@
     import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
     const SUPABASE_URL = "https://ckyqknlxmjqlkqnxhgef.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhbmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const statusEl = document.getElementById("status");
@@ -455,8 +463,10 @@
     const nextPageBtn = document.getElementById("nextPage");
     const pagerInfo = document.getElementById("pagerInfo");
     const tbody = document.getElementById("historyBody");
+    const table = document.getElementById("historyTable");
     const tableHeaders = document.querySelectorAll("th[data-sort]");
     const dateHeader = document.querySelector('th[data-sort="date"]');
+    const modeDailyCols = document.querySelectorAll(".mode-daily-col");
 
     const modeConfig = {
       daily: {
@@ -570,7 +580,7 @@
       const n = toNumber(v);
       if (n === null) return fallback;
       const rounded = Math.round(n);
-      return `${rounded > 0 ? "+" : ""}${rounded}°`;
+      return `${rounded}°`;
     }
 
     function parseDateValue(raw) {
@@ -812,6 +822,22 @@
       else cityFilter.value = "";
     }
 
+    function visibleColumnCount() {
+      return state.mode === "daily" ? 8 : 6;
+    }
+
+    function applyModeColumns() {
+      const isDaily = state.mode === "daily";
+      modeDailyCols.forEach((col) => {
+        col.style.display = isDaily ? "table-cell" : "none";
+      });
+
+      if (table) {
+        table.classList.toggle("hourly-mode", !isDaily);
+        table.classList.toggle("daily-mode", isDaily);
+      }
+    }
+
     function applyFilters(resetPage = true) {
       if (resetPage) state.page = 1;
 
@@ -897,7 +923,7 @@
         const tr = document.createElement("tr");
         const td = document.createElement("td");
         td.className = "empty";
-        td.colSpan = 8;
+        td.colSpan = visibleColumnCount();
         td.textContent = total === 0 ? "No matching records found." : "No records on this page.";
         tr.appendChild(td);
         tbody.appendChild(tr);
@@ -923,22 +949,35 @@
         tdAccuracy.className = "accuracy-cell";
         tdAccuracy.textContent = formatAccuracy(row);
 
-        const tdColor = document.createElement("td");
-        tdColor.className = "accuracy-cell";
-        const dot = document.createElement("span");
-        const err = getErrorPrimary(row);
-        const color = accuracyColor(err);
-        dot.className = `accuracy-dot ${color}`;
-        dot.title = err === null ? "No error data" : `Error: ${fmtSigned(err)}`;
-        tdColor.appendChild(dot);
-
         const tdCoins = document.createElement("td");
         tdCoins.textContent = fmtInt(row.coins);
 
-        const tdMood = document.createElement("td");
-        tdMood.textContent = row.mood || "—";
+        tr.appendChild(tdDate);
+        tr.appendChild(tdCity);
+        tr.appendChild(tdForecast);
+        tr.appendChild(tdActual);
+        tr.appendChild(tdAccuracy);
 
-        tr.append(tdDate, tdCity, tdForecast, tdActual, tdAccuracy, tdColor, tdCoins, tdMood);
+        if (state.mode === "daily") {
+          const tdColor = document.createElement("td");
+          tdColor.className = "accuracy-cell";
+          const dot = document.createElement("span");
+          const err = getErrorPrimary(row);
+          const color = accuracyColor(err);
+          dot.className = `accuracy-dot ${color}`;
+          dot.title = err === null ? "No error data" : `Error: ${fmtSigned(err)}`;
+          tdColor.appendChild(dot);
+          tr.appendChild(tdColor);
+        }
+
+        tr.appendChild(tdCoins);
+
+        if (state.mode === "daily") {
+          const tdMood = document.createElement("td");
+          tdMood.textContent = row.mood || "—";
+          tr.appendChild(tdMood);
+        }
+
         tbody.appendChild(tr);
       });
     }
@@ -997,7 +1036,7 @@
         const tr = document.createElement("tr");
         const td = document.createElement("td");
         td.className = "empty";
-        td.colSpan = 8;
+        td.colSpan = visibleColumnCount();
         td.textContent = `Could not load ${cfg.label.toLowerCase()} history.`;
         tr.appendChild(td);
         tbody.appendChild(tr);
@@ -1028,6 +1067,7 @@
     function setMode(mode) {
       if (state.mode === mode) return;
       state.mode = mode;
+      applyModeColumns();
       setModeStyles();
       updateDateHeaderLabel();
       loadData();
@@ -1036,6 +1076,10 @@
     tableHeaders.forEach((th) => {
       th.addEventListener("click", () => {
         const key = th.dataset.sort;
+
+        // Hide hourly-only columns from interactions in hourly mode
+        if (state.mode === "hourly" && (key === "color" || key === "mood")) return;
+
         if (state.sortBy === key) {
           state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
         } else {
@@ -1097,6 +1141,7 @@
     });
 
     state.pageSize = parseInt(pageSizeInput.value, 10) || 50; // initialize
+    applyModeColumns();
     setModeStyles();
     updateDateHeaderLabel();
     loadData();
