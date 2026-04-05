@@ -369,6 +369,83 @@
       .score-row {
         padding: 10px 4px;
       }
+
+      #scoreList.is-hourly {
+        display: block;
+        width: 100%;
+      }
+      
+      .hourly-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+      }
+      
+      .hourly-hour-group {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      
+      .hourly-hour-label {
+        flex: 0 0 110px;
+        min-width: 90px;
+        font-weight: 700;
+        color: #0f172a;
+        text-align: right;
+        padding-top: 9px;
+        white-space: nowrap;
+      }
+      
+      .hourly-hour-label .hourly-day {
+        display: block;
+        margin-top: 2px;
+        font-size: 12px;
+        color: #475569;
+        font-weight: 600;
+      }
+      
+      .hourly-table-wrap {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow-x: auto;
+      }
+      
+      .hourly-inline-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      
+      .hourly-inline-table th,
+      .hourly-inline-table td {
+        padding: 8px 6px;
+        white-space: nowrap;
+        border-bottom: 1px solid #f0f0f0;
+        text-align: right;
+      }
+      
+      .hourly-inline-table th:first-child,
+      .hourly-inline-table td:first-child {
+        text-align: left;
+      }
+      .hourly-inline-table th:first-child {
+        width: 35%;
+      }
+      
+      @media (max-width: 700px) {
+        .hourly-hour-group {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 6px;
+        }
+      
+        .hourly-hour-label {
+          text-align: left;
+          padding-top: 0;
+        }
+      }
     }
   </style>
 </head>
@@ -941,7 +1018,6 @@
         let m = s.match(/^(\d{1,2})(?:[:.]\d{1,2})?$/);
         if (m) return Number(m[1]);
     
-        // 1 PM, 01:00 PM
         m = s.match(/^(\d{1,2})(?::\d{1,2})?\s*(AM|PM)\s*$/i);
         if (m) {
           let h = Number(m[1]);
@@ -950,6 +1026,7 @@
           if (!pm && h === 12) h = 0;
           return h;
         }
+    
         return null;
       };
     
@@ -966,15 +1043,15 @@
         if (!raw) return null;
     
         const s = String(raw);
-        // YYYY-MM-DD...
         const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
         if (m) return m[1];
     
         const d = new Date(s);
         if (Number.isNaN(d.getTime())) return null;
+    
         return d.toLocaleDateString("en-CA", {
           timeZone: "America/New_York",
-        }); // YYYY-MM-DD
+        });
       };
     
       const formatDateShort = (ymdOrObj) => {
@@ -1011,8 +1088,7 @@
         return 0;
       });
     
-      // group rows by day & hour so hour appears once per hour block
-      const groups = new Map(); // key = `${day}|${hour}`
+      const groups = new Map();
       sorted.forEach((row) => {
         const day = parseDateValue(row) || "unknown";
         const hNum = parseHour(row.hour);
@@ -1023,7 +1099,6 @@
         groups.get(key).push(row);
       });
     
-      // Sort groups by day+hour
       const groupKeys = [...groups.keys()].sort((a, b) => {
         const [dayA, hA] = a.split("|");
         const [dayB, hB] = b.split("|");
@@ -1040,34 +1115,12 @@
       });
     
       const wrapper = document.createElement("div");
-      wrapper.style.overflowX = "auto";
-    
-      const table = document.createElement("table");
-      table.style.width = "100%";
-      table.style.minWidth = "620px";
-      table.style.borderCollapse = "collapse";
-      table.style.fontSize = "14px";
-    
-      const thead = document.createElement("thead");
-      thead.innerHTML = `
-        <tr>
-          <th style="text-align:left;padding:8px;border-bottom:1px solid #ddd;">Hour</th>
-          <th style="text-align:left;padding:8px;border-bottom:1px solid #ddd;">City</th>
-          <th style="text-align:right;padding:8px;border-bottom:1px solid #ddd;">Forecast</th>
-          <th style="text-align:right;padding:8px;border-bottom:1px solid #ddd;">Actual</th>
-          <th style="text-align:right;padding:8px;border-bottom:1px solid #ddd;">Error</th>
-          <th style="text-align:right;padding:8px;border-bottom:1px solid #ddd;">Coins</th>
-        </tr>
-      `;
-      table.appendChild(thead);
-    
-      const tbody = document.createElement("tbody");
+      wrapper.className = "hourly-list";
     
       groupKeys.forEach((key) => {
         const rows = groups.get(key) || [];
         if (!rows.length) return;
     
-        // Sort cities inside each hour for stable display
         rows.sort((a, b) => {
           const cA = String(a.city_name ?? a.city_id ?? "");
           const cB = String(b.city_name ?? b.city_id ?? "");
@@ -1076,13 +1129,38 @@
     
         const [dayKey, hKey] = key.split("|");
         const hourLabel = hKey === "na" ? "-" : formatHour(Number(hKey));
+        const dayLabel = formatDateShort(dayKey);
     
-        rows.forEach((s, idx) => {
+        const groupRow = document.createElement("div");
+        groupRow.className = "hourly-hour-group";
+    
+        const label = document.createElement("div");
+        label.className = "hourly-hour-label";
+        label.innerHTML = `${escapeHtml(hourLabel)}${dayLabel ? `<span class="hourly-day">${escapeHtml(dayLabel)}</span>` : ""}`;
+    
+        const tableWrap = document.createElement("div");
+        tableWrap.className = "hourly-table-wrap";
+    
+        const table = document.createElement("table");
+        table.className = "hourly-inline-table";
+    
+        const thead = document.createElement("thead");
+        thead.innerHTML = `
+          <tr>
+            <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #ddd;">City</th>
+            <th style="text-align:right;padding:8px 6px;border-bottom:1px solid #ddd;">Forecast</th>
+            <th style="text-align:right;padding:8px 6px;border-bottom:1px solid #ddd;">Actual</th>
+            <th style="text-align:right;padding:8px 6px;border-bottom:1px solid #ddd;">Error</th>
+            <th style="text-align:right;padding:8px 6px;border-bottom:1px solid #ddd;">Coins</th>
+          </tr>
+        `;
+        table.appendChild(thead);
+    
+        const tbody = document.createElement("tbody");
+    
+        rows.forEach((s) => {
           const forecasted = hasHourlyForecast(s);
-    
-          const cityName =
-            s.city_name ??
-            (typeof cityDisplay === "function" ? cityDisplay(s) : String(s.city_id ?? "-"));
+          const cityName = s.city_name ?? (typeof cityDisplay === "function" ? cityDisplay(s) : String(s.city_id ?? "-"));
     
           const hourlyForecast = getValue(s, ["forecast", "forecast_temp", "predicted_temp", "temp_forecast"]);
           const hourlyActual = getValue(s, ["actual", "actual_temp", "observed_temp"]);
@@ -1090,31 +1168,25 @@
     
           const tr = document.createElement("tr");
           tr.className = forecasted ? "" : "missing";
-          tr.style.borderBottom = "1px solid #f0f0f0";
     
-          if (idx === 0) {
-            const tdHour = document.createElement("td");
-            tdHour.textContent = hourLabel;
-            tdHour.rowSpan = rows.length;
-            tdHour.style.padding = "8px";
-            tdHour.style.verticalAlign = "middle";
-            tdHour.style.whiteSpace = "nowrap";
-            tr.appendChild(tdHour);
-          }
-    
-          tr.innerHTML += `
-            <td style="padding:8px;">${escapeHtml(cityName)}</td>
-            <td style="padding:8px;text-align:right;">${escapeHtml(toNumOrDash(hourlyForecast))}°</td>
-            <td style="padding:8px;text-align:right;">${escapeHtml(toNumOrDash(hourlyActual))}°</td>
-            <td style="padding:8px;text-align:right;">${escapeHtml(formatAbs(hourlyError))}°</td>
-            <td style="padding:8px;text-align:right;">🪙 ${escapeHtml(forecasted ? `+${Number(s.coins || 0)}` : "+0")}</td>
+          tr.innerHTML = `
+            <td style="text-align:left;padding:8px 6px;">${escapeHtml(cityName)}</td>
+            <td style="text-align:right;padding:8px 6px;">${escapeHtml(toNumOrDash(hourlyForecast))}°</td>
+            <td style="text-align:right;padding:8px 6px;">${escapeHtml(toNumOrDash(hourlyActual))}°</td>
+            <td style="text-align:right;padding:8px 6px;">${escapeHtml(formatAbs(hourlyError))}°</td>
+            <td style="text-align:right;padding:8px 6px;">🪙 ${escapeHtml(forecasted ? `+${Number(s.coins || 0)}` : "+0")}</td>
           `;
+    
           tbody.appendChild(tr);
         });
+    
+        table.appendChild(tbody);
+        tableWrap.appendChild(table);
+        groupRow.appendChild(label);
+        groupRow.appendChild(tableWrap);
+        wrapper.appendChild(groupRow);
       });
     
-      table.appendChild(tbody);
-      wrapper.appendChild(table);
       container.appendChild(wrapper);
     }
     
