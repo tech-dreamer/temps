@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>My Score</title>
+  <title> My Score </title>
 
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.47.10/dist/umd/supabase.min.js"></script>
@@ -432,6 +432,47 @@
     ];
 
     const hasValue = (v) => v !== null && v !== undefined && v !== "";
+    
+    function getCurrentET() {
+      const parts = Object.fromEntries(
+        new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/New_York",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          hour12: false,
+        }).formatToParts(new Date())
+          .map(({ type, value }) => [type, value])
+      );
+    
+      return {
+        date: `${parts.year}-${parts.month}-${parts.day}`,
+        hour: Number(parts.hour),
+      };
+    }
+
+    function getHourlyWindow() {
+      const now = getCurrentET();
+      const today = now.date;
+      const hour = now.hour;
+    
+      if (hour >= 13) { // advance to today hourlies
+        return {
+          startDate: today,
+          endDate: today,
+          startHour: 13,
+          endHour: hour,
+        };
+      }
+    
+      return { // still yesterday hourlies
+        startDate: ymdToShift(today, -1),
+        endDate: today,
+        startHour: 13,
+        endHour: hour,
+      };
+    }
 
     function ymdToShift(ymd, deltaDays) {
       const [y, m, d] = ymd.split("-").map(Number);
@@ -495,24 +536,10 @@
       return direct !== null || hasValue(row.forecast);
     }
 
-    function hourlyForecastText(row) {
-      const direct = getValue(row, ["forecast", "forecast_temp", "predicted_temp", "forecast_value", "temp_forecast", "guess", "prediction"]);
-      return direct === null ? "—" : `${formatTemp(direct)}°`;
-    }
-
-    function hourlyActualText(row) {
-      const direct = getValue(row, ["actual", "actual_temp", "temp_actual", "actual_value"]);
-      return direct === null ? "—" : `${formatTemp(direct)}°`;
-    }
-    
-    function hourlyErrorText(row) {
-      const direct = getValue(row, ["error", "error_temp", "temp_error", "error_value"]);
-      return direct === null ? "—" : `${formatAbs(direct)}°`;
-    }
-
-    function formatTemp(v) {
-      if (!hasValue(v) || Number.isNaN(Number(v))) return "—";
-      return `${Math.round(Number(v))}`;
+    function escapeHtml(value) {
+      const div = document.createElement("div");
+      div.textContent = String(value ?? "");
+      return div.innerHTML;
     }
 
     function updateModeUI(mode) {
@@ -683,57 +710,80 @@
     }
 
     async function loadScore() {
-      console.log("User ID:", userId);
-      console.log("Yesterday's Date:", ydayDate);
-    
-      const scoreTable = activeMode === "hourly" ? "hourly_scores" : "daily_scores";
-      const isHourly = activeMode === "hourly";
-    
       const list = document.getElementById("scoreList");
       if (!list) return;
     
-      if (isHourly) {
-        list.classList.add("is-hourly");
-      } else {
-        list.classList.remove("is-hourly");
+      const isHourly = activeMode === "hourly";
+      const scoreTable = isHourly ? "hourly_scores" : "daily_scores";
+    
+      list.classList.toggle("is-hourly", isHourly);
+    
+      const dateEl = document.getElementById("scoreDate");
+      if (dateEl) {
+        if (isHourly) {
+          const w = getHourlyWindow();
+          const label = w.startDate === w.endDate
+            ? `${dateLabelFromYMD(w.startDate)} ${w.startHour}:00–${w.endHour}:00 ET`
+            : `${dateLabelFromYMD(w.startDate)} 13:00 ET → ${dateLabelFromYMD(w.endDate)} ${w.endHour}:00 ET`;
+          dateEl.textContent = label;
+        } else {
+          dateEl.textContent = ydayLabel;
+        }
       }
     
       if (!userId) {
         list.innerHTML = "<p>No user found. Please make a forecast.</p>";
+        document.getElementById("coinTotal").textContent = "0";
     
-        if (isHourly) {
-          document.getElementById("coinTotal").textContent = "0";
-    
-          const moodEl = document.getElementById("moodTotal");
-          const streakEl = document.getElementById("currentStreak");
-          if (moodEl) moodEl.textContent = "—";
-          if (streakEl) streakEl.textContent = "—";
-        } else {
-          document.getElementById("coinTotal").textContent = "0";
-          document.getElementById("moodTotal").textContent = "0";
-          document.getElementById("currentStreak").textContent = "0";
-        }
+        const moodEl = document.getElementById("moodTotal");
+        const streakEl = document.getElementById("currentStreak");
+        if (moodEl) moodEl.textContent = "—";
+        if (streakEl) streakEl.textContent = "—";
     
         return;
       }
     
-      const { data: scores, error: scoreError } = await client // get score rows
+      let scoreQuery = client
         .from(scoreTable)
         .select("*")
-        .eq("user_id", userId)
-        .eq("date", ydayDate)
-        .order("city_id");
+        .eq("user_id", userId);
     
+      if (isHourly) {
+        const w = getHourlyWindow();
+    
+        if (w.startDate === w.endDate) {
+          scoreQuery = scoreQuery
+            .eq("date", w.startDate)
+            .gte("hour", w.startHour)
+            .lte("hour", w.endHour);
+        } else {
+          scoreQuery = scoreQuery.or(
+            `and(date.eq.${w.startDate},hour.gte.${w.startHour}),and(date.eq.${w.endDate},hour.lte.${w.endHour})`
+          );
+        }
+    
+        scoreQuery = scoreQuery.order("date", { ascending: true })
+                               .order("hour", { ascending: true })
+                               .order("city_id");
+      } else {
+        scoreQuery = scoreQuery.eq("date", ydayDate).order("city_id");
+      }
+    
+      const { data: scores, error: scoreError } = await scoreQuery;
       if (scoreError) {
         console.error("Score Fetch Error:", scoreError);
         list.innerHTML = `<p>Could not load ${isHourly ? "hourly" : "daily"} scores.</p>`;
         showBanner(`Could not load ${isHourly ? "hourly" : "daily"} scores: ${scoreError.message || "Unknown error"}`, true);
+      
+        document.getElementById("coinTotal").textContent = "0";
+        document.getElementById("moodTotal").textContent = isHourly ? "—" : "0";
+        document.getElementById("currentStreak").textContent = isHourly ? "—" : "0";
+      
         return;
       }
     
       let currentStreak = 0;
-    
-      if (!isHourly) { // get daily streak
+      if (!isHourly) {
         const { data: userStatsData, error: statsError } = await client
           .from("user_stats")
           .select("current_streak")
@@ -742,15 +792,9 @@
     
         if (statsError) {
           console.error("User Stats Fetch Error:", statsError);
-        }
-    
-        if (!userStatsData) {
-          console.log("Creating user_stats for:", userId);
+        } else if (!userStatsData) {
           const { error: upsertError } = await client.from("user_stats").upsert(
-            {
-              user_id: userId,
-              current_streak: 0,
-            },
+            { user_id: userId, current_streak: 0 },
             { onConflict: "user_id" }
           );
           if (upsertError) {
@@ -758,30 +802,27 @@
           }
           currentStreak = 0;
         } else {
-          currentStreak = userStatsData.current_streak || 0;
+          currentStreak = Number(userStatsData.current_streak) || 0;
         }
       }
     
-      if (!scores || scores.length === 0) { // empty state
+      if (!scores || scores.length === 0) {
         list.innerHTML = `<p>No ${isHourly ? "hourly" : "daily"} score yet. Stay tuned & keep forecasting.</p>`;
-      
+    
         if (isHourly) {
-          const moodEl = document.getElementById("moodTotal");
-          const streakEl = document.getElementById("currentStreak");
-          const coinEl = document.getElementById("coinTotal");
-          if (moodEl) moodEl.textContent = "—";
-          if (streakEl) streakEl.textContent = "—";
-          if (coinEl) coinEl.textContent = "0";
+          document.getElementById("moodTotal").textContent = "—";
+          document.getElementById("currentStreak").textContent = "—";
+          document.getElementById("coinTotal").textContent = "0";
           revealRows(0, true, 0, 0, 0);
         } else {
           renderCityCircles([]);
           document.getElementById("coinTotal").textContent = "0";
           document.getElementById("moodTotal").textContent = "0";
           document.getElementById("currentStreak").textContent = String(currentStreak);
-          buildShare([], 0, 0, currentStreak);      
+          buildShare([], 0, 0, currentStreak);
           revealRows(0, false, currentStreak, 0, 0);
         }
-      
+    
         return;
       }
     
@@ -795,8 +836,8 @@
         totalCoins = scores.reduce((sum, s) => {
           return hasHourlyForecast(s) ? sum + Number(s.coins || 0) : sum;
         }, 0);
+        totalMood = 0;
     
-        // no direct total assignment, animate in revealRows
         const moodEl = document.getElementById("moodTotal");
         const streakEl = document.getElementById("currentStreak");
         if (moodEl) moodEl.textContent = "—";
@@ -807,55 +848,60 @@
       }
     
       scores.forEach((s) => {
+        const row = document.createElement("div");
+        row.className = "score-row";
+      
         const forecasted = hasForecast(s);
-    
+      
         if (forecasted) {
           totalCoins += Number(s.coins || 0);
           totalMood += Number(s.mood || 0);
         }
-    
+      
         const icon = resultCircle(s);
-        const detailHtml = forecasted
-          ? `
-              My Forecasts:<br>
-              H ${toNumOrDash(s.forecast_high)}° / L ${toNumOrDash(s.forecast_low)}°
-              <br>
-              Actual Temps:
-              <br>
-              H ${toNumOrDash(s.actual_high)}° / L ${toNumOrDash(s.actual_low)}°
-              <br>
-              Accuracy (Error):
-              <br>
-              H ${formatAbs(s.error_high)}° / L ${formatAbs(s.error_low)}°
-            `
-          : `No forecasts submitted for yesterday`;
-    
-        const coinText = forecasted ? `🪙 +${Number(s.coins || 0)}` : `🪙 +0`;
-        const moodText = forecasted ? `💗 ${formatSignedNumber(s.mood)}` : `💗 —`;
-        const rowClass = forecasted ? "score-row" : "score-row missing";
-    
-        const row = document.createElement("div");
-        row.className = rowClass;
+      
         row.innerHTML = `
           <div class="city-block">
-            <div class="result-circle">${icon}</div>
-            <div class="city">${cityDisplay(s)}</div>
+            <div class="result-circle">${escapeHtml(icon)}</div>
+            <div class="city">${escapeHtml(cityDisplay(s))}</div>
           </div>
-          <div class="msg">${s.message || (forecasted ? "" : "No submission")}</div>
-          <div class="detail">${detailHtml}</div>
-          <div class="coin">${coinText}</div>
-          <div class="mood">${moodText}</div>
+          <div class="msg">${escapeHtml(s.message || (forecasted ? "" : "No submission"))}</div>
+          <div class="detail"></div>
+          <div class="coin">${escapeHtml(forecasted ? `🪙 +${Number(s.coins || 0)}` : "🪙 +0")}</div>
+          <div class="mood">${escapeHtml(forecasted ? `💗 ${formatSignedNumber(s.mood)}` : "💗 —")}</div>
         `;
+      
+        const detail = row.querySelector(".detail");
+        if (forecasted) {
+          const lines = [
+            "My Forecasts:",
+            `H ${toNumOrDash(s.forecast_high)}° / L ${toNumOrDash(s.forecast_low)}°`,
+            "Actual Temps:",
+            `H ${toNumOrDash(s.actual_high)}° / L ${toNumOrDash(s.actual_low)}°`,
+            "Accuracy (Error):",
+            `H ${formatAbs(s.error_high)}° / L ${formatAbs(s.error_low)}°`,
+          ];
+          lines.forEach((line) => {
+            const lineEl = document.createElement("div");
+            lineEl.className = "detail-line";
+            lineEl.textContent = line;
+            detail.appendChild(lineEl);
+          });
+        } else {
+          const lineEl = document.createElement("div");
+          lineEl.className = "detail-line";
+          lineEl.textContent = "No forecasts submitted for yesterday";
+          detail.appendChild(lineEl);
+        }
+      
         list.appendChild(row);
       });
     
       renderCityCircles(scores);
-    
-      // no direct total assignment here — animate in revealRows
       buildShare(scores, totalCoins, totalMood, currentStreak);
       revealRows(scores.length, false, currentStreak, totalCoins, totalMood);
     }
-
+    
     function revealRows(rowCount, isHourlyMode, streakValue = 0, coins = 0, mood = 0) {
       const rows = document.querySelectorAll(".score-row");
     
@@ -865,10 +911,17 @@
     
       setTimeout(() => {
         animateNumber("coinTotal", coins, 800);
-        if (!isHourlyMode) {
-          animateSignedNumber("moodTotal", mood, 800);
-          animateNumber("currentStreak", streakValue, 800);
+    
+        if (isHourlyMode) { // lock hourly UI values
+          const moodEl = document.getElementById("moodTotal");
+          const streakEl = document.getElementById("currentStreak");
+          if (moodEl) moodEl.textContent = "—";
+          if (streakEl) streakEl.textContent = "—";
+          return;
         }
+    
+        animateSignedNumber("moodTotal", mood, 800); // daily only
+        animateNumber("currentStreak", streakValue, 800);
       }, rowCount * 300);
     }
 
@@ -894,21 +947,25 @@
           s.city_name ??
           (typeof cityDisplay === "function" ? cityDisplay(s) : String(s.city_id ?? "-"));
     
+        const hourlyForecast = getValue(s, ["forecast"]);
+        const hourlyActual   = getValue(s, ["actual"]);
+        const hourlyError    = getValue(s, ["error"]);
+    
         row.innerHTML = `
-          <div class="hour-label">Date: ${s.date ?? "-"}</div>
-          <div class="hour-label">Hour: ${s.hour ?? "-"}</div>
-          <div class="hourly-sub">City: ${cityName}</div>
-          <div class="hourly-sub">Forecast: ${s.forecast_temp ?? s.forecast ?? "-"}</div>
-          <div class="hourly-sub">Actual: ${s.actual_temp ?? s.actual ?? "-"}</div>
-          <div class="hourly-sub">Error: ${s.error ?? "-"}</div>
-          <div class="hourly-sub">Coins: ${forecasted ? `🪙 +${Number(s.coins || 0)}` : "🪙 +0"}</div>
+          <div class="hour-label">Date: ${escapeHtml(s.date ?? "-")}</div>
+          <div class="hour-label">Hour: ${escapeHtml(s.hour ?? "-")}</div>
+          <div class="hourly-sub">City: ${escapeHtml(cityName)}</div>
+          <div class="hourly-sub">Forecast: ${escapeHtml(toNumOrDash(hourlyForecast))}°</div>
+          <div class="hourly-sub">Actual: ${escapeHtml(toNumOrDash(hourlyActual))}°</div>
+          <div class="hourly-sub">Error: ${escapeHtml(formatAbs(hourlyError))}°</div>
+          <div class="hourly-sub">Coins: ${escapeHtml(forecasted ? `🪙 +${Number(s.coins || 0)}` : "🪙 +0")}</div>
         `;
         frag.appendChild(row);
       });
     
       container.appendChild(frag);
     }
-
+    
     function showShareStatus(msg, type = "ok") {
       let status = document.getElementById("shareStatus");
       if (!status) {
