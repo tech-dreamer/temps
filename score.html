@@ -936,34 +936,229 @@
         return;
       }
     
-      const frag = document.createDocumentFragment();
+      const parseHour = (value) => {
+        if (value === null || value === undefined) return Number.POSITIVE_INFINITY;
     
-      items.forEach((s) => {
-        const forecasted = hasHourlyForecast(s);
-        const row = document.createElement("div");
-        row.className = `score-row hourly-card ${forecasted ? "" : "missing"}`;
+        const s = String(value).trim();
+        const numMatch = s.match(/^(\d{1,2})/);
+        if (numMatch) {
+          const n = Number(numMatch[1]);
+          if (Number.isFinite(n)) return n;
+        }
     
-        const cityName =
-          s.city_name ??
-          (typeof cityDisplay === "function" ? cityDisplay(s) : String(s.city_id ?? "-"));
+        const ampmMatch = s.match(/^(\d{1,2})(?::\d{2})?\s*(AM|PM)\s*$/i);
+        if (ampmMatch) {
+          let h = Number(ampmMatch[1]);
+          const isPM = ampmMatch[2].toUpperCase() === "PM";
+          if (isPM && h !== 12) h += 12;
+          if (!isPM && h === 12) h = 0;
+          return h;
+        }
     
-        const hourlyForecast = getValue(s, ["forecast"]);
-        const hourlyActual   = getValue(s, ["actual"]);
-        const hourlyError    = getValue(s, ["error"]);
+        return Number.POSITIVE_INFINITY;
+      };
     
-        row.innerHTML = `
-          <div class="hour-label">Date: ${escapeHtml(s.date ?? "-")}</div>
-          <div class="hour-label">Hour: ${escapeHtml(s.hour ?? "-")}</div>
-          <div class="hourly-sub">City: ${escapeHtml(cityName)}</div>
-          <div class="hourly-sub">Forecast: ${escapeHtml(toNumOrDash(hourlyForecast))}°</div>
-          <div class="hourly-sub">Actual: ${escapeHtml(toNumOrDash(hourlyActual))}°</div>
-          <div class="hourly-sub">Error: ${escapeHtml(formatAbs(hourlyError))}°</div>
-          <div class="hourly-sub">Coins: ${escapeHtml(forecasted ? `🪙 +${Number(s.coins || 0)}` : "🪙 +0")}</div>
-        `;
-        frag.appendChild(row);
+      const formatHourLabel = (value) => {
+        const h = parseHour(value);
+        if (!Number.isFinite(h)) return "-";
+        if (h === Number.POSITIVE_INFINITY) return "-";
+        const h12 = h % 12 || 12;
+        const ampm = h >= 12 ? "PM" : "AM";
+        return `${h12}:00 ${ampm} ET`;
+      };
+    
+      const getDateKey = (row, h) => {
+        const dateLike = row.date || row.forecast_date || row.day || row.timestamp || "";
+        if (!dateLike) return `__unknown__|${h}`;
+    
+        const dt = new Date(dateLike);
+        if (!Number.isNaN(dt.getTime())) {
+          const localDay = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "America/New_York",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+          }).format(dt); // => YYYY-MM-DD
+          return `${localDay}|${h}`;
+        }
+    
+        // fallback if dateLike is "YYYY-MM-DD"
+        const raw = String(dateLike).slice(0, 10);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+          return `${raw}|${h}`;
+        }
+    
+        return `__unknown__|${h}`;
+      };
+    
+      const toDateTimeMs = (row) => {
+        const dateLike = row.date || row.forecast_date || row.day || row.timestamp || "";
+        const dt = dateLike ? new Date(dateLike) : new Date(NaN);
+        const hour = parseHour(row.hour);
+        const datePart = dateLike ? String(dateLike).slice(0, 10) : "";
+    
+        if (!Number.isNaN(dt.getTime()) && datePart) {
+          const hh = Number.isFinite(hour) && hour !== Number.POSITIVE_INFINITY ? hour : 0;
+          const copy = new Date(dt);
+          copy.setHours(hh, 0, 0, 0);
+          return copy.getTime();
+        }
+    
+        if (datePart && Number.isFinite(hour) && hour !== Number.POSITIVE_INFINITY) {
+          const fallback = new Date(`${datePart}T${String(hour).padStart(2, "0")}:00:00`);
+          if (!Number.isNaN(fallback.getTime())) return fallback.getTime();
+        }
+    
+        return Number.POSITIVE_INFINITY;
+      };
+    
+      const sorted = [...items].sort((a, b) => {
+        const tA = toDateTimeMs(a);
+        const tB = toDateTimeMs(b);
+        if (tA !== tB) return tA - tB;
+    
+        const hA = parseHour(a.hour);
+        const hB = parseHour(b.hour);
+        if (hA !== hB) return hA - hB;
+    
+        return String(a.city_name || "")
+          .localeCompare(String(b.city_name || ""));
       });
     
-      container.appendChild(frag);
+      // Optional day label at top
+      const firstRow = sorted[0];
+      const dayTextSource = firstRow?.date || firstRow?.forecast_date || firstRow?.day || firstRow?.timestamp;
+      if (dayTextSource) {
+        const d = new Date(dayTextSource);
+        if (!Number.isNaN(d.getTime())) {
+          const dayLabel = d.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            timeZone: "America/New_York"
+          });
+          const title = document.createElement("div");
+          title.className = "score-day-title";
+          title.textContent = dayLabel;
+          container.appendChild(title);
+        }
+      }
+    
+      // Global column header
+      const topHeader = document.createElement("div");
+      topHeader.className = "score-row hourly-card hourly-header";
+      topHeader.style.display = "grid";
+      topHeader.style.gridTemplateColumns = "125px 1fr";
+      topHeader.style.gap = "12px";
+      topHeader.style.padding = "8px 12px";
+      topHeader.style.fontWeight = "600";
+      topHeader.style.borderBottom = "1px solid #ddd";
+      topHeader.innerHTML = `
+        <div>Hour</div>
+        <div style="display:grid;grid-template-columns:1fr 90px 90px 90px 90px;gap:8px;">
+          <div>City</div>
+          <div>Forecast</div>
+          <div>Actual</div>
+          <div>Error</div>
+          <div>Coins</div>
+        </div>
+      `;
+      container.appendChild(topHeader);
+    
+      // Group rows by hour bucket so hour sits outside city rows
+      const groups = new Map();
+      sorted.forEach((s) => {
+        const hour = parseHour(s.hour);
+        const hKey = Number.isFinite(hour) && hour !== Number.POSITIVE_INFINITY
+          ? String(hour).padStart(2, "0")
+          : "99";
+        const bucketKey = getDateKey(s, hKey);
+        if (!groups.has(bucketKey)) groups.set(bucketKey, []);
+        groups.get(bucketKey).push(s);
+      });
+    
+      const orderedHourKeys = [...groups.keys()].sort((a, b) => {
+        if (a === b) return 0;
+        if (a === "__unknown__|99") return 1;
+        if (b === "__unknown__|99") return -1;
+        return a.localeCompare(b);
+      });
+    
+      orderedHourKeys.forEach((groupKey) => {
+        const rows = groups.get(groupKey) || [];
+        if (!rows.length) return;
+    
+        const sampleHour = parseHour(rows[0].hour);
+    
+        const groupRow = document.createElement("div");
+        groupRow.className = "score-row hourly-card";
+        groupRow.style.display = "grid";
+        groupRow.style.gridTemplateColumns = "125px 1fr";
+        groupRow.style.gap = "12px";
+        groupRow.style.padding = "8px 12px";
+        groupRow.style.borderBottom = "1px solid #eee";
+        groupRow.style.alignItems = "start";
+    
+        const hourCol = document.createElement("div");
+        hourCol.className = "hour-label";
+        hourCol.style.paddingTop = "4px";
+        hourCol.textContent = Number.isFinite(sampleHour) && sampleHour !== Number.POSITIVE_INFINITY
+          ? formatHourLabel(sampleHour)
+          : "-";
+    
+        const rightCol = document.createElement("div");
+        rightCol.style.display = "grid";
+        rightCol.style.gridTemplateColumns = "1fr";
+    
+        const subHeader = document.createElement("div");
+        subHeader.style.display = "grid";
+        subHeader.style.gridTemplateColumns = "1fr 90px 90px 90px 90px";
+        subHeader.style.gap = "8px";
+        subHeader.style.fontWeight = "600";
+        subHeader.style.paddingBottom = "4px";
+        subHeader.innerHTML = `
+          <div>City</div>
+          <div>Forecast</div>
+          <div>Actual</div>
+          <div>Error</div>
+          <div>Coins</div>
+        `;
+    
+        rightCol.appendChild(subHeader);
+    
+        rows.forEach((s) => {
+          const forecasted = hasHourlyForecast(s);
+    
+          const cityName =
+            s.city_name ??
+            (typeof cityDisplay === "function" ? cityDisplay(s) : String(s.city_id ?? "-"));
+    
+          const hourlyForecast = getValue(s, ["forecast", "forecast_temp", "predicted_temp", "temp_forecast"]);
+          const hourlyActual = getValue(s, ["actual", "actual_temp", "observed_temp"]);
+          const hourlyError = getValue(s, ["error", "error_temp", "abs_error", "error_abs"]);
+    
+          const cityRow = document.createElement("div");
+          cityRow.className = `score-row ${forecasted ? "" : "missing"}`;
+          cityRow.style.display = "grid";
+          cityRow.style.gridTemplateColumns = "1fr 90px 90px 90px 90px";
+          cityRow.style.gap = "8px";
+          cityRow.style.padding = "4px 0";
+          cityRow.style.borderTop = "1px dashed #f1f1f1";
+    
+          cityRow.innerHTML = `
+            <div>City: ${escapeHtml(cityName)}</div>
+            <div>${escapeHtml(toNumOrDash(hourlyForecast))}°</div>
+            <div>${escapeHtml(toNumOrDash(hourlyActual))}°</div>
+            <div>${escapeHtml(formatAbs(hourlyError))}°</div>
+            <div>🪙 ${escapeHtml(forecasted ? `+${Number(s.coins || 0)}` : "+0")}</div>
+          `;
+    
+          rightCol.appendChild(cityRow);
+        });
+    
+        groupRow.appendChild(hourCol);
+        groupRow.appendChild(rightCol);
+        container.appendChild(groupRow);
+      });
     }
     
     function showShareStatus(msg, type = "ok") {
