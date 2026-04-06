@@ -778,8 +778,8 @@
         }
 
         if (key === "actual") {
-          const aActual = getActualValueForSort(b);
-          const bActual = getActualValueForSort(a);
+          const aActual = getActualValueForSort(a);
+          const bActual = getActualValueForSort(b);
           if (aActual === null && bActual === null) return 0;
           if (aActual === null) return 1;
           if (bActual === null) return -1;
