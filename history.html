@@ -296,17 +296,26 @@
       flex-wrap: wrap;
     }
 
+    /* Default accuracy alignment: left */
     .accuracy-cell {
-      text-align: center;
       white-space: nowrap;
+      text-align: left;
     }
 
-    /* Daily-specific: keep accuracy centered */
-    .history-table th.accuracy-col,
-    .history-table td.accuracy-cell {
+    /* Daily: keep centered */
+    .history-table.daily-mode th.accuracy-col,
+    .history-table.daily-mode td.accuracy-cell {
       width: 125px;
       min-width: 125px;
       text-align: center;
+    }
+
+    /* Hourly: left-align accuracy */
+    .history-table.hourly-mode th.accuracy-col,
+    .history-table.hourly-mode td.accuracy-cell {
+      width: auto;
+      min-width: 0;
+      text-align: left;
     }
 
     /* Color column: left aligned + compact to sit nearer to Accuracy */
