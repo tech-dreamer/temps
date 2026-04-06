@@ -595,8 +595,16 @@
       return getFirstNumber(row, ["actual_low"]);
     }
 
-    function getErrorPrimary(row) {
-      return toNumber(row?.error_high);
+    function getErrorPrimary(row, isHourly = false) {
+      const keys = isHourly
+        ? ["error"]  // hourly error
+        : ["error_high"]; // daily high error
+    
+      for (const key of keys) {
+        const n = toNumber(row?.[key]);
+        if (n !== null) return n;
+      }
+      return null;
     }
 
     function getErrorLow(row) {
@@ -689,7 +697,6 @@
 
       if (high === null && low === null) return "—";
 
-      // Hourly mode usually has a single value
       if (isHourly || low === null) return `${fmtInt(high)}°`;
 
       if (high === null) return `Low ${fmtInt(low)}°`;
@@ -716,7 +723,7 @@
     }
 
     function formatAccuracy(row) {
-      const primary = getErrorPrimary(row);
+      const primary = getErrorPrimary(row, state.mode === "hourly");
       const secondary = getErrorLow(row);
       const isHourly = modeConfigFor(state.mode).hasHour;
 
@@ -781,8 +788,8 @@
         }
 
         if (key === "accuracy") {
-          aV = getErrorPrimary(a);
-          bV = getErrorPrimary(b);
+          aV = getErrorPrimary(a, state.mode === "hourly");
+          bV = getErrorPrimary(b, state.mode === "hourly");
           if (aV === null && bV === null) return 0;
           if (aV === null) return 1;
           if (bV === null) return -1;
@@ -995,7 +1002,7 @@
           const tdColor = document.createElement("td");
           tdColor.className = "color-cell color-col";
           const dot = document.createElement("span");
-          const err = getErrorPrimary(row); // only error_high now
+          const err = getErrorPrimary(row); // only error_high
           const color = accuracyColor(err);
           dot.className = `accuracy-dot ${color}`;
           dot.title = err === null ? "No error data" : `Error: ${fmtSigned(err)}`;
