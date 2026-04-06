@@ -311,7 +311,6 @@
       white-space: nowrap;
     }
 
-    /* Daily-specific: keep accuracy centered */
     .history-table th.accuracy-col,
     .history-table td.accuracy-cell {
       width: 125px;
@@ -319,7 +318,6 @@
       text-align: center;
     }
 
-    /* Color column: left aligned + compact to sit nearer to Accuracy */
     .history-table.daily-mode th.color-col,
     .history-table.daily-mode td.color-cell {
       text-align: left;
@@ -786,6 +784,7 @@
         }
 
         if (key === "color") {
+          // Color is based on error_high only
           aV = accuracyRank(getErrorPrimary(a));
           bV = accuracyRank(getErrorPrimary(b));
           if (aV === bV) return 0;
@@ -990,7 +989,7 @@
           const tdColor = document.createElement("td");
           tdColor.className = "color-cell color-col";
           const dot = document.createElement("span");
-          const err = getErrorPrimary(row);
+          const err = getErrorPrimary(row); // only error_high now
           const color = accuracyColor(err);
           dot.className = `accuracy-dot ${color}`;
           dot.title = err === null ? "No error data" : `Error: ${fmtSigned(err)}`;
