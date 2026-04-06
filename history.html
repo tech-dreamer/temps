@@ -560,7 +560,14 @@
 
     function toNumber(v) {
       if (v === null || v === undefined || v === "") return null;
-      const n = Number(v);
+    
+      if (typeof v === "number") return Number.isFinite(v) ? v : null;
+    
+      const s = String(v).trim();
+      const match = s.match(/[-+]?\d+(?:[.,]\d+)?/); // tolerant numeric extraction
+      if (!match) return null;
+    
+      const n = Number(match[0].replace(",", "."));
       return Number.isFinite(n) ? n : null;
     }
 
@@ -589,7 +596,7 @@
     }
 
     function getErrorPrimary(row) {
-      return getFirstNumber(row, ["error_high", "error", "error_value"]);
+      return toNumber(row?.error_high);
     }
 
     function getErrorLow(row) {
@@ -695,8 +702,8 @@
       const n = toNumber(value);
       if (n === null) return "gray";
       const abs = Math.abs(n);
-      if (abs <= 2) return "green";
-      if (abs <= 5) return "yellow";
+      if (abs < 2) return "green";
+      if (abs < 4) return "yellow";
       return "red";
     }
 
@@ -784,8 +791,7 @@
         }
 
         if (key === "color") {
-          // Color is based on error_high only
-          aV = accuracyRank(getErrorPrimary(a));
+          aV = accuracyRank(getErrorPrimary(a)); // color is based on error_high only
           bV = accuracyRank(getErrorPrimary(b));
           if (aV === bV) return 0;
           return (aV > bV ? 1 : -1) * dir;
