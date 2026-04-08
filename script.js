@@ -262,6 +262,8 @@ async function buildDailyGrid() {
 
   cities.forEach(city => {
 
+    const stationCode = [city.station].find(v => typeof v === 'string' && v.trim());
+
     const cityToday = getCityLocalDateISO(city.timezone, 0);
     const cityTomorrow = getCityLocalDateISO(city.timezone, 1);
     const cityYesterday = getCityLocalDateISO(city.timezone, -1);
@@ -315,7 +317,9 @@ async function buildDailyGrid() {
       hasSavedForecast ? 'city-card expanded' : 'city-card collapsed';
 
     card.innerHTML = `
-      <div class="city-card-header">${city.name}</div>
+      <div class="city-card-header">
+        ${city.name}${stationCode ? `<small style="font-size: 0.8em; opacity: 0.8;"> (K${stationCode})</small>` : ''}
+      </div>
       <div class="city-card-content">
         ${showYesterday
           ? `<p><small>Yesterday: H ${yesterdayHigh}° / L ${yesterdayLow}°</small></p>`
