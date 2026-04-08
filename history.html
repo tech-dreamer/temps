@@ -778,9 +778,9 @@
       const hourInfo = typeof hourParser === "function" ? hourParser(row.hour) : null;
       if (!hourInfo) return `${dateText} ET`;
     
-      return `${dateText}, ${formatHourLabel(hourInfo.hour)}${
+      return `${dateText}, ${formatHourLabel(hourInfo.hour)} ET${
         hourInfo.isSixHourHigh ? " 6-hr high" : ""
-      } ET`;
+      }`;
     }
 
     function formatRange(row, isForecast = true) {
