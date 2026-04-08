@@ -1034,13 +1034,28 @@
         return;
       }
     
+      const is6HrHighHour = (h) => {
+        const n = Number(h);
+        if (!Number.isFinite(n)) return false;
+        const frac = Math.abs(n - Math.floor(n));
+        return Math.abs(frac - 0.5) < 1e-9;
+      };
+
       const parseHour = (value) => {
         if (value === null || value === undefined) return null;
         const s = String(value).trim();
-    
-        let m = s.match(/^(\d{1,2})(?:[:.]\d{1,2})?$/);
-        if (m) return Number(m[1]);
-    
+
+        const num = Number(s);
+        if (Number.isFinite(num)) return num;
+
+        let m = s.match(/^(\d{1,2}):(\d{1,2})$/);
+        if (m) {
+          const h = Number(m[1]);
+          const mins = Number(m[2]);
+          if (!Number.isFinite(h) || !Number.isFinite(mins)) return null;
+          return mins === 30 ? h + 0.5 : h;
+        }
+
         m = s.match(/^(\d{1,2})(?::\d{1,2})?\s*(AM|PM)\s*$/i);
         if (m) {
           let h = Number(m[1]);
@@ -1049,16 +1064,19 @@
           if (!pm && h === 12) h = 0;
           return h;
         }
-    
+
         return null;
       };
     
       const formatHour = (h) => {
         if (h === null || h === undefined || !Number.isFinite(Number(h))) return "-";
         const n = Number(h);
-        const display = (n % 12) || 12;
-        const suffix = n >= 12 ? "PM" : "AM";
-        return `${display}:00 ${suffix} ET`;
+        const base = Math.floor(n);
+        const display = (base % 12) || 12;
+        const suffix = base >= 12 ? "PM" : "AM";
+        const is6hr = is6HrHighHour(n);
+
+        return `${display} ${suffix}${is6hr ? " 6-hr high" : ""} ET`;
       };
     
       const parseDateValue = (row) => {
@@ -1081,7 +1099,10 @@
         const ymd = parseDateValue(row);
         const h = parseHour(row.hour);
         if (!ymd || h === null) return Number.NEGATIVE_INFINITY;
-        const d = new Date(`${ymd}T${String(h).padStart(2, "0")}:00:00`);
+
+        const base = Math.floor(Number(h));
+        const minute = is6HrHighHour(h) ? 30 : 0;
+        const d = new Date(`${ymd}T${String(base).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`);
         return Number.isNaN(d.getTime()) ? Number.NEGATIVE_INFINITY : d.getTime();
       };
     
