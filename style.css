@@ -141,7 +141,7 @@ button:disabled {
 }
 
 .city-card-header small {
-  margin: left 10px;
+  margin-left: 0.35rem;
   white-space: nowrap;
 }
 
