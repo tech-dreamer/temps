@@ -673,9 +673,23 @@
       return `${rounded}°`;
     }
 
-    function parseDateValue(raw) {
-      const ts = Date.parse(raw);
-      return Number.isNaN(ts) ? 0 : ts;
+    function parseDateValue(value) {
+      if (!value) return 0;
+    
+      const s = String(value).trim();
+    
+      // parse YYYY-MM-DD as an ET date safely, no local UTC rollover
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) {
+        const year = Number(m[1]);
+        const monthIndex = Number(m[2]) - 1; // 0-based for Date.UTC
+        const day = Number(m[3]);
+    
+        // use local-noon UTC anchor to avoid date drift when formatted in ET
+        return Date.UTC(year, monthIndex, day, 12, 0, 0);
+      }
+    
+      return Date.parse(s) || 0; // fallback for any other format
     }
 
     function makeHourInfo(hour, isSixHourHigh = false, sortMinuteOffset = 0) {
@@ -742,33 +756,33 @@
       return `${h} ${ap}`;
     }
 
-    function formatDisplayDate(row) {
-      const hasHour = modeConfigFor(state.mode).hasHour;
+    function formatDisplayDate(row, hasHour, parseHourInfo, stateMode, toDateTextFallback) {
       if (!row.date) return "—";
     
-      const base = parseDateValue(row.date);
-      if (base === 0) return String(row.date);
+      const t = parseDateValue(row.date);
+      if (!t) return String(row.date);
     
-      const d = new Date(base);
-      const dateText = d.toLocaleDateString(undefined, {
-        year: "numeric",
+      const d = new Date(t);
+    
+      const dateText = new Intl.DateTimeFormat("en-US", {
+        timeZone: America/New_York,
         month: "short",
-        day: "numeric"
-      });
+        day: "numeric",
+        year: "numeric",
+      }).format(d);
     
-      if (!hasHour) return dateText;
+      if (!hasHour) {
+        return `${dateText} ET`;
+      }
     
       const hourInfo = parseHourInfo(row.hour);
       if (!hourInfo) {
-        const fallbackHour = d.getHours();
-        const fallbackMinute = d.getMinutes();
-        const isHalf = fallbackMinute === 30;
-        const timeText = formatHourLabel(fallbackHour);
-        return `${dateText}, ${timeText}${isHalf ? " 6-hr high" : ""}`;
+        return `${dateText} ET`;
       }
     
-      const timeText = formatHourLabel(hourInfo.hour);
-      return `${dateText}, ${timeText}${hourInfo.isSixHourHigh ? " 6-hr high" : ""}`;
+      return `${dateText}, ${formatHourLabel(hourInfo.hour)}${
+        hourInfo.isSixHourHigh ? " 6-hr high" : ""
+      } ET`;
     }
 
     function formatRange(row, isForecast = true) {
