@@ -149,7 +149,7 @@ function updateHourlyCurrentDate() {
 async function loadCities() {
   const { data, error } = await client
     .from('cities')
-    .select('id, name, timezone_id, timezones(name)')
+    .select('id, name, station, timezone_id, timezones(name)')
     .order('timezone_id', { ascending: false });
 
   if (error || !data) {
