@@ -53,7 +53,6 @@ async function getOrCreateUser() {
 }
 
 // Time helpers
-
 function getCityLocalDateISO(timezone, offset = 0) {
   const now = new Date();
   const local = new Date(
@@ -145,7 +144,6 @@ function updateHourlyCurrentDate() {
 }
 
 // Load cities
-
 async function loadCities() {
   const { data, error } = await client
     .from('cities')
@@ -174,7 +172,6 @@ async function loadCities() {
 }
 
 // Update current date label on daily page
-
 function updateCurrentDate() {
   const dateDisplay = document.getElementById('currentDate');
   const forecastDaySelect = document.getElementById('forecastDay');
@@ -220,7 +217,6 @@ function updateCurrentDate() {
 }
 
 // Load data in safe window
-
 async function loadDailyData() {
   const now = new Date();
 
@@ -252,8 +248,7 @@ function getStationDisplay(city) {
   return raw.startsWith("K") ? raw : `K${raw}`;
 }
 
-// Build grid
-
+// Build daily grid
 async function buildDailyGrid() {
   const grid = document.getElementById('dailyGrid');
   const forecastDaySelect = document.getElementById('forecastDay');
@@ -514,7 +509,6 @@ function updateHourlyButton() {
 }
 
 // Click handler
-
 document.addEventListener('click', (e) => {
   const header = e.target.closest('.city-card-header');
   if (!header) return;
@@ -528,7 +522,6 @@ document.addEventListener('click', (e) => {
 });
 
 // Save handlers
-
 const dailyForm = document.getElementById('tempsForm');
 if (dailyForm) {
   dailyForm.addEventListener('submit', async e => {
@@ -763,8 +756,36 @@ if (hourlyForm) {
   hourlyForm.addEventListener('submit', handleHourlySubmit);
 }
 
-// Advance dropdown
+// Initialize help modal
+function initDailyHelpModal() {
+  const helpBtn = document.getElementById("helpBtn");
+  const modal = document.getElementById("dailyHelpModal");
+  const backdrop = document.getElementById("helpModalBackdrop");
+  const closeBtn = document.getElementById("helpCloseBtn");
+  const doneBtn = document.getElementById("helpDoneBtn");
 
+  if (!helpBtn || !modal || !backdrop || !closeBtn || !doneBtn) {
+    return;
+  }
+
+  const openHelp = () => modal.classList.remove("hidden");
+  const closeHelp = () => modal.classList.add("hidden");
+
+  helpBtn.addEventListener("click", openHelp);
+  closeBtn.addEventListener("click", closeHelp);
+  doneBtn.addEventListener("click", closeHelp);
+  backdrop.addEventListener("click", closeHelp);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !modal.classList.contains("hidden")) {
+      closeHelp();
+    }
+  });
+}
+
+document.addEventListener("DOMContentLoaded", initDailyHelpModal);
+
+// Advance dropdown
 const forecastDaySelect = document.getElementById('forecastDay');
 
 if (forecastDaySelect) {
@@ -775,7 +796,6 @@ if (forecastDaySelect) {
 }
 
 // Auto check PT UI refresh
-
 function shouldCheckNow() {
   const ptNow = getPTNow();
   const hours = ptNow.getHours();
@@ -818,7 +838,6 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 // Start page
-
 (async () => {
   userId = await getOrCreateUser();
   await loadCities();
