@@ -338,6 +338,7 @@ button:disabled {
   color: white;
 }
 
+/* Header block, gap between title and How To */
 .daily-page-header,
 #dailyPageHeader,
 .hourly-page-header,
@@ -360,27 +361,27 @@ button:disabled {
 /* Daily form: reduce space above date selector */
 #tempsForm,
 .daily-form {
-  margin-top: 0.35rem !important;
+  margin-top: 0.3rem !important;
   margin-bottom: 1.2rem;
 }
 
 /* First row inside daily form currently has inline margin; override it */
 #tempsForm > div:first-of-type {
   margin-top: 0.3rem !important;
-  margin-bottom: 0.65rem !important;
+  margin-bottom: 0.6rem !important;
   text-align: center;
 }
 
 /* Hourly spacing (if you use .hour-selector row there) */
 #hourlyForm,
 .hourly-form {
-  margin-top: 0.35rem !important;
-  margin-bottom: 1.2rem;
+  margin-top: 0.3rem !important;
+  margin-bottom: 1rem;
 }
 
 .hour-selector {
-  margin-top: 0.35rem !important;
-  margin-bottom: 0.7rem !important;
+  margin-top: 0.3rem !important;
+  margin-bottom: 0.6rem !important;
 }
 
 /* Keep How To button slightly compact */
