@@ -347,7 +347,7 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 0.6rem;                 /* controls space between title and button */
+  gap: 0.8rem;                 /* controls space between title and button */
   margin: 0.6rem 0 0.85rem;     /* controls space after header */
 }
 
