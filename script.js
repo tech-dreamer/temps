@@ -1,14 +1,17 @@
 const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
+const SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZi6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const { createClient } = supabase;
-const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+let userId = null;
 let cities = [];
 let hasSavedForecast = false;
+let selectedHour = null;
+let hourlyCurrentDateKey = '';
+let isDailyPage = false;
+let isHourlyPage = false;
 
 const HOURLY_LABELS = [
-  // "Noon",
   "1PM",
   "2PM",
   "3PM",
@@ -18,38 +21,38 @@ const HOURLY_LABELS = [
   "7PM",
   "8PM"
 ];
-
 const HOURLY_GAME_SWITCH_HOUR_ET = 20; // 19
+function setStatus(html) {
+  const status = document.getElementById('status');
+  if (status) status.innerHTML = html;
+}
 
-const isDailyPage = !!document.getElementById('tempsForm');
-const isHourlyPage = !!document.getElementById('hourlyForm');
+function detectPageMode() {
+  isDailyPage = !!document.getElementById('tempsForm');
+  isHourlyPage = !!document.getElementById('hourlyForm');
+}
 
-let selectedHour = null;
-let userId;
-let hourlyCurrentDateKey = '';
-
-// Helper to get existing user or create new
-async function getOrCreateUser() {
-  let id = localStorage.getItem("temps_user_id");
-
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem("temps_user_id", id);
+// Helper to get existing user or create new anon
+async function ensureSession() {
+  const { data: { session }, error } = await client.auth.getSession();
+  if (error) {
+    console.error("Session error:", error.message);
+    return null;
   }
 
-  const { data } = await client
-    .from('users')
-    .select('id')
-    .eq('id', id)
-    .single();
-
-  if (!data) {
-    await client
-      .from('users')
-      .insert({ id: id });
+  if (session?.user) {
+    userId = session.user.id;
+    return session;
   }
 
-  return id;
+  const { data, error: anonErr } = await client.auth.signInAnonymously();
+  if (anonErr) {
+    console.error("Anon sign-in error:", anonErr.message);
+    return null;
+  }
+
+  userId = data?.session?.user?.id || null;
+  return data?.session || null;
 }
 
 // Time helpers
@@ -143,80 +146,12 @@ function updateHourlyCurrentDate() {
   return state.gameDate;
 }
 
-// Load cities
-async function loadCities() {
-  const { data, error } = await client
-    .from('cities')
-    .select('id, name, station, timezone_id, timezones(name)')
-    .order('timezone_id', { ascending: false });
-
-  if (error || !data) {
-    document.getElementById('status').innerHTML =
-      '<span style="color:red;">Failed to load cities.</span>';
-    return;
-  }
-
-  for (const datum of data) {
-    datum.timezone = datum.timezones.name;
-    delete datum.timezones;
-    delete datum.timezone_id;
-  }
-
-  cities = data;
-  buildDailyGrid();
-  updateCurrentDate();
-
-  if (isHourlyPage) {
-    hourlyCurrentDateKey = updateHourlyCurrentDate();
-  }
+function getStationDisplay(city) {
+  const raw = String(city?.station || '').trim().toUpperCase();
+  if (!raw) return '';
+  return raw.startsWith("K") ? raw : `K${raw}`;
 }
 
-// Update current date label on daily page
-function updateCurrentDate() {
-  const dateDisplay = document.getElementById('currentDate');
-  const forecastDaySelect = document.getElementById('forecastDay');
-
-  if (!dateDisplay || !forecastDaySelect) return;
-
-  const now = new Date();
-
-  const ptNow = new Date(
-    now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
-  ); // current PT
-
-  const ptCutoff = new Date(ptNow); // noon PT cutoff
-  ptCutoff.setHours(12, 0, 0, 0);
-
-  const dateKey = `${ptNow.getFullYear()}-${String(ptNow.getMonth() + 1).padStart(2, "0")}-${String(ptNow.getDate()).padStart(2, "0")}`;
-  const autoSwitchKey = `temps_auto_switched_${dateKey}`;
-
-  const hasAutoSwitched = sessionStorage.getItem(autoSwitchKey);
-
-  if (ptNow >= ptCutoff && !hasAutoSwitched) {
-    forecastDaySelect.value = "tomorrow";
-    sessionStorage.setItem(autoSwitchKey, "true");
-  } // auto-switch dropdown once after noon PT
-
-  const ptToday = ptNow.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric"
-  }); // build display dates
-
-  const tomorrow = new Date(ptNow);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  const ptTomorrow = tomorrow.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric"
-  });
-
-  dateDisplay.textContent =
-    forecastDaySelect.value === "today"
-      ? ptToday
-      : ptTomorrow;
-}
-
-// Load data in safe window
 async function loadDailyData() {
   const now = new Date();
 
@@ -242,59 +177,118 @@ async function loadDailyData() {
   return { actuals: actuals || [], guesses: guesses || [], hourlyGuesses: hourlyGuesses || [] };
 }
 
-function getStationDisplay(city) {
-  const raw = String(city?.station || '').trim().toUpperCase();
-  if (!raw) return '';
-  return raw.startsWith("K") ? raw : `K${raw}`;
+// Update current date label on daily page
+function updateCurrentDate() {
+  const dateDisplay = document.getElementById('currentDate');
+  const forecastDaySelect = document.getElementById('forecastDay');
+
+  if (!dateDisplay || !forecastDaySelect) return;
+
+  const now = new Date();
+  const ptNow = getPTNow();
+  const ptCutoff = new Date(ptNow);
+  ptCutoff.setHours(12, 0, 0, 0);
+
+  const dateKey = `${ptNow.getFullYear()}-${String(ptNow.getMonth() + 1).padStart(2, "0")}-${String(ptNow.getDate()).padStart(2, "0")}`;
+  const autoSwitchKey = `temps_auto_switched_${dateKey}`;
+
+  let hasAutoSwitched = false;
+  try {
+    hasAutoSwitched = sessionStorage.getItem(autoSwitchKey);
+  } catch (e) {
+    hasAutoSwitched = false;
+  }
+
+  if (ptNow >= ptCutoff && !hasAutoSwitched) {
+    forecastDaySelect.value = "tomorrow";
+    try {
+      sessionStorage.setItem(autoSwitchKey, "true");
+    } catch (e) {
+      // storage blocked; ignore
+    }
+  }
+
+  const ptToday = ptNow.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric"
+  });
+
+  const tomorrow = new Date(ptNow);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const ptTomorrow = tomorrow.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric"
+  });
+
+  dateDisplay.textContent =
+    forecastDaySelect.value === "today"
+      ? ptToday
+      : ptTomorrow;
 }
 
-// Build daily grid
+async function loadCities() {
+  const statusEl = document.getElementById('status');
+
+  const { data, error } = await client
+    .from('cities')
+    .select('id, name, station, timezone_id, timezones(name)')
+    .order('timezone_id', { ascending: false });
+
+  if (error || !data) {
+    if (statusEl) statusEl.innerHTML =
+      '<span style="color:red;">Failed to load cities.</span>';
+    return;
+  }
+
+  for (const datum of data) {
+    datum.timezone = datum.timezones?.name;
+    delete datum.timezones;
+    delete datum.timezone_id;
+  }
+
+  cities = data;
+  buildDailyGrid();
+  updateCurrentDate();
+
+  if (isHourlyPage) {
+    hourlyCurrentDateKey = updateHourlyCurrentDate();
+  }
+}
+
 async function buildDailyGrid() {
   const grid = document.getElementById('dailyGrid');
   const forecastDaySelect = document.getElementById('forecastDay');
-  if (!grid || !forecastDaySelect) return; // guard clause
+  if (!grid || !forecastDaySelect) return;
 
   grid.innerHTML = '<p>Loading cities...</p>';
 
   const { actuals, guesses } = await loadDailyData();
   grid.innerHTML = '';
 
-  const forecastDay = document.getElementById('forecastDay').value;
+  const forecastDay = forecastDaySelect.value;
 
   cities.forEach(city => {
-
-    console.log('city.station:', city.name, city.station);
     const stationDisplay = getStationDisplay(city);
 
     const cityToday = getCityLocalDateISO(city.timezone, 0);
     const cityTomorrow = getCityLocalDateISO(city.timezone, 1);
     const cityYesterday = getCityLocalDateISO(city.timezone, -1);
 
-    const targetDate =
-      forecastDay === 'today' ? cityToday : cityTomorrow;
-
+    const targetDate = forecastDay === 'today' ? cityToday : cityTomorrow;
     const showYesterday = forecastDay === 'today';
 
     const cityActuals = actuals
       .filter(a => a.city_id === city.id && a.date <= cityYesterday)
       .sort((a, b) => b.date.localeCompare(a.date));
 
-    const yesterdayHigh =
-      showYesterday && cityActuals.length
-        ? cityActuals[0].high
-        : ' ';
-
-    const yesterdayLow =
-      showYesterday && cityActuals.length
-        ? cityActuals[0].low
-        : ' ';
+    const yesterdayHigh = showYesterday && cityActuals.length ? cityActuals[0].high : ' ';
+    const yesterdayLow = showYesterday && cityActuals.length ? cityActuals[0].low : ' ';
 
     const prevGuess = guesses.find(
       g => g.city_id === city.id && g.date === targetDate
     ) || {};
 
-    const hasPrevGuess =
-      prevGuess.high !== undefined || prevGuess.low !== undefined;
+    const hasPrevGuess = prevGuess.high !== undefined || prevGuess.low !== undefined;
 
     // Cutoff check (noon local time)
     const now = new Date();
@@ -312,7 +306,7 @@ async function buildDailyGrid() {
 
     const isPastCutoff =
       forecastDay === 'today' &&
-      (ptNow >= ptCutoff || localNow >= cutoff); // all cities stay closed from PT noon to midnight
+      (ptNow >= ptCutoff || localNow >= cutoff);
 
     const card = document.createElement('div');
     card.className =
@@ -397,7 +391,7 @@ async function buildHourlyGrid() {
   const selectedForecastDate = hourlyState.gameDate;
 
   const hourNum = convertHourLabel(selectedHour);
-  const showSixHrHigh = hourNum === 14 || hourNum === 20; // hourNum === 13 || hourNum === 19;
+  const showSixHrHigh = hourNum === 14 || hourNum === 20;
   const sixHrHourNum = showSixHrHigh ? hourNum + 0.5 : null;
 
   grid.innerHTML = '';
@@ -452,7 +446,7 @@ async function buildHourlyGrid() {
           </label>
         ` : ''}
 
-        ${(isPastCutoff)
+        ${isPastCutoff
           ? '<small style="color:#e74c3c;">Past cutoff</small>'
           : ''}
       </div>
@@ -471,7 +465,7 @@ function convertHourLabel(label) {
 function convertETToCityHourLabel(etHour, cityTimezone) {
   const now = new Date();
 
-  const etDate = new Date( // create a date in ET at the selected hour
+  const etDate = new Date(
     now.toLocaleString("en-US", { timeZone: "America/New_York" })
   );
 
@@ -480,7 +474,7 @@ function convertETToCityHourLabel(etHour, cityTimezone) {
 
   etDate.setHours(hourPart, minutePart, 0, 0);
 
-  const cityTime = new Date(  // convert to city local time
+  const cityTime = new Date(
     etDate.toLocaleString("en-US", { timeZone: cityTimezone })
   );
 
@@ -508,7 +502,7 @@ function updateHourlyButton() {
   }
 }
 
-// Click handler
+// Click handler (works on both pages)
 document.addEventListener('click', (e) => {
   const header = e.target.closest('.city-card-header');
   if (!header) return;
@@ -521,93 +515,93 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// Save handlers
-const dailyForm = document.getElementById('tempsForm');
-if (dailyForm) {
-  dailyForm.addEventListener('submit', async e => {
-    e.preventDefault();
+// Save handler: daily form
+function handleDailySubmit(e) {
+  e.preventDefault();
 
-    const forecastDay = document.getElementById('forecastDay').value;
-    const payload = [];
-    let blocked = false;
+  const forecastDaySelect = document.getElementById('forecastDay');
+  if (!forecastDaySelect) return;
 
-    document.querySelectorAll('.daily-high, .daily-low').forEach(input => {
-      const val = input.value.trim();
-      if (!val) return;
+  const forecastDay = forecastDaySelect.value;
+  const payload = [];
+  let blocked = false;
 
-      const cityId = Number(input.dataset.cityId);
-      const city = cities.find(c => c.id === cityId);
+  document.querySelectorAll('.daily-high, .daily-low').forEach(input => {
+    const val = input.value.trim();
+    if (!val) return;
 
-      const localNow = new Date(
-        new Date().toLocaleString("en-US", { timeZone: city.timezone })
-      );
+    const cityId = Number(input.dataset.cityId);
+    const city = cities.find(c => c.id === cityId);
+    if (!city) return;
 
-      const cutoff = new Date(localNow);
-      cutoff.setHours(12, 0, 0, 0);
+    const localNow = new Date(
+      new Date().toLocaleString("en-US", { timeZone: city.timezone })
+    );
 
-      if (forecastDay === 'today' && localNow >= cutoff) {
-        blocked = true;
-        return;
-      }
+    const cutoff = new Date(localNow);
+    cutoff.setHours(12, 0, 0, 0);
 
-      const type = input.classList.contains('daily-high')
-        ? 'high'
-        : 'low';
-
-      let entry = payload.find(p => p.city_id === cityId);
-
-      if (!entry) {
-        entry = {
-          city_id: cityId,
-          city: city.name,
-          date:
-            forecastDay === 'today'
-              ? getCityLocalDateISO(city.timezone, 0)
-              : getCityLocalDateISO(city.timezone, 1),
-          user_id: userId
-        };
-        payload.push(entry);
-      }
-
-      entry[type] = Number(val);
-    });
-
-    if (blocked) {
-      document.getElementById('status').innerHTML =
-        '<span style="color:red;">Cutoff passed for at least 1 city.</span>';
+    if (forecastDay === 'today' && localNow >= cutoff) {
+      blocked = true;
       return;
     }
 
-    if (!payload.length) {
-      document.getElementById('status').innerHTML =
-        '<span style="color:red;">Enter at least 1 valid forecast!</span>';
-      return;
+    const type = input.classList.contains('daily-high')
+      ? 'high'
+      : 'low';
+
+    let entry = payload.find(p => p.city_id === cityId);
+
+    if (!entry) {
+      entry = {
+        city_id: cityId,
+        city: city.name,
+        date:
+          forecastDay === 'today'
+            ? getCityLocalDateISO(city.timezone, 0)
+            : getCityLocalDateISO(city.timezone, 1),
+        user_id: userId
+      };
+      payload.push(entry);
     }
 
-    const { error } = await client
-      .from('daily_forecasts')
-      .upsert(payload, { onConflict: 'user_id,city_id,date' });
-
-    if (error) {
-      document.getElementById('status').innerHTML =
-        `<span style="color:red;">Save failed: ${error.message}</span>`;
-    } else {
-      hasSavedForecast = true;
-      document.getElementById('status').innerHTML =
-        `<span style="color:green;">Saved ${payload.length} forecasts! 🐰</span>`;
-      buildDailyGrid();
-    }
+    entry[type] = Number(val);
   });
+
+  if (blocked) {
+    setStatus('<span style="color:red;">Cutoff passed for at least 1 city.</span>');
+    return;
+  }
+
+  if (!payload.length) {
+    setStatus('<span style="color:red;">Enter at least 1 valid forecast!</span>');
+    return;
+  }
+
+  client
+    .from('daily_forecasts')
+    .upsert(payload, { onConflict: 'user_id,city_id,date' })
+    .then(({ error }) => {
+      if (error) {
+        setStatus(`<span style="color:red;">Save failed: ${error.message}</span>`);
+      } else {
+        hasSavedForecast = true;
+        setStatus(`<span style="color:green;">Saved ${payload.length} forecasts! 🐰</span>`);
+        buildDailyGrid();
+      }
+    });
 }
 
-const hourlyForm = document.getElementById('hourlyForm');
-
+// Save handler: hourly form
 async function handleHourlySubmit(e) {
   e.preventDefault();
 
   const status = document.getElementById("status");
+  const cityRows = new Map(); // cityId -> row data for validation
+  const payload = [];
+
   if (!selectedHour) {
-    status.innerHTML = '<span style="color:red;">Select an hour first.</span>';
+    if (status) status.innerHTML = '<span style="color:red;">Select an hour first.</span>';
     return;
   }
 
@@ -625,7 +619,6 @@ async function handleHourlySubmit(e) {
     input.style.backgroundColor = "#fef2f2";
   };
 
-  // Clear old validation
   document.querySelectorAll(".hourly-validation-msg").forEach(el => el.remove());
   document.querySelectorAll(".hourly-input").forEach(clearInput);
 
@@ -639,19 +632,18 @@ async function handleHourlySubmit(e) {
   const sixHrHourNum = showSixHrHigh ? selectedHourNum + 0.5 : null;
 
   if (!Number.isFinite(selectedHourNum)) {
-    status.innerHTML = '<span style="color:red;">Invalid selected hour.</span>';
+    setStatus('<span style="color:red;">Invalid selected hour.</span>');
     return;
   }
 
   let blocked = false;
-  const payload = [];
-  const cityRows = new Map(); // cityId -> { cityName, cityId, hourlyVal, sixHrVal, sixHrInput }
-
   const EPS = 1e-6;
-  const sameHour = (a, b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) < EPS;
+  const sameHour = (a, b) =>
+    Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) < EPS;
 
   document.querySelectorAll(".hourly-input").forEach((input) => {
-    if (input.disabled) return; // prevent disabled fields from being validated or included in payload
+    if (input.disabled) return;
+
     const raw = input.value.trim();
     if (!raw) return;
 
@@ -677,11 +669,11 @@ async function handleHourlySubmit(e) {
       sixHrInput: null
     };
 
-    if (sameHour(inputHour, selectedHourNum)) { // integer hour = hourly input at selected hour
+    if (sameHour(inputHour, selectedHourNum)) {
       row.hourlyVal = numVal;
     }
 
-    if (sameHour(inputHour, sixHrHourNum)) { // hour + 0.5 = 6-hr input at selected hour
+    if (sameHour(inputHour, sixHrHourNum)) {
       row.sixHrVal = numVal;
       row.sixHrInput = input;
     }
@@ -699,18 +691,19 @@ async function handleHourlySubmit(e) {
   });
 
   if (blocked) {
-    status.innerHTML = '<span style="color:red;">Cutoff passed for this hour selection.</span>';
+    setStatus('<span style="color:red;">Cutoff passed for this hour selection.</span>');
     return;
   }
 
   if (!payload.length) {
-    status.innerHTML = '<span style="color:red;">Enter at least 1 forecast.</span>';
+    setStatus('<span style="color:red;">Enter at least 1 forecast.</span>');
     return;
   }
 
   const validationMessages = [];
+
   cityRows.forEach((row, cityId) => {
-    if (!row.sixHrInput) return; // no 6-hr rule needed if no 6-hr entered
+    if (!row.sixHrInput) return; // no 6-hr rule if no 6-hr input entered
 
     const cityCard = document.querySelector(`#hourlyGrid .city-card[data-city-id="${cityId}"]`);
     const msgHost = cityCard?.querySelector(".city-card-content");
@@ -736,8 +729,8 @@ async function handleHourlySubmit(e) {
   });
 
   if (validationMessages.length) {
-    status.innerHTML = `<span style="color:red;">${validationMessages.join("<br>")}</span>`;
-    return; // save nothing if any invalid
+    setStatus(`<span style="color:red;">${validationMessages.join("<br>")}</span>`);
+    return;
   }
 
   const { error } = await client
@@ -745,104 +738,76 @@ async function handleHourlySubmit(e) {
     .upsert(payload, { onConflict: "user_id,city_id,date,hour" });
 
   if (error) {
-    status.innerHTML = `<span style="color:red;">Save failed: ${error.message}</span>`;
+    setStatus(`<span style="color:red;">Save failed: ${error.message}</span>`);
   } else {
-    status.innerHTML = `<span style="color:green;">Saved ${selectedHour} forecasts! 🐰</span>`;
+    setStatus(`<span style="color:green;">Saved ${selectedHour} forecasts! 🐰</span>`);
     await buildHourlyGrid();
   }
 }
 
-if (hourlyForm) {
-  hourlyForm.addEventListener('submit', handleHourlySubmit);
+function initRevealBtn() {
+  const revealBtn = document.getElementById("revealBtn");
+  if (!revealBtn) return;
+
+  revealBtn.addEventListener("click", () => {
+    window.location.href = `score.html?mode=${isHourlyPage ? 'hourly' : 'daily'}`;
+  });
 }
 
-// Initialize help modal
-function initDailyHelpModal() {
-  const helpBtn = document.getElementById("helpBtn");
-  const modal = document.getElementById("dailyHelpModal");
-  const backdrop = document.getElementById("helpModalBackdrop");
-  const closeBtn = document.getElementById("helpCloseBtn");
-  const doneBtn = document.getElementById("helpDoneBtn");
+function initBindings() {
+  const forecastDaySelect = document.getElementById('forecastDay');
+  if (forecastDaySelect) {
+    forecastDaySelect.addEventListener('change', () => {
+      updateCurrentDate();
+      buildDailyGrid();
+    });
+  }
 
-  if (!helpBtn || !modal || !backdrop || !closeBtn || !doneBtn) {
+  const dailyForm = document.getElementById('tempsForm');
+  if (dailyForm) {
+    dailyForm.addEventListener('submit', handleDailySubmit);
+  }
+
+  const hourlyForm = document.getElementById('hourlyForm');
+  if (hourlyForm) {
+    hourlyForm.addEventListener('submit', handleHourlySubmit);
+  }
+
+  initRevealBtn();
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  detectPageMode();
+  initBindings();
+
+  if (typeof initDailyHelpModal === 'function') {
+    initDailyHelpModal();
+  }
+
+  const session = await ensureSession();
+  if (!session?.user?.id) {
+    setStatus('<span style="color:red;">Unable to start session</span>');
     return;
   }
 
-  const openHelp = () => modal.classList.remove("hidden");
-  const closeHelp = () => modal.classList.add("hidden");
-
-  helpBtn.addEventListener("click", openHelp);
-  closeBtn.addEventListener("click", closeHelp);
-  doneBtn.addEventListener("click", closeHelp);
-  backdrop.addEventListener("click", closeHelp);
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !modal.classList.contains("hidden")) {
-      closeHelp();
-    }
-  });
-}
-
-document.addEventListener("DOMContentLoaded", initDailyHelpModal);
-
-// Advance dropdown
-const forecastDaySelect = document.getElementById('forecastDay');
-
-if (forecastDaySelect) {
-  forecastDaySelect.addEventListener('change', () => {
-    updateCurrentDate();
-    buildDailyGrid();
-  });
-}
-
-// Auto check PT UI refresh
-function shouldCheckNow() {
-  const ptNow = getPTNow();
-  const hours = ptNow.getHours();
-  const minutes = ptNow.getMinutes();
-
-  return (
-    (hours === 11 && minutes >= 55) ||
-    (hours === 12 && minutes === 0) ||
-    (hours === 23 && minutes >= 55) ||
-    (hours === 0 && minutes === 0)
-  );
-}
-
-setInterval(() => {
-  if (shouldCheckNow()) {
-    updateCurrentDate();
-    buildDailyGrid();
-  }
-
-  if (isHourlyPage) {
-    const current = updateHourlyCurrentDate();
-    if (current !== hourlyCurrentDateKey) {
-      hourlyCurrentDateKey = current;
-      if (selectedHour) {
-        buildHourlyGrid();
-      }
-    }
-  }
-}, 60000);
-
-// Connect Show Score button to user score page
-document.addEventListener("DOMContentLoaded", function () {
-  const btn = document.getElementById("revealBtn");
-
-  if (btn) {
-    btn.addEventListener("click", function () {
-      window.location.href = `score.html?mode=${isHourlyPage ? 'hourly' : 'daily'}`;
-    })
-  }
-});
-
-// Start page
-(async () => {
-  userId = await getOrCreateUser();
   await loadCities();
 
   if (document.getElementById('hourSelector')) {
     buildHourSelector();
   }
-})();
+
+  setInterval(() => {
+    if (typeof shouldCheckNow === 'function' ? shouldCheckNow() : true) {
+      updateCurrentDate();
+      buildDailyGrid();
+    }
+
+    if (isHourlyPage) {
+      const current = updateHourlyCurrentDate();
+      if (current !== hourlyCurrentDateKey) {
+        hourlyCurrentDateKey = current;
+        if (selectedHour) buildHourlyGrid();
+      }
+    }
+  }, 60000);
+});
