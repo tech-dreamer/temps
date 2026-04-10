@@ -5,7 +5,6 @@ if (!window.__supabase_client) {
 }
 const client = window.__supabase_client;
 
-let userId = null;
 let cities = [];
 let hasSavedForecast = false;
 let selectedHour = null;
@@ -80,27 +79,292 @@ async function promptAndSaveBackupEmail(currentStreak) {
 }
 
 // Helper to get existing user or create new anon
-async function ensureSession() {
-  const { data: { session }, error } = await client.auth.getSession();
-  if (error) {
-    console.error("Session error:", error.message);
-    return null;
-  }
+let userId = null;
+let ensureSessionPromise = null;
 
-  if (session?.user) {
-    userId = session.user.id;
-    return session;
-  }
+function getUserIdFromAuthPayload(data) {
+  return data?.user?.id || data?.session?.user?.id || null;
+}
 
-  const { data, error: anonErr } = await client.auth.signInAnonymously();
-  if (anonErr) {
-    console.error("Anon sign-in error:", anonErr.message);
-    console.log("Anon sign-in data:", data);
-    return null;
-  }
-
-  userId = data?.session?.user?.id || null;
+function getSessionFromAuthPayload(data) {
   return data?.session || null;
+}
+
+async function createAnonymousSession() {
+  try {
+    const { data, error } = await client.auth.signInAnonymously();
+
+    if (error) {
+      console.error("Anon sign-in error:", error.message);
+      return null;
+    }
+
+    const newUserId = getUserIdFromAuthPayload(data);
+    if (!newUserId) {
+      console.error("Anon sign-in returned no user id:", data);
+      return null;
+    }
+
+    userId = newUserId;
+    return getSessionFromAuthPayload(data);
+  } catch (err) {
+    console.error("Unexpected anon sign-in error:", err.message || err);
+    return null;
+  }
+}
+
+function isForeignKeyError(err) {
+  if (!err) return false;
+  return err.code === "23503" || /foreign key/i.test(err.message || "");
+}
+
+function getSessionRecoveryFailureMessage() {
+  return "Save hitting a stale account reference (23503). Please make a Daily Forecast to create a new anon account, then try saving again.";
+}
+
+// Paste this block and replace your old refresh/recover/session save logic.
+
+const AUTH_CALLBACK_URL = `${window.location.origin}/auth/callback`;
+const MAGIC_LINK_RESEND_COOLDOWN_MS = 45_000;
+
+let userId = null;
+let ensureSessionPromise = null;
+let lastMagicLinkSentAt = 0;
+let authRecoveryState = null;
+
+function isAnonymousUser(user) {
+  return Boolean(
+    user?.is_anonymous ||
+    user?.app_metadata?.provider === "anon" ||
+    user?.app_metadata?.provider === "anonymous"
+  );
+}
+
+function setAuthRecoveryState(state) {
+  authRecoveryState = state;
+}
+
+function popAuthRecoveryState() {
+  const s = authRecoveryState;
+  authRecoveryState = null;
+  return s;
+}
+
+async function sendReauthMagicLink(email) {
+  const now = Date.now();
+
+  if (now - lastMagicLinkSentAt < MAGIC_LINK_RESEND_COOLDOWN_MS) {
+    return {
+      ok: false,
+      message:
+        "A sign-in link was sent recently. Please check your inbox before sending again."
+    };
+  }
+
+  const { error } = await client.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: false,
+      emailRedirectTo: AUTH_CALLBACK_URL
+    }
+  });
+
+  lastMagicLinkSentAt = now;
+
+  if (error) {
+    return {
+      ok: false,
+      message: `Could not send sign-in link: ${error.message}`
+    };
+  }
+
+  return {
+    ok: true,
+    message:
+      "Your account link is stale. We sent a sign-in link to your email. Please click it, then try again."
+  };
+}
+
+async function refreshAndRecoverSession(currentSession = null) {
+  const previousUser = currentSession?.user || null;
+
+  try {
+    await client.auth.signOut();
+  } catch (_) {
+    // ignore
+  }
+
+  if (!previousUser || isAnonymousUser(previousUser)) { // recovery for anon user or no prior session
+    const anonSession = await createAnonymousSession();
+    return { session: anonSession };
+  }
+
+  const email = previousUser.email; // verified user: do not auto-switch to anon recovery
+  if (!email) {
+    return {
+      needsReauth: true,
+      message: "Your account session is stale. Please sign in again."
+    };
+  }
+
+  const magic = await sendReauthMagicLink(email);
+  return {
+    needsReauth: true,
+    message:
+      magic.message || "Your account link is stale. Please sign in again."
+  };
+}
+
+async function ensureSession(forceRefresh = false) {
+  if (!forceRefresh && ensureSessionPromise) return ensureSessionPromise;
+
+  const run = async () => {
+    const { data, error } = await client.auth.getSession();
+    const session = data?.session || null;
+
+    if (session?.user?.id && !error) {
+      const { data: userData, error: userError } =
+        await client.auth.getUser(session.access_token);
+
+      if (!userError && userData?.user?.id === session.user.id) {
+        userId = userData.user.id;
+        authRecoveryState = null;
+        return session;
+      }
+
+      console.warn(
+        "Session is stale/deleted:",
+        userError?.message || "user mismatch"
+      );
+    }
+
+    const recovery = await refreshAndRecoverSession(session);
+
+    if (recovery?.needsReauth) {
+      setAuthRecoveryState({
+        needsReauth: true,
+        message: recovery.message || "Your account link is stale. Please sign in again."
+      });
+      return null;
+    }
+
+    const recoveredSession = recovery?.session || null;
+    if (!recoveredSession?.user?.id) {
+      setAuthRecoveryState({
+        needsReauth: true,
+        message: "Session recovery failed. Please sign in again."
+      });
+      return null;
+    }
+
+    userId = recoveredSession.user.id;
+    authRecoveryState = null;
+    return recoveredSession;
+  };
+
+  ensureSessionPromise = run().finally(() => {
+    ensureSessionPromise = null;
+  });
+
+  return ensureSessionPromise;
+}
+
+async function upsertWithSessionRecovery(
+  rows,
+  tableName = "daily_forecasts",
+  retries = 2
+) {
+  let payload = rows.map((r) => ({ ...r, user_id: userId }));
+
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const session = await ensureSession(attempt > 0);
+
+    const recoveryState = popAuthRecoveryState();
+    if (recoveryState?.needsReauth) {
+      return {
+        data: null,
+        error: new Error(recoveryState.message)
+      };
+    }
+
+    const activeUserId = session?.user?.id || userId;
+    if (!activeUserId) {
+      return {
+        data: null,
+        error: new Error("No active user session.")
+      };
+    }
+
+    const rowsWithUser = payload.map((r) => ({ ...r, user_id: activeUserId }));
+
+    const { data, error } = await client
+      .from(tableName)
+      .upsert(rowsWithUser, { onConflict: "id" })
+      .select();
+
+    if (!error) {
+      return { data, error: null };
+    }
+
+    if (error.code !== "23503" || attempt >= retries - 1) { // retry only for stale FK reference, otherwise return immediately
+      return { data: null, error };
+    }
+
+    // FK/User reference stale -> recover and retry once
+    const recovered = await ensureSession(true);
+
+    const recoveryOnRetry = popAuthRecoveryState();
+    if (recoveryOnRetry?.needsReauth) {
+      return {
+        data: null,
+        error: new Error(recoveryOnRetry.message)
+      };
+    }
+
+    const recoveredUserId = recovered?.user?.id || userId;
+    if (!recoveredUserId) {
+      return {
+        data: null,
+        error: new Error("Session recovery failed. Please sign in again.")
+      };
+    }
+
+    if (recoveredUserId !== activeUserId) {
+      payload = rows.map((r) => ({ ...r, user_id: recoveredUserId }));
+      userId = recoveredUserId;
+    }
+  }
+
+  return {
+    data: null,
+    error: new Error("Save failed after retries.")
+  };
+}
+
+async function handleAuthCallbackFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const hasCallback =
+    params.has("code") || params.has("token_hash") || params.has("type");
+
+  if (!hasCallback) return;
+
+  const { error } = await client.auth.getSessionFromUrl({ storeSession: true });
+  if (error) {
+    console.error("Auth callback failed:", error.message);
+  }
+}
+
+// Call this once during boot
+document.addEventListener("DOMContentLoaded", async () => {
+  await handleAuthCallbackFromUrl();
+  // ...your existing DOMContentLoaded code...
+});
+
+async function loadUserScopedDataOrEmpty(queryBuilder) {
+  const session = await ensureSession();
+  if (!session?.user?.id) return [];
+  userId = session.user.id;
+  return queryBuilder().eq("user_id", userId);
 }
 
 // Check to increment user current streak
@@ -705,9 +969,11 @@ async function handleDailySubmit(e) {
     return;
   }
 
-  const { error } = await client
-    .from('daily_forecasts')
-    .upsert(payload, { onConflict: 'user_id,city_id,date' });
+  const { error } = await upsertWithSessionRecovery({
+    table: 'daily_forecasts',
+    rows: payload,
+    onConflict: 'user_id,city_id,date'
+  });
 
   if (error) {
     setStatus(`<span style="color:red;"> Save failed: ${error.message}</span>`);
@@ -869,9 +1135,11 @@ async function handleHourlySubmit(e) {
     return;
   }
 
-  const { error } = await client
-    .from("hourly_forecasts")
-    .upsert(payload, { onConflict: "user_id,city_id,date,hour" });
+  const { error } = await upsertWithSessionRecovery({
+    table: 'hourly_forecasts',
+    rows: payload,
+    onConflict: 'user_id,city_id,date,hour'
+  });
 
   if (error) {
     setStatus(`<span style="color:red;">Save failed: ${error.message}</span>`);
@@ -913,6 +1181,7 @@ function initBindings() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  await handleAuthCallbackFromUrl();
   detectPageMode();
   initBindings();
 
@@ -922,7 +1191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const session = await ensureSession();
   if (!session?.user?.id) {
-    setStatus('<span style="color:red;">Unable to start session</span>');
+    setStatus('<span style="color:red;"> Unable to start session </span>');
     return;
   }
 
