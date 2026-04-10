@@ -517,16 +517,24 @@
     }
 
     const { createClient } = supabase;
-    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-      },
-    });
+    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    let currentUserId = null;
 
-    const userId = localStorage.getItem("temps_user_id");
+    client.auth.onAuthStateChange(async (_event, session) => {
+      currentUserId = session?.user?.id || null;
+      if (currentUserId) {
+        setMode(activeMode); // re-render with new session
+      } else {
+        const list = document.getElementById("scoreList");
+        if (list) list.innerHTML = "<p>No active session. Please sign in again.</p>";
+        document.getElementById("coinTotal").textContent = "0";
+        const moodEl = document.getElementById("moodTotal");
+        const streakEl = document.getElementById("currentStreak");
+        if (moodEl) moodEl.textContent = "—";
+        if (streakEl) streakEl.textContent = "—";
+      }
+    });
 
     const MONTH_NAMES = [
       "Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"
@@ -793,20 +801,44 @@
       if (e <= 3) return "🟡";
       return "🔴";
     }
-
+    
+    async function getSessionUserId() {
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      if (!sessionError && sessionData?.session?.user?.id) {
+        return sessionData.session.user.id;
+      }
+    
+      if (sessionError) {
+        console.warn("getSession error:", sessionError.message);
+      }
+    
+      const { data: userData, error: userError } = await client.auth.getUser();
+      if (userError) {
+        console.warn("getUser error:", userError.message);
+        return null;
+      }
+    
+      return userData?.user?.id || null;
+    }
+    
     async function checkAuth() {
-      const { error } = await client
-        .from("daily_scores")
-        .select("id", { head: true, count: "exact" })
-        .limit(1);
-
-      if (error) {
-        console.error("Auth probe failed:", error);
-        showBanner(`Auth probe failed: ${error.message}`, true);
+      const userId = await getSessionUserId();
+      if (!userId) {
+        showBanner("No active session. Make a daily forecast to create session.", true);
+    
+        const list = document.getElementById("scoreList");
+        if (list) list.innerHTML = "<p> No user session found </p>";
+    
+        document.getElementById("coinTotal").textContent = "0";
+        const moodEl = document.getElementById("moodTotal");
+        const streakEl = document.getElementById("currentStreak");
+        if (moodEl) moodEl.textContent = "—";
+        if (streakEl) streakEl.textContent = "—";
+    
         return false;
       }
-
-      console.log("Auth probe OK.");
+    
+      currentUserId = userId;
       return true;
     }
 
@@ -829,8 +861,8 @@
         }
       }
     
-      if (!userId) {
-        list.innerHTML = "<p>No user found. Please make a forecast.</p>";
+      if (!currentUserId) {
+        list.innerHTML = "<p> No user found. Please make a daily forecast. </p>";
         document.getElementById("coinTotal").textContent = "0";
     
         const moodEl = document.getElementById("moodTotal");
@@ -844,7 +876,7 @@
       let scoreQuery = client
         .from(scoreTable)
         .select("*")
-        .eq("user_id", userId);
+        .eq("user_id", currentUserId);
     
       if (isHourly) {
         const w = getHourlyWindow();
@@ -885,14 +917,14 @@
         const { data: userStatsData, error: statsError } = await client
           .from("user_stats")
           .select("current_streak")
-          .eq("user_id", userId)
+          .eq("user_id", currentUserId)
           .maybeSingle();
     
         if (statsError) {
           console.error("User Stats Fetch Error:", statsError);
         } else if (!userStatsData) {
           const { error: upsertError } = await client.from("user_stats").upsert(
-            { user_id: userId, current_streak: 0 },
+            { user_id: currentUserId, current_streak: 0 },
             { onConflict: "user_id" }
           );
           if (upsertError) {
