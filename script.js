@@ -40,6 +40,49 @@ function isValidEmail(email) {
   return /^\S+@\S+\.\S+$/.test(email);
 }
 
+const PROJECT_REF = new URL(SUPABASE_URL).hostname.split('.')[0];
+
+function isInvalidRefreshTokenError(err) { 
+  const msg = String(err?.message || err?.error_description || "");
+  return (
+    err?.status === 400 &&
+    (err?.code === "invalid_refresh_token" ||
+      err?.code === "refresh_token_not_found" ||
+      err?.code === "invalid_grant" ||
+      /Invalid Refresh Token/i.test(msg) ||
+      /refresh token not found/i.test(msg))
+  );
+}
+
+function clearSupabaseAuthStorage() {
+  const collectAndRemove = (store) => {
+    const keys = [];
+    for (let i = 0; i < store.length; i++) {
+      const key = store.key(i);
+      if (!key) continue;
+      if (
+        key === "supabase.auth.token" ||
+        key === `sb-${PROJECT_REF}-auth-token` ||
+        (key.startsWith("sb-") && key.includes("auth-token"))
+      ) {
+        keys.push(key);
+      }
+    }
+    for (const key of keys) store.removeItem(key);
+  };
+
+  try {
+    collectAndRemove(localStorage);
+    collectAndRemove(sessionStorage);
+  } catch (_) {}
+}
+
+async function recoverByResettingAuth() {    // auto recover from stale/invalid refresh token
+  try { await client.auth.signOut({ scope: "global" }); } catch (_) {}
+  clearSupabaseAuthStorage();
+  return createAnonymousSession();
+}
+
 async function promptAndSaveBackupEmail(currentStreak) {
   if (currentStreak < BACKUP_EMAIL_STREAK) return;
 
@@ -109,15 +152,6 @@ async function createAnonymousSession() {
   }
 }
 
-function isForeignKeyError(err) {
-  if (!err) return false;
-  return err.code === "23503" || /foreign key/i.test(err.message || "");
-}
-
-function getSessionRecoveryFailureMessage() {
-  return "Save hitting a stale account reference (23503). Please make a Daily Forecast to create a new anon account, then try saving again.";
-}
-
 const AUTH_CALLBACK_URL = `${window.location.origin}/auth/callback`;
 const MAGIC_LINK_RESEND_COOLDOWN_MS = 45_000;
 
@@ -136,6 +170,7 @@ function isAnonymousUser(user) {
 
 function setAuthRecoveryState(state) {
   authRecoveryState = state;
+  if (state?.needsReauth) userId = null;
 }
 
 function popAuthRecoveryState() {
@@ -182,11 +217,8 @@ async function sendReauthMagicLink(email) {
 async function refreshAndRecoverSession(currentSession = null) {
   const previousUser = currentSession?.user || null;
 
-  try {
-    await client.auth.signOut();
-  } catch (_) {
-    // ignore
-  }
+  try { await client.auth.signOut({ scope: "global" }); } catch (_) {}
+    clearSupabaseAuthStorage();
 
   if (!previousUser || isAnonymousUser(previousUser)) {    // recovery for anon user or no prior session
     const anonSession = await createAnonymousSession();
@@ -195,6 +227,7 @@ async function refreshAndRecoverSession(currentSession = null) {
 
   const email = previousUser.email;    // verified user: do not auto-switch to anon recovery
   if (!email) {
+    userId = null;    // clear stale id
     return {
       needsReauth: true,
       message: "Your account session is stale. Please sign in again."
@@ -202,6 +235,10 @@ async function refreshAndRecoverSession(currentSession = null) {
   }
 
   const magic = await sendReauthMagicLink(email);
+  if (magic?.ok !== true) {
+    userId = null;
+  }
+  userId = null;
   return {
     needsReauth: true,
     message:
@@ -209,13 +246,34 @@ async function refreshAndRecoverSession(currentSession = null) {
   };
 }
 
-// Helper to get existing user or create new anon
+// Helper to get existing user or create new anon user
 async function ensureSession(forceRefresh = false) {
-  if (!forceRefresh && ensureSessionPromise) return ensureSessionPromise;
-
+  if (ensureSessionPromise && !forceRefresh) return ensureSessionPromise;
+  
   const run = async () => {
-    const { data, error } = await client.auth.getSession();
-    const session = data?.session || null;
+    let session = null;
+    let error = null;
+
+    try {
+      const result = await client.auth.getSession();
+      session = result?.data?.session || null;
+      error = result?.error || null;
+    } catch (err) {
+      error = err;
+    }
+
+    if (error && isInvalidRefreshTokenError(error)) {
+      console.warn("Invalid refresh token detected, resetting auth state...");
+      const anonSession = await recoverByResettingAuth();
+      if (anonSession?.user?.id) {
+        userId = anonSession.user.id;
+        authRecoveryState = null;
+        return anonSession;
+      }
+      userId = null;
+      setAuthRecoveryState({ needsReauth: true, message: "Session recovery failed. Please sign in again." });
+      return null;
+    }
 
     if (session?.user?.id && !error) {
       const { data: userData, error: userError } =
@@ -277,6 +335,7 @@ async function upsertWithSessionRecovery({
 
     const recoveryState = popAuthRecoveryState();
     if (recoveryState?.needsReauth) {
+      userId = null;
       return { data: null, error: new Error(recoveryState.message) };
     }
 
@@ -301,6 +360,7 @@ async function upsertWithSessionRecovery({
     const recovered = await ensureSession(true);
     const recoveryOnRetry = popAuthRecoveryState();
     if (recoveryOnRetry?.needsReauth) {
+      userId = null;
       return { data: null, error: new Error(recoveryOnRetry.message) };
     }
 
