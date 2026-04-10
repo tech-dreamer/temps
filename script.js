@@ -49,7 +49,7 @@ async function promptAndSaveBackupEmail(currentStreak) {
   } = await client.auth.getUser();
   if (userErr || !user) return;
 
-  if (user.email) return; // stop prompting once user saves an email
+  if (user.email) return;    // stop prompting once user saves an email
 
   const lastPromptedAt = user.user_metadata?.backup_email_prompted_at;
   if (!isPromptDue(currentStreak, lastPromptedAt)) return;
@@ -77,10 +77,6 @@ async function promptAndSaveBackupEmail(currentStreak) {
   await client.auth.updateUser({ data: { backup_email_prompted_at: null } });
   setStatus('<span style="color:green;"> Backup email saved, your progress safe ✅ </span>');
 }
-
-// Helper to get existing user or create new anon
-let userId = null;
-let ensureSessionPromise = null;
 
 function getUserIdFromAuthPayload(data) {
   return data?.user?.id || data?.session?.user?.id || null;
@@ -121,8 +117,6 @@ function isForeignKeyError(err) {
 function getSessionRecoveryFailureMessage() {
   return "Save hitting a stale account reference (23503). Please make a Daily Forecast to create a new anon account, then try saving again.";
 }
-
-// Paste this block and replace your old refresh/recover/session save logic.
 
 const AUTH_CALLBACK_URL = `${window.location.origin}/auth/callback`;
 const MAGIC_LINK_RESEND_COOLDOWN_MS = 45_000;
@@ -194,12 +188,12 @@ async function refreshAndRecoverSession(currentSession = null) {
     // ignore
   }
 
-  if (!previousUser || isAnonymousUser(previousUser)) { // recovery for anon user or no prior session
+  if (!previousUser || isAnonymousUser(previousUser)) {    // recovery for anon user or no prior session
     const anonSession = await createAnonymousSession();
     return { session: anonSession };
   }
 
-  const email = previousUser.email; // verified user: do not auto-switch to anon recovery
+  const email = previousUser.email;    // verified user: do not auto-switch to anon recovery
   if (!email) {
     return {
       needsReauth: true,
@@ -215,6 +209,7 @@ async function refreshAndRecoverSession(currentSession = null) {
   };
 }
 
+// Helper to get existing user or create new anon
 async function ensureSession(forceRefresh = false) {
   if (!forceRefresh && ensureSessionPromise) return ensureSessionPromise;
 
@@ -269,11 +264,12 @@ async function ensureSession(forceRefresh = false) {
   return ensureSessionPromise;
 }
 
-async function upsertWithSessionRecovery(
-  rows,
-  tableName = "daily_forecasts",
+async function upsertWithSessionRecovery({
+  rows = [],
+  table = "daily_forecasts",
+  onConflict = "id",
   retries = 2
-) {
+}) {
   let payload = rows.map((r) => ({ ...r, user_id: userId }));
 
   for (let attempt = 0; attempt < retries; attempt++) {
@@ -281,52 +277,36 @@ async function upsertWithSessionRecovery(
 
     const recoveryState = popAuthRecoveryState();
     if (recoveryState?.needsReauth) {
-      return {
-        data: null,
-        error: new Error(recoveryState.message)
-      };
+      return { data: null, error: new Error(recoveryState.message) };
     }
 
     const activeUserId = session?.user?.id || userId;
     if (!activeUserId) {
-      return {
-        data: null,
-        error: new Error("No active user session.")
-      };
+      return { data: null, error: new Error("No active user session.") };
     }
 
     const rowsWithUser = payload.map((r) => ({ ...r, user_id: activeUserId }));
 
     const { data, error } = await client
-      .from(tableName)
-      .upsert(rowsWithUser, { onConflict: "id" })
+      .from(table)
+      .upsert(rowsWithUser, { onConflict })
       .select();
 
-    if (!error) {
-      return { data, error: null };
-    }
+    if (!error) return { data, error: null };
 
-    if (error.code !== "23503" || attempt >= retries - 1) { // retry only for stale FK reference, otherwise return immediately
+    if (error.code !== "23503" || attempt >= retries - 1) {
       return { data: null, error };
     }
 
-    // FK/User reference stale -> recover and retry once
     const recovered = await ensureSession(true);
-
     const recoveryOnRetry = popAuthRecoveryState();
     if (recoveryOnRetry?.needsReauth) {
-      return {
-        data: null,
-        error: new Error(recoveryOnRetry.message)
-      };
+      return { data: null, error: new Error(recoveryOnRetry.message) };
     }
 
     const recoveredUserId = recovered?.user?.id || userId;
     if (!recoveredUserId) {
-      return {
-        data: null,
-        error: new Error("Session recovery failed. Please sign in again.")
-      };
+      return { data: null, error: new Error("Session recovery failed. Please sign in again.") };
     }
 
     if (recoveredUserId !== activeUserId) {
@@ -335,10 +315,7 @@ async function upsertWithSessionRecovery(
     }
   }
 
-  return {
-    data: null,
-    error: new Error("Save failed after retries.")
-  };
+  return { data: null, error: new Error("Save failed after retries.") };
 }
 
 async function handleAuthCallbackFromUrl() {
@@ -354,12 +331,6 @@ async function handleAuthCallbackFromUrl() {
   }
 }
 
-// Call this once during boot
-document.addEventListener("DOMContentLoaded", async () => {
-  await handleAuthCallbackFromUrl();
-  // ...your existing DOMContentLoaded code...
-});
-
 async function loadUserScopedDataOrEmpty(queryBuilder) {
   const session = await ensureSession();
   if (!session?.user?.id) return [];
@@ -369,16 +340,14 @@ async function loadUserScopedDataOrEmpty(queryBuilder) {
 
 // Check to increment user current streak
 async function checkIncrementDailyStreak(payload, forecastDate) {
-  // require at least 2 cities with daily high forecasts
-  const newHighCityIds = new Set(
+  const newHighCityIds = new Set(    // require at least 2 cities with daily high forecasts
     payload
       .filter(p => p.high !== undefined && Number.isFinite(Number(p.high)))
       .map(p => p.city_id)
   );
   if (newHighCityIds.size < 2) return null;
 
-  // get how many highs already exist for this date before submit
-  const { data: existing, error: existErr } = await client
+  const { data: existing, error: existErr } = await client    // get how many highs already exist for this date before submit
     .from('daily_forecasts')
     .select('city_id')
     .eq('user_id', userId)
@@ -398,7 +367,7 @@ async function checkIncrementDailyStreak(payload, forecastDate) {
 
   if (countBefore >= 2 || countAfter < 2) return null;
 
-  const { data: stats, error: statsErr } = await client // get current streak
+  const { data: stats, error: statsErr } = await client    // get current streak
     .from('user_stats')
     .select('current_streak')
     .eq('user_id', userId)
@@ -411,7 +380,7 @@ async function checkIncrementDailyStreak(payload, forecastDate) {
 
   const nextStreak = Number(stats?.current_streak || 0) + 1;
 
-  const { error: upErr } = await client // write new streak to user stats
+  const { error: upErr } = await client    // write new streak to user stats
     .from('user_stats')
     .update({ current_streak: nextStreak })
     .eq('user_id', userId);
@@ -421,7 +390,7 @@ async function checkIncrementDailyStreak(payload, forecastDate) {
     return null;
   }
 
-  return nextStreak; // return updated value for email prompt
+  return nextStreak;    // return updated value for email prompt
 }
 
 function isPromptDue(currentStreak, lastPromptedAtIso) {
@@ -984,8 +953,7 @@ async function handleDailySubmit(e) {
   setStatus(`<span style="color:green;"> Saved ${payload.length} forecasts! 🐰 </span>`);
   buildDailyGrid();
 
-  // check streak for each forecast date used (safe if timezone edge case creates >1)
-  for (const forecastDate of forecastDates) {
+  for (const forecastDate of forecastDates) {      // check streak for each forecast date used (safe if timezone edge case creates >1)
     const updatedStreak = await checkIncrementDailyStreak(payload, forecastDate);
     if (updatedStreak !== null) {
       await promptAndSaveBackupEmail(updatedStreak);
@@ -999,7 +967,7 @@ async function handleHourlySubmit(e) {
   e.preventDefault();
 
   const status = document.getElementById("status");
-  const cityRows = new Map(); // cityId -> row data for validation
+  const cityRows = new Map();    // cityId maps to row data for validation
   const payload = [];
 
   if (!selectedHour) {
@@ -1105,7 +1073,7 @@ async function handleHourlySubmit(e) {
   const validationMessages = [];
 
   cityRows.forEach((row, cityId) => {
-    if (!row.sixHrInput) return; // no 6-hr rule if no 6-hr input entered
+    if (!row.sixHrInput) return;    // no 6-hr rule if no 6-hr input entered
 
     const cityCard = document.querySelector(`#hourlyGrid .city-card[data-city-id="${cityId}"]`);
     const msgHost = cityCard?.querySelector(".city-card-content");
@@ -1124,7 +1092,7 @@ async function handleHourlySubmit(e) {
       if (!msgHost.querySelector('.hourly-validation-msg')) {
         msgHost.insertAdjacentHTML(
           "beforeend",
-          `<div class="hourly-validation-msg" style="color:#dc2626; margin-top:.4rem;">Fix invalid 6-hr input.</div>`
+          `<div class="hourly-validation-msg" style="color:#dc2626; margin-top:.4rem;"> Fix invalid 6-hr input </div>`
         );
       }
     }
@@ -1142,9 +1110,9 @@ async function handleHourlySubmit(e) {
   });
 
   if (error) {
-    setStatus(`<span style="color:red;">Save failed: ${error.message}</span>`);
+    setStatus(`<span style="color:red;"> Save failed: ${error.message}</span>`);
   } else {
-    setStatus(`<span style="color:green;">Saved ${selectedHour} forecasts! 🐰</span>`);
+    setStatus(`<span style="color:green;"> Saved ${selectedHour} forecasts! 🐰 </span>`);
     await buildHourlyGrid();
   }
 }
