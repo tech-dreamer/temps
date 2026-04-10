@@ -77,9 +77,11 @@ function clearSupabaseAuthStorage() {
   } catch (_) {}
 }
 
-async function recoverByResettingAuth() {    // auto recover from stale/invalid refresh token
+async function recoverByResettingAuth({ allowAnonymous = false } = {}) {    // auto recover from stale/invalid refresh token
   try { await client.auth.signOut({ scope: "global" }); } catch (_) {}
   clearSupabaseAuthStorage();
+
+  if (!allowAnonymous) return null;
   return createAnonymousSession();
 }
 
@@ -157,6 +159,7 @@ const MAGIC_LINK_RESEND_COOLDOWN_MS = 45_000;
 
 let userId = null;
 let ensureSessionPromise = null;
+let ensureSessionPromiseMode = null;
 let lastMagicLinkSentAt = 0;
 let authRecoveryState = null;
 
@@ -170,7 +173,7 @@ function isAnonymousUser(user) {
 
 function setAuthRecoveryState(state) {
   authRecoveryState = state;
-  if (state?.needsReauth) userId = null;
+  if (state?.needsReauth) userId = null;    // clear stale user id
 }
 
 function popAuthRecoveryState() {
@@ -214,20 +217,22 @@ async function sendReauthMagicLink(email) {
   };
 }
 
-async function refreshAndRecoverSession(currentSession = null) {
+async function refreshAndRecoverSession(currentSession = null, options = {}) {
+  const { allowAnonymous = false } = options;
   const previousUser = currentSession?.user || null;
 
   try { await client.auth.signOut({ scope: "global" }); } catch (_) {}
-    clearSupabaseAuthStorage();
+  clearSupabaseAuthStorage();
 
-  if (!previousUser || isAnonymousUser(previousUser)) {    // recovery for anon user or no prior session
+  if (!previousUser || isAnonymousUser(previousUser)) {
+    if (!allowAnonymous) return null;    // no auto-create anon unless explicitly allowed
     const anonSession = await createAnonymousSession();
     return { session: anonSession };
   }
 
-  const email = previousUser.email;    // verified user: do not auto-switch to anon recovery
+  const email = previousUser.email;    // verified user: no auto-switch to anon recovery
   if (!email) {
-    userId = null;    // clear stale id
+    userId = null;
     return {
       needsReauth: true,
       message: "Your account session is stale. Please sign in again."
@@ -247,9 +252,17 @@ async function refreshAndRecoverSession(currentSession = null) {
 }
 
 // Helper to get existing user or create new anon user
-async function ensureSession(forceRefresh = false) {
-  if (ensureSessionPromise && !forceRefresh) return ensureSessionPromise;
-  
+async function ensureSession(forceRefresh = false, options = {}) {
+  const { allowAnonymous = false } = options;
+
+  if (
+    ensureSessionPromise &&
+    !forceRefresh &&
+    ensureSessionPromiseMode === allowAnonymous
+  ) {
+    return ensureSessionPromise;
+  }
+
   const run = async () => {
     let session = null;
     let error = null;
@@ -262,22 +275,38 @@ async function ensureSession(forceRefresh = false) {
       error = err;
     }
 
-    if (error && isInvalidRefreshTokenError(error)) {
-      console.warn("Invalid refresh token detected, resetting auth state...");
-      const anonSession = await recoverByResettingAuth();
-      if (anonSession?.user?.id) {
-        userId = anonSession.user.id;
+    if (error) {
+      if (isInvalidRefreshTokenError(error)) {
+        console.warn("Invalid refresh token detected, attempting recovery...");
+        const recovery = await refreshAndRecoverSession(session, { allowAnonymous });
+
+        if (recovery?.needsReauth) {
+          setAuthRecoveryState({
+            needsReauth: true,
+            message: recovery.message || "Your account link is stale. Please sign in again."
+          });
+          return null;
+        }
+
+        const recoveredSession = recovery?.session || null;
+        if (!recoveredSession?.user?.id) {
+          userId = null;
+          return null;
+        }
+
+        userId = recoveredSession.user.id;
         authRecoveryState = null;
-        return anonSession;
+        return recoveredSession;
       }
-      userId = null;
-      setAuthRecoveryState({ needsReauth: true, message: "Session recovery failed. Please sign in again." });
+
+      console.warn("Session retrieval failed:", error.message || error);
       return null;
     }
 
-    if (session?.user?.id && !error) {
-      const { data: userData, error: userError } =
-        await client.auth.getUser(session.access_token);
+    if (session?.user?.id) {
+      const { data: userData, error: userError } = await client.auth.getUser(
+        session.access_token
+      );
 
       if (!userError && userData?.user?.id === session.user.id) {
         userId = userData.user.id;
@@ -291,7 +320,7 @@ async function ensureSession(forceRefresh = false) {
       );
     }
 
-    const recovery = await refreshAndRecoverSession(session);
+    const recovery = await refreshAndRecoverSession(session, { allowAnonymous });
 
     if (recovery?.needsReauth) {
       setAuthRecoveryState({
@@ -303,10 +332,7 @@ async function ensureSession(forceRefresh = false) {
 
     const recoveredSession = recovery?.session || null;
     if (!recoveredSession?.user?.id) {
-      setAuthRecoveryState({
-        needsReauth: true,
-        message: "Session recovery failed. Please sign in again."
-      });
+      userId = null;
       return null;
     }
 
@@ -315,8 +341,10 @@ async function ensureSession(forceRefresh = false) {
     return recoveredSession;
   };
 
+  ensureSessionPromiseMode = allowAnonymous;
   ensureSessionPromise = run().finally(() => {
     ensureSessionPromise = null;
+    ensureSessionPromiseMode = null;
   });
 
   return ensureSessionPromise;
@@ -326,12 +354,13 @@ async function upsertWithSessionRecovery({
   rows = [],
   table = "daily_forecasts",
   onConflict = "id",
-  retries = 2
+  retries = 2,
+  allowAnonymous = false
 }) {
   let payload = rows.map((r) => ({ ...r, user_id: userId }));
 
   for (let attempt = 0; attempt < retries; attempt++) {
-    const session = await ensureSession(attempt > 0);
+    const session = await ensureSession(attempt > 0, { allowAnonymous });
 
     const recoveryState = popAuthRecoveryState();
     if (recoveryState?.needsReauth) {
@@ -357,7 +386,7 @@ async function upsertWithSessionRecovery({
       return { data: null, error };
     }
 
-    const recovered = await ensureSession(true);
+    const recovered = await ensureSession(true, { allowAnonymous });
     const recoveryOnRetry = popAuthRecoveryState();
     if (recoveryOnRetry?.needsReauth) {
       userId = null;
@@ -1001,7 +1030,8 @@ async function handleDailySubmit(e) {
   const { error } = await upsertWithSessionRecovery({
     table: 'daily_forecasts',
     rows: payload,
-    onConflict: 'user_id,city_id,date'
+    onConflict: 'user_id,city_id,date',
+    allowAnonymous: true    // create anon user only on 1st daily save if needed
   });
 
   if (error) {
@@ -1219,8 +1249,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const session = await ensureSession();
   if (!session?.user?.id) {
-    setStatus('<span style="color:red;"> Unable to start session </span>');
-    return;
+    setStatus('<span style="color:orange;"> No active session yet. Your first daily save will create a guest session. </span>');
   }
 
   await loadCities();
