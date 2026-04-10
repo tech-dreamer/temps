@@ -1,6 +1,9 @@
 const SUPABASE_URL = 'https://ckyqknlxmjqlkqnxhgef.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0';
-const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if (!window.__supabase_client) {
+  window.__supabase_client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+const client = window.__supabase_client;
 
 let userId = null;
 let cities = [];
@@ -92,6 +95,7 @@ async function ensureSession() {
   const { data, error: anonErr } = await client.auth.signInAnonymously();
   if (anonErr) {
     console.error("Anon sign-in error:", anonErr.message);
+    console.log("Anon sign-in data:", data);
     return null;
   }
 
