@@ -321,10 +321,10 @@
           return;
         }
 
-        // query known columns + common timestamp fallbacks
+        // query all columns
         const { data, error } = await supabase
           .from("user_stats")
-          .select("mood, current_streak, total_coins, coins, last_seen, last_login, updated_at, created_at")
+          .select("*")
           .eq("user_id", userId)
           .single();
 
