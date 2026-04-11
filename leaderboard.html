@@ -293,14 +293,10 @@
       "Content-Type": "application/json"
     };
 
-    // Added display_name and rank from the view
-    const LEADERBOARD_URL = `${SUPABASE_URL}/rest/v1/leaderboard?select=user_id,username,display_name,coins,current_streak,mood,rank&order=rank.asc`;
-
+    const LEADERBOARD_URL = `${SUPABASE_URL}/rest/v1/leaderboard?select=user_id,username,display_name,coins,current_streak,mood,created_at,rank&order=coins.desc,current_streak.desc,mood.desc,created_at.asc`;
     const SOURCE_LABEL = "leaderboard view";
 
-    const status = document.getElementById("status");
     let cachedCurrentUserId = null;
-
     const formatNumber = (value) => Number(value || 0).toLocaleString("en-US");
 
     function escapeHtml(value) {
@@ -420,6 +416,7 @@
         coins: Number(r.coins || 0),
         current_streak: Number(r.current_streak || 0),
         mood: Number(r.mood || 0),
+        created_at: r.created_at || "",
         rank: Number(r.rank || idx + 1),
         name: resolveDisplayName(r, currentUserId)
       }));
@@ -441,37 +438,46 @@
 
     function renderPlayers(players) {
       rowsEl.innerHTML = "";
-
+    
       if (!players.length) {
         rowsEl.innerHTML = `<li class="empty">No users yet.</li>`;
         statusEl.textContent = "No users yet";
         return;
       }
-
-      // Use DB rank when available
-      const ordered = [...players].sort((a, b) => {
-        if (a.rank !== b.rank) return a.rank - b.rank;
-        if (b.coins !== a.coins) return b.coins - a.coins;
-        return a.name.localeCompare(b.name);
-      });
-
+    
+      const ordered = [...players]    // sort by coins then streak if tied then mood if still tied then created_at as tiebreaker
+        .sort((a, b) => {
+          if (b.coins !== a.coins) return b.coins - a.coins;
+    
+          if (b.current_streak !== a.current_streak) return b.current_streak - a.current_streak;
+    
+          if (b.mood !== a.mood) return b.mood - a.mood;
+    
+          const at = new Date(a.created_at).getTime();
+          const bt = new Date(b.created_at).getTime();
+          if (!Number.isNaN(at) && !Number.isNaN(bt)) return at - bt;
+    
+          return 0;
+        })
+        .map((player, idx) => ({ ...player, displayRank: idx + 1 }));
+    
       statusEl.textContent = `Updated ${new Date().toLocaleTimeString("en-US", { timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit", hour12: true })}`;
-
+    
       for (const p of ordered) {
         const li = document.createElement("li");
         li.className = "row";
-        const rankClass = getRankClass(p.rank);
+        const rankClass = getRankClass(p.displayRank);
+    
         const safeName = escapeHtml(p.name);
-
         li.innerHTML = `
-          <div class="rank ${rankClass}">${rankEmoji(p.rank)}</div>
+          <div class="rank ${rankClass}">${rankEmoji(p.displayRank)}</div>
           <div class="name" title="${safeName}">${safeName}</div>
           <div class="coins"><span class="coin-emoji">🪙</span>${formatNumber(p.coins)} coins</div>
         `;
         rowsEl.appendChild(li);
       }
     }
-
+        
     function renderError(errors) {
       rowsEl.innerHTML = "";
 
