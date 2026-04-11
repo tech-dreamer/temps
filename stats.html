@@ -12,8 +12,6 @@
       --muted: #6b7280;
       --line: #e5e7eb;
       --accent: #3b82f6;
-      --warm: #f59e0b;
-      --good: #10b981;
       --soft: #f3f4f6;
       --shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
       --purple: #800080;
@@ -128,16 +126,11 @@
     }
 
     .value.mood.sad {
-      color: #FF0000;
+      color: #ff0000;
     }
 
     .value.mood.neutral {
       color: #800080;
-    }
-
-    .value.small {
-      font-size: 1rem;
-      font-weight: 650;
     }
 
     .meta {
@@ -201,12 +194,12 @@
 <body>
   <div class="wrap">
     <header>
-      <h1 class="title"> 🌤️ My Stats </h1>
-      <p class="subtitle"> A snapshot of my current progress and stats </p>
+      <h1 class="title">🌤️ My Stats</h1>
+      <p class="subtitle">A snapshot of my current progress and stats</p>
     </header>
 
     <section class="card">
-      <div id="status" class="loading"> Loading my personal stats… </div>
+      <div id="status" class="loading">Loading my personal stats…</div>
 
       <div id="statsPanel" style="display:none;">
         <div id="moodLine" class="status"></div>
@@ -216,7 +209,7 @@
             <div class="label">🪙 Current Coins</div>
             <p class="value" id="coins">—</p>
           </article>
-          
+
           <article class="stat">
             <div class="label">🪙 Total Coins</div>
             <p class="value" id="totalCoins">—</p>
@@ -233,7 +226,7 @@
           </article>
         </div>
 
-        <p class="meta" id="lastActive">Last active: —</p>
+        <p class="meta" id="lastForecast">Last forecast: —</p>
 
         <div class="btn-row">
           <button class="secondary" id="historyBtn" type="button">Go To My History</button>
@@ -261,7 +254,7 @@
     const coinsEl = document.getElementById("coins");
     const currentStreakEl = document.getElementById("currentStreak");
     const moodEl = document.getElementById("mood");
-    const lastActiveEl = document.getElementById("lastActive");
+    const lastForecastEl = document.getElementById("lastForecast");
     const refreshBtn = document.getElementById("refreshBtn");
     const historyBtn = document.getElementById("historyBtn");
 
@@ -303,6 +296,23 @@
       else moodEl.classList.add("neutral");
     }
 
+    async function getMostRecentForecastDate(userId) {
+      const { data, error } = await supabase
+        .from("daily_forecasts")
+        .select("date")
+        .eq("user_id", userId)
+        .order("date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        if (error.code === "PGRST116") return null; // no rows
+        throw error;
+      }
+
+      return data?.date || null;
+    }
+
     async function loadStats() {
       statusEl.className = "loading";
       statusEl.textContent = "Loading your personal stats…";
@@ -321,7 +331,7 @@
           return;
         }
 
-        // query all columns
+        // Load user stats
         const { data, error } = await supabase
           .from("user_stats")
           .select("*")
@@ -347,8 +357,13 @@
         setMoodDisplay(mood);
         moodLine.textContent = friendlyMoodLine(mood);
 
-        const lastActiveRaw = data.last_seen || data.last_login || data.updated_at || data.created_at || null;
-        lastActiveEl.textContent = `Last active: ${formatDate(lastActiveRaw)}`;
+        try {
+          const lastForecastDate = await getMostRecentForecastDate(userId);
+          lastForecastEl.textContent = `Last forecast: ${formatDate(lastForecastDate)}`;
+        } catch (forecastErr) {
+          console.warn("Could not fetch last forecast date:", forecastErr);
+          lastForecastEl.textContent = "Last forecast: unavailable";
+        }
 
         statusEl.style.display = "none";
         panel.style.display = "block";
