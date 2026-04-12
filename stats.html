@@ -226,11 +226,11 @@
           </article>
         </div>
 
-        <p class="meta" id="lastForecast">Last forecast: —</p>
+        <p class="meta" id="lastForecast"> Last forecast: — </p>
 
         <div class="btn-row">
-          <button class="secondary" id="historyBtn" type="button">Go To My History</button>
-          <button id="refreshBtn" type="button">Refresh</button>
+          <button class="secondary" id="historyBtn" type="button"> Go To My History </button>
+          <button id="refreshBtn" type="button"> Refresh </button>
         </div>
       </div>
     </section>
@@ -359,7 +359,7 @@
 
         try {
           const lastForecastDate = await getMostRecentForecastDate(userId);
-          lastForecastEl.textContent = `Last forecast: ${formatDate(lastForecastDate)}`;
+          lastForecastEl.textContent = `Last forecast made on: ${formatDate(lastForecastDate)}`;
         } catch (forecastErr) {
           console.warn("Could not fetch last forecast date:", forecastErr);
           lastForecastEl.textContent = "Last forecast: unavailable";
