@@ -432,22 +432,23 @@ async function checkIncrementDailyStreak(payload, forecastDate, explicitUserId =
   const uid = explicitUserId || userId;
   if (!uid) return null;
 
-  const newHighCityIds = new Set(
+  const newHighCityIds = new Set(    // highs in this save
     payload
       .filter(p => p.high !== undefined && Number.isFinite(Number(p.high)))
       .map(p => p.city_id)
   );
-  if (newHighCityIds.size < 2) return null;
+
+  if (newHighCityIds.size === 0) return null;
 
   const { data: existing, error: existErr } = await client
-    .from('daily_forecasts')
-    .select('city_id')
-    .eq('user_id', uid)
-    .eq('date', forecastDate)
-    .not('high', 'is', null);
+    .from("daily_forecasts")
+    .select("city_id")
+    .eq("user_id", uid)
+    .eq("date", forecastDate)
+    .not("high", "is", null);
 
   if (existErr) {
-    console.error('Failed to read existing highs:', existErr.message);
+    console.error("Failed to read existing highs:", existErr.message);
     return null;
   }
 
@@ -457,38 +458,36 @@ async function checkIncrementDailyStreak(payload, forecastDate, explicitUserId =
   newHighCityIds.forEach(id => existingSet.add(id));
   const countAfter = existingSet.size;
 
-  if (countBefore >= 2 || countAfter < 2) return null;
+  if (countBefore >= 2 || countAfter < 2) return null;    // only increment first time reaching 2 highs
 
-  const { data: stats, error: statsErr } = await client    // get current streak or default to 0 if row missing
-    .from('user_stats')
-    .select('current_streak')
-    .eq('user_id', uid)
+  const { data: stats, error: statsErr } = await client
+    .from("user_stats")
+    .select("current_streak")
+    .eq("user_id", uid)
     .maybeSingle();
 
   if (statsErr) {
-    console.error('Failed to read user_stats:', statsErr.message);
+    console.error("Failed to read user_stats:", statsErr.message);
     return null;
   }
 
-  const currentStreak = Number(stats?.current_streak || 0);
-  const nextStreak = currentStreak + 1;
+  const nextStreak = Number(stats?.current_streak || 0) + 1;
 
-  // Ensure row exists + update in one step
   const { data: upserted, error: upErr } = await client
-    .from('user_stats')
+    .from("user_stats")
     .upsert(
       { user_id: uid, current_streak: nextStreak },
-      { onConflict: 'user_id' } // requires unique constraint on user_stats.user_id
+      { onConflict: "user_id" }
     )
-    .select('current_streak')
+    .select("current_streak")
     .single();
 
   if (upErr) {
-    console.error('Failed to update streak:', upErr.message);
+    console.error("Failed to update streak:", upErr.message);
     return null;
   }
 
-  return upserted.current_streak;    // return updated streak for email prompt
+  return upserted.current_streak;    // return updated streak
 }
 
 function isPromptDue(currentStreak, lastPromptedAtIso) {
