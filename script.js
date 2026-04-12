@@ -432,10 +432,15 @@ async function checkIncrementDailyStreak(payload, forecastDate, explicitUserId =
   const uid = explicitUserId || userId;
   if (!uid) return { ok: false, reason: 'NO_USER_ID' };
 
-  const newHighCityIds = new Set(    // count highs in this save payload
+  const newHighCityIds = new Set(    // cities in this submit have a valid high for this date
     payload
-      .filter((p) => p.high !== undefined && Number.isFinite(Number(p.high)))
-      .map((p) => p.city_id)
+      .filter((p) =>
+        p.date === forecastDate &&
+        p.high !== null &&
+        p.high !== undefined &&
+        Number.isFinite(Number(p.high))
+      )
+      .map((p) => Number(p.city_id))
   );
 
   if (newHighCityIds.size === 0) {
@@ -453,18 +458,27 @@ async function checkIncrementDailyStreak(payload, forecastDate, explicitUserId =
     return { ok: false, reason: 'FETCH_EXISTING_FAILED', error: existErr.message };
   }
 
-  const existingSet = new Set((existing || []).map((r) => r.city_id));
-  const countBefore = existingSet.size;
+  const existingSet = new Set((existing || []).map((r) => Number(r.city_id)));
 
-  newHighCityIds.forEach((id) => existingSet.add(id));
-  const countAfter = existingSet.size;
+  const countBefore = existingSet.size;    // count before this submit
+  const countAfter = new Set([...existingSet, ...newHighCityIds]).size;    // projected count after this submit
 
   if (countBefore >= 2) {
-    return { ok: false, reason: 'ALREADY_REACHED_THRESHOLD', countBefore };
+    return {
+      ok: false,
+      reason: 'ALREADY_REACHED_THRESHOLD',
+      countBefore,
+      countAfter
+    };
   }
 
   if (countAfter < 2) {
-    return { ok: false, reason: 'RESULT_STILL_UNDER_THRESHOLD', countBefore, countAfter };
+    return {
+      ok: false,
+      reason: 'RESULT_STILL_UNDER_THRESHOLD',
+      countBefore,
+      countAfter
+    };
   }
 
   const { data: stats, error: statsErr } = await client
@@ -988,22 +1002,42 @@ async function handleDailySubmit(e) {
   if (!forecastDaySelect) return;
 
   const forecastDay = forecastDaySelect.value;
-  const payload = [];
-  const forecastDates = new Set();
-  let blocked = false;
 
-  document.querySelectorAll('.daily-high, .daily-low').forEach(input => {
-    const val = input.value.trim();
-    if (!val) return;
+  const inputs = document.querySelectorAll('.daily-high, .daily-low');
+  const rowsByCity = new Map();
+  let blocked = false;
+  const dateKeys = new Set();
+  let hasAnyInput = false;
+  let hasInvalidNumber = false;
+  const invalidCityInputs = [];
+
+  inputs.forEach((input) => {
+    input.style.borderColor = "";
+    input.style.boxShadow = "";
+    input.style.backgroundColor = "";
+  });
+
+  inputs.forEach((input) => {
+    const raw = input.value.trim();
+    if (raw === '') return; // allows 0
 
     const cityId = Number(input.dataset.cityId);
+    const numVal = Number(raw);
+
+    if (!Number.isFinite(cityId) || !Number.isFinite(numVal)) {
+      hasInvalidNumber = true;
+      input.style.borderColor = "#dc2626";
+      input.style.boxShadow = "0 0 0 1px #dc2626";
+      input.style.backgroundColor = "#fef2f2";
+      return;
+    }
+
     const city = cities.find(c => c.id === cityId);
     if (!city) return;
 
     const localNow = new Date(
       new Date().toLocaleString("en-US", { timeZone: city.timezone })
     );
-
     const cutoff = new Date(localNow);
     cutoff.setHours(12, 0, 0, 0);
 
@@ -1017,34 +1051,99 @@ async function handleDailySubmit(e) {
         ? getCityLocalDateISO(city.timezone, 0)
         : getCityLocalDateISO(city.timezone, 1);
 
-    const type = input.classList.contains('daily-high') ? 'high' : 'low';
-
-    let entry = payload.find(p => p.city_id === cityId);
-    if (!entry) {
-      entry = {
+    let row = rowsByCity.get(cityId);
+    if (!row) {
+      row = {
         city_id: cityId,
         city: city.name,
         date: dateValue,
-        user_id: userId
+        user_id: userId,
+        _hasHigh: false,
+        _hasLow: false
       };
-      payload.push(entry);
+      rowsByCity.set(cityId, row);
     }
 
-    entry[type] = Number(val);
-    forecastDates.add(dateValue);
+    if (input.classList.contains('daily-high')) {
+      row.high = numVal;
+      row._hasHigh = true;
+    } else {
+      row.low = numVal;
+      row._hasLow = true;
+    }
+
+    hasAnyInput = true;
+    dateKeys.add(dateValue);
   });
+
+  if (hasInvalidNumber) {
+    setStatus('<span style="color:red;">Enter a valid number for all filled forecast fields.</span>');
+    return;
+  }
 
   if (blocked) {
     setStatus('<span style="color:red;"> Cutoff passed for at least 1 city </span>');
     return;
   }
 
+  if (!hasAnyInput) {
+    setStatus('<span style="color:red;"> Enter at least 1 valid forecast! </span>');
+    return;
+  }
+
+  const lowOnlyCities = [];    // enforce high requirement
+  rowsByCity.forEach((row) => {
+    if (row._hasLow && !row._hasHigh) {
+      const lowInput = document.querySelector(`.daily-low[data-city-id="${row.city_id}"]`);
+      if (lowInput) {
+        lowInput.style.borderColor = "#dc2626";
+        lowInput.style.boxShadow = "0 0 0 1px #dc2626";
+        lowInput.style.backgroundColor = "#fef2f2";
+      }
+      lowOnlyCities.push(row.city);
+    }
+  });
+
+  if (lowOnlyCities.length) {
+    setStatus(
+      `<span style="color:red;">A Low requires a High in the same city. Missing High forecast for: ${lowOnlyCities.join(", ")}</span>`
+    );
+    return;
+  }
+
+  const payload = [...rowsByCity.values()].map(({ _hasHigh, _hasLow, ...row }) => row);
+
   if (!payload.length) {
     setStatus('<span style="color:red;"> Enter at least 1 valid forecast! </span>');
     return;
   }
 
-  const result = await upsertWithSessionRecovery({
+  const preSaveSession = await ensureSession(true, { allowAnonymous: true });      // ensure active user session before streak check (allow anon creation on first daily save)
+  const activeUserId = preSaveSession?.user?.id || userId;
+  if (!activeUserId) {
+    setStatus('<span style="color:red;">No active session. Please try again.</span>');
+    return;
+  }
+  userId = activeUserId;
+
+  let predictedStreak = null;      // predict streak increment before upsert using current DB state
+  for (const forecastDate of [...dateKeys]) {
+    const incrementCheck = await checkIncrementDailyStreak(payload, forecastDate, activeUserId);
+
+    if (incrementCheck.ok) {
+      if (!predictedStreak || (incrementCheck.currentStreak || 0) > (predictedStreak.currentStreak || 0)) {
+        predictedStreak = incrementCheck;
+      }
+    } else if (
+      incrementCheck.reason !== "ALREADY_REACHED_THRESHOLD" &&
+      incrementCheck.reason !== "RESULT_STILL_UNDER_THRESHOLD" &&
+      incrementCheck.reason !== "NO_HIGHS_IN_PAYLOAD"
+    ) {
+      console.warn("[streak skip reason]", incrementCheck.reason, incrementCheck);
+    }
+  }
+
+  const result = await upsertWithSessionRecovery({      // save forecasts to table
     table: 'daily_forecasts',
     rows: payload,
     onConflict: 'user_id,city_id,date',
@@ -1056,25 +1155,15 @@ async function handleDailySubmit(e) {
     return;
   }
 
-  const activeUserId = result.userId || userId;   // use actual active user id from upsert result (important after anon/session recovery)
-  if (activeUserId) userId = activeUserId;
+  const finalUserId = result.userId || userId;
+  if (finalUserId) userId = finalUserId;
 
   hasSavedForecast = true;
   setStatus(`<span style="color:green;"> Saved ${payload.length} forecasts! 🐰 </span>`);
   buildDailyGrid();
 
-  for (const forecastDate of forecastDates) {
-    const updatedStreak = await checkIncrementDailyStreak(payload, forecastDate, activeUserId);
-    console.log("[streak result]", forecastDate, updatedStreak);
-
-    if (updatedStreak.ok) {
-      await promptAndSaveBackupEmail(updatedStreak.currentStreak || 0);
-      break;    // done for this save
-    }
-
-    if (updatedStreak.reason !== "ALREADY_REACHED_THRESHOLD") {
-      console.warn("[streak skip reason]", updatedStreak.reason, updatedStreak);
-    }
+  if (predictedStreak?.ok) {
+    await promptAndSaveBackupEmail(predictedStreak.currentStreak || 0);
   }
 }
 
