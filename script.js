@@ -1064,18 +1064,18 @@ async function handleDailySubmit(e) {
   buildDailyGrid();
 
   for (const forecastDate of forecastDates) {
-  const updatedStreak = await checkIncrementDailyStreak(payload, forecastDate, activeUserId);
-  console.log("[streak result]", forecastDate, updatedStreak);
+    const updatedStreak = await checkIncrementDailyStreak(payload, forecastDate, activeUserId);
+    console.log("[streak result]", forecastDate, updatedStreak);
 
-  if (updatedStreak.ok) {
-    await promptAndSaveBackupEmail(updatedStreak.currentStreak || 0);
-    break;    // done for this save
-  }
+    if (updatedStreak.ok) {
+      await promptAndSaveBackupEmail(updatedStreak.currentStreak || 0);
+      break;    // done for this save
+    }
 
-  if (updatedStreak.reason !== "ALREADY_REACHED_THRESHOLD") {
-    console.warn("[streak skip reason]", updatedStreak.reason, updatedStreak);
+    if (updatedStreak.reason !== "ALREADY_REACHED_THRESHOLD") {
+      console.warn("[streak skip reason]", updatedStreak.reason, updatedStreak);
+    }
   }
-}
 }
 
 // Hourly save handler
