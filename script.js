@@ -430,64 +430,73 @@ async function loadUserScopedDataOrEmpty(queryBuilder) {
 // Check to increment user current streak
 async function checkIncrementDailyStreak(payload, forecastDate, explicitUserId = null) {
   const uid = explicitUserId || userId;
-  if (!uid) return null;
+  if (!uid) return { ok: false, reason: 'NO_USER_ID' };
 
-  const newHighCityIds = new Set(    // highs in this save
+  const newHighCityIds = new Set(    // count highs in this save payload
     payload
-      .filter(p => p.high !== undefined && Number.isFinite(Number(p.high)))
-      .map(p => p.city_id)
+      .filter((p) => p.high !== undefined && Number.isFinite(Number(p.high)))
+      .map((p) => p.city_id)
   );
 
-  if (newHighCityIds.size === 0) return null;
-
-  const { data: existing, error: existErr } = await client
-    .from("daily_forecasts")
-    .select("city_id")
-    .eq("user_id", uid)
-    .eq("date", forecastDate)
-    .not("high", "is", null);
-
-  if (existErr) {
-    console.error("Failed to read existing highs:", existErr.message);
-    return null;
+  if (newHighCityIds.size === 0) {
+    return { ok: false, reason: 'NO_HIGHS_IN_PAYLOAD' };
   }
 
-  const existingSet = new Set((existing || []).map(r => r.city_id));
+  const { data: existing, error: existErr } = await client
+    .from('daily_forecasts')
+    .select('city_id')
+    .eq('user_id', uid)
+    .eq('date', forecastDate)
+    .not('high', 'is', null);
+
+  if (existErr) {
+    return { ok: false, reason: 'FETCH_EXISTING_FAILED', error: existErr.message };
+  }
+
+  const existingSet = new Set((existing || []).map((r) => r.city_id));
   const countBefore = existingSet.size;
 
-  newHighCityIds.forEach(id => existingSet.add(id));
+  newHighCityIds.forEach((id) => existingSet.add(id));
   const countAfter = existingSet.size;
 
-  if (countBefore >= 2 || countAfter < 2) return null;    // only increment first time reaching 2 highs
+  if (countBefore >= 2) {
+    return { ok: false, reason: 'ALREADY_REACHED_THRESHOLD', countBefore };
+  }
+
+  if (countAfter < 2) {
+    return { ok: false, reason: 'RESULT_STILL_UNDER_THRESHOLD', countBefore, countAfter };
+  }
 
   const { data: stats, error: statsErr } = await client
-    .from("user_stats")
-    .select("current_streak")
-    .eq("user_id", uid)
+    .from('user_stats')
+    .select('current_streak')
+    .eq('user_id', uid)
     .maybeSingle();
 
   if (statsErr) {
-    console.error("Failed to read user_stats:", statsErr.message);
-    return null;
+    return { ok: false, reason: 'FETCH_STATS_FAILED', error: statsErr.message };
   }
 
   const nextStreak = Number(stats?.current_streak || 0) + 1;
 
-  const { data: upserted, error: upErr } = await client
-    .from("user_stats")
+  const { error: upsertErr } = await client
+    .from('user_stats')
     .upsert(
       { user_id: uid, current_streak: nextStreak },
-      { onConflict: "user_id" }
-    )
-    .select("current_streak")
-    .single();
+      { onConflict: 'user_id' }
+    );
 
-  if (upErr) {
-    console.error("Failed to update streak:", upErr.message);
-    return null;
+  if (upsertErr) {
+    return { ok: false, reason: 'UPSERT_FAILED', error: upsertErr.message };
   }
 
-  return upserted.current_streak;    // return updated streak
+  return {
+    ok: true,
+    reason: 'STREAK_INCREMENTED',
+    countBefore,
+    countAfter,
+    currentStreak: nextStreak,
+  };
 }
 
 function isPromptDue(currentStreak, lastPromptedAtIso) {
@@ -1055,17 +1064,18 @@ async function handleDailySubmit(e) {
   buildDailyGrid();
 
   for (const forecastDate of forecastDates) {
-    const updatedStreak = await checkIncrementDailyStreak(
-      payload,
-      forecastDate,
-      activeUserId
-    );
-    console.log("streak result:", updatedStreak);
-    if (updatedStreak !== null) {
-      await promptAndSaveBackupEmail(updatedStreak);
-      break;
-    }
+  const updatedStreak = await checkIncrementDailyStreak(payload, forecastDate, activeUserId);
+  console.log("[streak result]", forecastDate, updatedStreak);
+
+  if (updatedStreak.ok) {
+    await promptAndSaveBackupEmail(updatedStreak.currentStreak || 0);
+    break;    // done for this save
   }
+
+  if (updatedStreak.reason !== "ALREADY_REACHED_THRESHOLD") {
+    console.warn("[streak skip reason]", updatedStreak.reason, updatedStreak);
+  }
+}
 }
 
 // Hourly save handler
