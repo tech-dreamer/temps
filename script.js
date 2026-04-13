@@ -26,9 +26,13 @@ const HOURLY_LABELS = [
   "8PM"
 ];
 const HOURLY_GAME_SWITCH_HOUR_ET = 20; // 19
-function setStatus(html) {
+function setStatus(html, append = false) {
   const status = document.getElementById('status');
-  if (status) status.innerHTML = html;
+  if (!status) return;
+
+  status.innerHTML = append && status.innerHTML
+    ? `${status.innerHTML}<br>${html}`
+    : html;
 }
 
 function detectPageMode() {
@@ -495,8 +499,8 @@ async function incrementDailyStreak(uid, nextStreak) {
 
     if (readError) return { ok: false, error: readError };
 
-    const prevStreak = row?.current_streak ?? 0;
-    const prevMood = row?.mood ?? 0;
+    const prevStreak = Number(row?.current_streak ?? 0) || 0;
+    const prevMood = Number(row?.mood ?? 0) || 0;
     const nextMood = Math.min(25, prevMood + 1);
 
     const { data: updated, error } = await client
@@ -1026,7 +1030,6 @@ async function handleDailySubmit(e) {
   const dateKeys = new Set();
   let hasAnyInput = false;
   let hasInvalidNumber = false;
-  const invalidCityInputs = [];
 
   inputs.forEach((input) => {
     input.style.borderColor = "";
@@ -1094,7 +1097,7 @@ async function handleDailySubmit(e) {
   });
 
   if (hasInvalidNumber) {
-    setStatus('<span style="color:red;">Enter a valid number for all filled forecast fields.</span>');
+    setStatus('<span style="color:red;"> Enter a valid number for all filled forecast fields </span>');
     return;
   }
 
@@ -1138,7 +1141,7 @@ async function handleDailySubmit(e) {
   const preSaveSession = await ensureSession(true, { allowAnonymous: true });    // ensure active user session before streak check (allow anon creation on first daily save)
   const activeUserId = preSaveSession?.user?.id || userId;
   if (!activeUserId) {
-    setStatus('<span style="color:red;">No active session. Please try again.</span>');
+    setStatus('<span style="color:red;"> No active session. Please try again. </span>');
     return;
   }
   userId = activeUserId;
@@ -1183,10 +1186,10 @@ async function handleDailySubmit(e) {
     const streakResult = await incrementDailyStreak(finalUserId, predictedStreak.nextStreak);
     if (streakResult.ok) {
       await promptAndSaveBackupEmail(predictedStreak.nextStreak);
-      setStatus(`<span style="color: #16a34a;">${streakResult.message}</span>`);
+      setStatus(`<span style="color: #16a34a;">${streakResult.message}</span>`, true);
     } else {
       console.warn("Daily streak increment write failed:", streakResult.error);
-      setStatus(`<span style="color:orange;"> Saved, but streak update failed: ${streakResult.error.message}</span>`);
+      setStatus(`<span style="color:orange;"> Saved, but streak update failed: ${streakResult.error.message}</span>`, true);
     }
   }
 }
@@ -1242,7 +1245,7 @@ async function handleHourlySubmit(e) {
   const sixHrHourNum = showSixHrHigh ? selectedHourNum + 0.5 : null;
 
   if (!Number.isFinite(selectedHourNum)) {
-    setStatus('<span style="color:red;">Invalid selected hour.</span>');
+    setStatus('<span style="color:red;"> Invalid hour selected </span>');
     return;
   }
 
@@ -1301,12 +1304,12 @@ async function handleHourlySubmit(e) {
   });
 
   if (blocked) {
-    setStatus('<span style="color:red;">Cutoff passed for this hour selection.</span>');
+    setStatus('<span style="color:red;"> Cutoff passed for this hour </span>');
     return;
   }
 
   if (!payload.length) {
-    setStatus('<span style="color:red;">Enter at least 1 forecast.</span>');
+    setStatus('<span style="color:red;"> Enter at least 1 forecast </span>');
     return;
   }
 
