@@ -484,14 +484,28 @@ async function checkIncrementDailyStreak(payload, forecastDate, explicitUserId =
   };
 }
 
-// Update user's daily streak
+// Update user's current mood & streak
 async function incrementDailyStreak(uid, nextStreak) {
+  const { data: row, error: fetchErr } = await client    // get current mood
+      .from("user_stats")
+      .select("mood")
+      .eq("user_id", uid)
+      .single();
+  
+  if (fetchErr) return { ok: false, error: fetchErr };
+  const nextMood = Math.min(25, (row?.mood ?? 0) + 1);
+  
   const { error } = await client
-    .from('user_stats')
+    .from("user_stats")
     .upsert(
-      { user_id: uid, current_streak: nextStreak },
-      { onConflict: 'user_id' }
+      {
+        user_id: uid,
+        current_streak: nextStreak,
+        mood: nextMood,
+      },
+      { onConflict: "user_id" }
     );
+  
   return { ok: !error, error };
 }
 
