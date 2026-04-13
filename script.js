@@ -427,12 +427,12 @@ async function loadUserScopedDataOrEmpty(queryBuilder) {
   return queryBuilder().eq("user_id", userId);
 }
 
-// Check to increment user current streak
+// Predict if this submit will reach daily streak threshold
 async function checkIncrementDailyStreak(payload, forecastDate, explicitUserId = null) {
   const uid = explicitUserId || userId;
   if (!uid) return { ok: false, reason: 'NO_USER_ID' };
 
-  const newHighCityIds = new Set(    // cities in this submit have a valid high for this date
+  const newHighCityIds = new Set(
     payload
       .filter((p) =>
         p.date === forecastDate &&
@@ -459,27 +459,11 @@ async function checkIncrementDailyStreak(payload, forecastDate, explicitUserId =
   }
 
   const existingSet = new Set((existing || []).map((r) => Number(r.city_id)));
+  const countBefore = existingSet.size;
+  const countAfter = new Set([...existingSet, ...newHighCityIds]).size;
 
-  const countBefore = existingSet.size;    // count before this submit
-  const countAfter = new Set([...existingSet, ...newHighCityIds]).size;    // projected count after this submit
-
-  if (countBefore >= 2) {
-    return {
-      ok: false,
-      reason: 'ALREADY_REACHED_THRESHOLD',
-      countBefore,
-      countAfter
-    };
-  }
-
-  if (countAfter < 2) {
-    return {
-      ok: false,
-      reason: 'RESULT_STILL_UNDER_THRESHOLD',
-      countBefore,
-      countAfter
-    };
-  }
+  if (countBefore >= 2) return { ok: false, reason: 'ALREADY_REACHED_THRESHOLD', countBefore, countAfter };
+  if (countAfter < 2) return { ok: false, reason: 'RESULT_STILL_UNDER_THRESHOLD', countBefore, countAfter };
 
   const { data: stats, error: statsErr } = await client
     .from('user_stats')
@@ -491,26 +475,24 @@ async function checkIncrementDailyStreak(payload, forecastDate, explicitUserId =
     return { ok: false, reason: 'FETCH_STATS_FAILED', error: statsErr.message };
   }
 
-  const nextStreak = Number(stats?.current_streak || 0) + 1;
+  return {
+    ok: true,
+    reason: 'STREAK_WOULD_INCREMENT',
+    countBefore,
+    countAfter,
+    nextStreak: Number(stats?.current_streak || 0) + 1
+  };
+}
 
-  const { error: upsertErr } = await client
+// Update user's daily streak
+async function incrementDailyStreak(uid, nextStreak) {
+  const { error } = await client
     .from('user_stats')
     .upsert(
       { user_id: uid, current_streak: nextStreak },
       { onConflict: 'user_id' }
     );
-
-  if (upsertErr) {
-    return { ok: false, reason: 'UPSERT_FAILED', error: upsertErr.message };
-  }
-
-  return {
-    ok: true,
-    reason: 'STREAK_INCREMENTED',
-    countBefore,
-    countAfter,
-    currentStreak: nextStreak,
-  };
+  return { ok: !error, error };
 }
 
 function isPromptDue(currentStreak, lastPromptedAtIso) {
@@ -1131,7 +1113,7 @@ async function handleDailySubmit(e) {
     const incrementCheck = await checkIncrementDailyStreak(payload, forecastDate, activeUserId);
 
     if (incrementCheck.ok) {
-      if (!predictedStreak || (incrementCheck.currentStreak || 0) > (predictedStreak.currentStreak || 0)) {
+      if (!predictedStreak || (incrementCheck.nextStreak || 0) > (predictedStreak.nextStreak || 0)) {
         predictedStreak = incrementCheck;
       }
     } else if (
@@ -1155,7 +1137,7 @@ async function handleDailySubmit(e) {
     return;
   }
 
-  const finalUserId = result.userId || userId;
+  const finalUserId = result.userId || activeUserId;
   if (finalUserId) userId = finalUserId;
 
   hasSavedForecast = true;
@@ -1163,7 +1145,13 @@ async function handleDailySubmit(e) {
   buildDailyGrid();
 
   if (predictedStreak?.ok) {
-    await promptAndSaveBackupEmail(predictedStreak.currentStreak || 0);
+    const apply = await incrementDailyStreak(finalUserId, predictedStreak.nextStreak);
+    if (apply.ok) {
+      await promptAndSaveBackupEmail(predictedStreak.nextStreak);
+    } else {
+      console.warn("Daily streak increment write failed:", apply.error);
+      setStatus(`<span style="color:orange;"> Saved, but streak update failed: ${apply.error.message}</span>`);
+    }
   }
 }
 
@@ -1171,6 +1159,17 @@ async function handleDailySubmit(e) {
 async function handleHourlySubmit(e) {
   e.preventDefault();
 
+  const session = await ensureSession(false, { allowAnonymous: false });      // require an existing user before allowing hourly save
+  const recovery = popAuthRecoveryState();
+  if (recovery?.needsReauth) {
+    setStatus(`<span style="color:orange;">${recovery.message}</span>`);
+    return;
+  }
+  if (!session?.user?.id) {
+    setStatus('<span style="color:orange;"> Save a daily forecast to create your user session. </span>');
+    return;
+  }
+  userId = session.user.id;
   const status = document.getElementById("status");
   const cityRows = new Map();    // cityId maps to row data for validation
   const payload = [];
@@ -1311,7 +1310,8 @@ async function handleHourlySubmit(e) {
   const { error } = await upsertWithSessionRecovery({
     table: 'hourly_forecasts',
     rows: payload,
-    onConflict: 'user_id,city_id,date,hour'
+    onConflict: 'user_id,city_id,date,hour',
+    allowAnonymous: false
   });
 
   if (error) {
