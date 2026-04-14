@@ -556,76 +556,94 @@ async function markBackupEmailPrompt() {
 }
 
 // Time helpers
-function getCityLocalDateISO(timezone, offset = 0) {    // get local date of city
-  const now = new Date();
-  const local = new Date(
-    now.toLocaleString("en-US", { timeZone: timezone })
+function getTzDate(timeZone, date = new Date()) {    // get a timezone-normalized UTC Date to avoid browser timezone bug
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    })
+      .formatToParts(date)
+      .filter((x) => x.type !== "literal")
+      .map((x) => [x.type, x.value])
   );
 
-  local.setDate(local.getDate() + offset);
+  return new Date(
+    Date.UTC(
+      Number(p.year),
+      Number(p.month) - 1,
+      Number(p.day),
+      Number(p.hour),
+      Number(p.minute),
+      Number(p.second)
+    )
+  );
+}
 
-  const year = local.getFullYear();
-  const month = String(local.getMonth() + 1).padStart(2, '0');
-  const day = String(local.getDate()).padStart(2, '0');
+function formatMonthDayInTZ(date, timeZone) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    month: "short",
+    day: "numeric"
+  }).format(date);
+}
 
-  return `${year}-${month}-${day}`;
+function toYMD(d) {
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${mm}-${dd}`;
+}
+
+function getCityLocalDateISO(tz, offsetDays = 0) {    // get local date of city
+  const d = getTzDate(tz);
+  d.setUTCDate(d.getUTCDate() + offsetDays);
+  return toYMD(d);
 }
 
 function getDailyForecastDateISO(forecastDay = "today") {    // get forecast date based on PT
   const ptNow = getPTNow();
-  const ptCutoff = new Date(ptNow);
-  ptCutoff.setHours(12, 0, 0, 0);
+  const ptCutoff = new Date(ptNow.getTime());
+  ptCutoff.setUTCHours(12, 0, 0, 0);
 
-  const gameDate = new Date(ptNow);
+  const gameDate = new Date(ptNow.getTime());
 
-  if (ptNow >= ptCutoff) {    // daily date switches at noon PT
-    gameDate.setDate(gameDate.getDate() + 1);
+  if (ptNow >= ptCutoff) {    // daily date switch at noon PT
+    gameDate.setUTCDate(gameDate.getUTCDate() + 1);
   }
 
   if (forecastDay === "tomorrow") {    // forecast date switch
-    gameDate.setDate(gameDate.getDate() + 1);
+    gameDate.setUTCDate(gameDate.getUTCDate() + 1);
   }
 
-  const y = gameDate.getFullYear();
-  const m = String(gameDate.getMonth() + 1).padStart(2, "0");
-  const d = String(gameDate.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return toYMD(gameDate);
 }
+
+function getETNow() { return getTzDate("America/New_York"); }
+function getPTNow() { return getTzDate("America/Los_Angeles"); }
 
 function getETGameDateISO(useTomorrow = false) {
-  const etNow = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "America/New_York" })
-  );
-
+  const etNow = getETNow();
+  const gameDate = new Date(etNow.getTime());
   if (useTomorrow) {
-    etNow.setDate(etNow.getDate() + 1);
+    gameDate.setUTCDate(gameDate.getUTCDate() + 1);
   }
 
-  const year = etNow.getFullYear();
-  const month = String(etNow.getMonth() + 1).padStart(2, '0');
-  const day = String(etNow.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
-}
-
-function getPTNow() {
-  return new Date(
-    new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
-  );
-}
-
-function getETNow() {
-  return new Date(
-    new Date().toLocaleString("en-US", { timeZone: "America/New_York" })
-  );
+  return toYMD(gameDate);
 }
 
 function getHourlyCutoff(etNow, hourValue) {
-  const cutoff = new Date(etNow);
+  const cutoff = new Date(etNow.getTime());
   const wholeHour = Math.floor(hourValue);
   const minuteMark = Number.isInteger(hourValue) ? 0 : 30;
-  cutoff.setHours(wholeHour, minuteMark, 0, 0);
-  cutoff.setMinutes(cutoff.getMinutes() - 30);
+
+  cutoff.setUTCHours(wholeHour, minuteMark, 0, 0);
+  cutoff.setUTCMinutes(cutoff.getUTCMinutes() - 30);
+
   return cutoff;
 }
 
@@ -634,27 +652,25 @@ function isPastCutoffForHour(etNow, useTomorrow, hourValue) {
   return etNow >= getHourlyCutoff(etNow, hourValue);
 }
 
+// Compute hourly game date context and display label
 function getHourlyGameDateMeta() {
   const etNow = getETNow();
 
-  const switchTime = new Date(etNow);
-  switchTime.setHours(HOURLY_GAME_SWITCH_HOUR_ET, 0, 0, 0);
+  const switchTime = new Date(etNow.getTime());
+  switchTime.setUTCHours(HOURLY_GAME_SWITCH_HOUR_ET, 0, 0, 0);
 
   const useTomorrow = etNow >= switchTime;
 
-  const labelDate = new Date(etNow);
+  const labelDate = new Date(etNow.getTime());
   if (useTomorrow) {
-    labelDate.setDate(labelDate.getDate() + 1);
+    labelDate.setUTCDate(labelDate.getUTCDate() + 1);
   }
 
   return {
     etNow,
     useTomorrow,
     gameDate: getETGameDateISO(useTomorrow),
-    gameDateLabel: labelDate.toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric"
-    })
+    gameDateLabel: formatMonthDayInTZ(labelDate, "America/New_York")
   };
 }
 
@@ -673,29 +689,38 @@ function getStationDisplay(city) {
   return raw.startsWith("K") ? raw : `K${raw}`;
 }
 
-async function loadDailyData() {
-  const now = new Date();
+async function queryOrThrow(promise, label) {
+  try {
+    const { data, error } = await promise;
+    if (error) throw new Error(`${label} failed: ${error.message}`);
+    return data || [];
+  } catch (err) {
+    console.error(err);
+    throw new Error(`${label} failed: ${err.message || err}`);
+  }
+}
 
-  const minDate = new Date(now.getTime() - 86400000).toISOString().split('T')[0];
-  const maxDate = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
+async function loadForecastData({
+  date = getDailyForecastDateISO("today"),
+  userIdValue = userId,
+  includeActuals = false,
+  includeGuesses = true,
+  table = "daily_forecasts",
+  clientInstance = client
+} = {}) {
+  if (!clientInstance?.from) throw new Error("Supabase client is missing");
+  if (!userIdValue) return { actuals: [], guesses: [] };
 
-  const { data: hourlyGuesses } = await client
-    .from('hourly_forecasts')
-    .select('city_id, hour, temp, date')
-    .eq('user_id', userId);
+  const targetDate = date;
+  const [actuals, guesses] = await Promise.all([
+    includeActuals ? queryOrThrow(clientInstance.from("daily_actuals").select("*").eq("date", targetDate), "Load actuals") : Promise.resolve([]),
+    includeGuesses ? queryOrThrow(
+      clientInstance.from(table).select("*").eq("user_id", userIdValue).eq("date", targetDate),
+      "Load forecasts"
+    ) : Promise.resolve([])
+  ]);
 
-  const { data: actuals } = await client
-    .from('daily_actuals')
-    .select('city_id, high, low, date');
-
-  const { data: guesses } = await client
-    .from('daily_forecasts')
-    .select('city_id, high, low, date')
-    .eq('user_id', userId)
-    .gte('date', minDate)
-    .lte('date', maxDate);
-
-  return { actuals: actuals || [], guesses: guesses || [], hourlyGuesses: hourlyGuesses || [] };
+  return { actuals, guesses };
 }
 
 // Update current date label on daily page
@@ -705,12 +730,11 @@ function updateCurrentDate() {
 
   if (!dateDisplay || !forecastDaySelect) return;
 
-  const now = new Date();
   const ptNow = getPTNow();
-  const ptCutoff = new Date(ptNow);
-  ptCutoff.setHours(12, 0, 0, 0);
+  const ptCutoff = new Date(ptNow.getTime());
+  ptCutoff.setUTCHours(12, 0, 0, 0);
 
-  const dateKey = `${ptNow.getFullYear()}-${String(ptNow.getMonth() + 1).padStart(2, "0")}-${String(ptNow.getDate()).padStart(2, "0")}`;
+  const dateKey = toYMD(ptNow);
   const autoSwitchKey = `temps_auto_switched_${dateKey}`;
 
   let hasAutoSwitched = false;
@@ -724,27 +748,16 @@ function updateCurrentDate() {
     forecastDaySelect.value = "tomorrow";
     try {
       sessionStorage.setItem(autoSwitchKey, "true");
-    } catch (e) {
-      // storage blocked; ignore
-    }
+    } catch (e) {}    // storage blocked; ignore
   }
 
-  const ptToday = ptNow.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric"
-  });
+  const ptToday = formatMonthDayInTZ(ptNow, "America/Los_Angeles");
 
-  const tomorrow = new Date(ptNow);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const ptTomorrow = tomorrow.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric"
-  });
+  const tomorrow = new Date(ptNow.getTime());
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const ptTomorrow = formatMonthDayInTZ(tomorrow, "America/Los_Angeles");
 
-  dateDisplay.textContent =
-    forecastDaySelect.value === "today"
-      ? ptToday
-      : ptTomorrow;
+  dateDisplay.textContent = forecastDaySelect.value === "today" ? ptToday : ptTomorrow;
 }
 
 async function loadCities() {
@@ -757,19 +770,19 @@ async function loadCities() {
 
   if (error || !data) {
     if (statusEl) statusEl.innerHTML =
-      '<span style="color:red;">Failed to load cities.</span>';
+      '<span style="color:red;"> Failed to load cities </span>';
     return;
   }
 
   for (const datum of data) {
-    datum.timezone = datum.timezones?.name;
+    datum.timezone = datum.timezones?.name || "UTC";
     delete datum.timezones;
     delete datum.timezone_id;
   }
 
   cities = data;
-  buildDailyGrid();
   updateCurrentDate();
+  await buildDailyGrid();
 
   if (isHourlyPage) {
     hourlyCurrentDateKey = updateHourlyCurrentDate();
@@ -777,93 +790,105 @@ async function loadCities() {
 }
 
 async function buildDailyGrid() {
-  const grid = document.getElementById('dailyGrid');
-  const forecastDaySelect = document.getElementById('forecastDay');
+  const grid = document.getElementById("dailyGrid");
+  const forecastDaySelect = document.getElementById("forecastDay");
   if (!grid || !forecastDaySelect) return;
+  grid.innerHTML = "<p>Loading cities...</p>";
 
-  grid.innerHTML = '<p>Loading cities...</p>';
+  const forecastDay = forecastDaySelect.value || "today";
+  const forecastDate = getDailyForecastDateISO(forecastDay);
 
-  const { actuals, guesses } = await loadDailyData();
-  grid.innerHTML = '';
+  let actuals = [];
+  let guesses = [];
 
-  const forecastDay = forecastDaySelect.value;
+  if (userId) {
+    try {
+      const result = await loadForecastData({ date: forecastDate, userIdValue: userId, includeActuals: true, table: "daily_forecasts" });
+      actuals = result?.actuals || [];
+      guesses = result?.guesses || [];
+    } catch (err) {
+      console.error("buildDailyGrid data load failed:", err);
+    }
+  }
 
-  cities.forEach(city => {
+  grid.innerHTML = "";
+  if (!Array.isArray(cities) || cities.length === 0) {
+    grid.innerHTML = "<p>No cities found.</p>";
+    return;
+  }
+
+  const ptNow = getPTNow();
+  const ptCutoff = new Date(ptNow);
+  ptCutoff.setUTCHours(12, 0, 0, 0);
+
+  cities.forEach((city) => {
     const stationDisplay = getStationDisplay(city);
-    const cityYesterday = getCityLocalDateISO(city.timezone, -1);
-    const targetDate = getDailyForecastDateISO(forecastDay);
-    const showYesterday = forecastDay === 'today';
+    const cityTz = city.timezone || "UTC";
+    const cityYesterday = getCityLocalDateISO(cityTz, -1);
+    const showYesterday = forecastDay === "today";
+    const targetDate = forecastDate;
 
-    const cityActuals = actuals
-      .filter(a => a.city_id === city.id && a.date <= cityYesterday)
-      .sort((a, b) => b.date.localeCompare(a.date));
+    const cityActuals = (Array.isArray(actuals) ? actuals : [])
+      .filter((a) =>
+        Number(a?.city_id) === Number(city.id) &&
+        String(a.date) <= cityYesterday
+      )
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
-    const yesterdayHigh = showYesterday && cityActuals.length ? cityActuals[0].high : ' ';
-    const yesterdayLow = showYesterday && cityActuals.length ? cityActuals[0].low : ' ';
+    const yesterdayHigh = showYesterday && cityActuals.length ? cityActuals[0].high : " ";
+    const yesterdayLow = showYesterday && cityActuals.length ? cityActuals[0].low : " ";
 
-    const prevGuess = guesses.find(
-      g => g.city_id === city.id && g.date === targetDate
+    const prevGuess = (Array.isArray(guesses) ? guesses : []).find(
+      (g) => Number(g.city_id) === Number(city.id) && String(g.date) === targetDate
     ) || {};
 
     const hasPrevGuess = prevGuess.high !== undefined || prevGuess.low !== undefined;
 
-    // Cutoff check (noon local time)
-    const now = new Date();
-    const ptNow = getPTNow();
-
-    const localNow = new Date(
-      now.toLocaleString("en-US", { timeZone: city.timezone })
-    );
-
-    const cutoff = new Date(localNow);
-    cutoff.setHours(12, 0, 0, 0);
-
-    const ptCutoff = new Date(ptNow);
-    ptCutoff.setHours(12, 0, 0, 0);
+    const localNow = getTzDate(city.timezone || "UTC");
+    const cutoff = new Date(localNow.getTime());
+    cutoff.setUTCHours(12, 0, 0, 0);
 
     const isPastCutoff =
-      forecastDay === 'today' &&
-      (ptNow >= ptCutoff || localNow >= cutoff);
+      forecastDay === "today" && (ptNow >= ptCutoff || localNow >= cutoff);
 
-    const card = document.createElement('div');
-    card.className =
-      hasSavedForecast ? 'city-card expanded' : 'city-card collapsed';
+    const card = document.createElement("div");
+    card.className = hasSavedForecast ? "city-card expanded" : "city-card collapsed";
 
     card.innerHTML = `
       <div class="city-card-header">
         <span class="city-title">${city.name}</span>
-        ${stationDisplay ? `<small class="city-station">(${stationDisplay})</small>` : ''}
+        ${stationDisplay ? `<small class="city-station">(${stationDisplay})</small>` : ""}
       </div>
       <div class="city-card-content">
         ${showYesterday
           ? `<p><small>Yesterday: H ${yesterdayHigh}° / L ${yesterdayLow}°</small></p>`
-          : ''}
+          : ""}
 
         ${hasPrevGuess
-          ? `<p><small> My current forecast: H ${prevGuess.high ?? '-'}° / L ${prevGuess.low ?? '-'}° </small></p>`
-          : ''}
+          ? `<p><small> My current forecast: H ${prevGuess.high ?? "-"}° / L ${prevGuess.low ?? "-"}° </small></p>`
+          : ""}
 
         <label>High Temp °F:
           <input type="number"
             class="daily-high"
-            data-city-id="${city.id}"
-            value="${prevGuess.high ?? ''}"
+            data-city-id="${Number(city.id)}"
+            value="${prevGuess.high ?? ""}"
             min="-25" max="125"
-            ${isPastCutoff ? 'disabled' : ''}>
+            ${isPastCutoff ? "disabled" : ""}>
         </label>
 
         <label>Low Temp °F:
           <input type="number"
             class="daily-low"
-            data-city-id="${city.id}"
-            value="${prevGuess.low ?? ''}"
+            data-city-id="${Number(city.id)}"
+            value="${prevGuess.low ?? ""}"
             min="-50" max="100"
-            ${isPastCutoff ? 'disabled' : ''}>
+            ${isPastCutoff ? "disabled" : ""}>
         </label>
 
         ${isPastCutoff
           ? '<small style="color:#e74c3c; display:block; margin-top:0.5rem;"> Past cutoff (noon local) </small>'
-          : ''}
+          : ""}
       </div>
     `;
 
@@ -898,11 +923,12 @@ function buildHourSelector() {
 }
 
 async function buildHourlyGrid() {
-  const { hourlyGuesses } = await loadDailyData();
-  const grid = document.getElementById('hourlyGrid');
+  const grid = document.getElementById("hourlyGrid");
   if (!grid || !selectedHour) return;
 
   const hourlyState = getHourlyGameDateMeta();
+  const { guesses: hourlyGuesses = [] } = await loadForecastData({ date: hourlyState.gameDate, userIdValue: userId, includeActuals: false, table: "hourly_forecasts" });
+
   const etNow = hourlyState.etNow;
   const useTomorrow = hourlyState.useTomorrow;
   const selectedForecastDate = hourlyState.gameDate;
@@ -911,28 +937,30 @@ async function buildHourlyGrid() {
   const showSixHrHigh = hourNum === 14 || hourNum === 20;
   const sixHrHourNum = showSixHrHigh ? hourNum + 0.5 : null;
 
-  grid.innerHTML = '';
-
-  cities.forEach(city => {
-    const localLabel = convertETToCityHourLabel(hourNum, city.timezone);
+  grid.innerHTML = "";
+  cities.forEach((city) => {
+    const localLabel = convertETToCityHourLabel(hourNum, city.timezone || "UTC");
     const isPastCutoff = isPastCutoffForHour(etNow, useTomorrow, hourNum);
 
     const prevGuess = hourlyGuesses.find(
-      g =>
-        g.city_id === city.id &&
-        g.hour === hourNum &&
-        g.date === selectedForecastDate
+      (g) =>
+        Number(g.city_id) === Number(city.id) &&
+        Number(g.hour) === hourNum &&
+        String(g.date) === selectedForecastDate
     );
 
-    const prev6HrGuess = sixHrHourNum !== null ? hourlyGuesses.find(
-      g =>
-        g.city_id === city.id &&
-        g.hour === sixHrHourNum &&
-        g.date === selectedForecastDate
-    ) : null;
+    const prev6HrGuess =
+      sixHrHourNum !== null
+        ? hourlyGuesses.find(
+            (g) =>
+              Number(g.city_id) === Number(city.id) &&
+              Number(g.hour) === sixHrHourNum &&
+              String(g.date) === selectedForecastDate
+          )
+        : null;
 
-    const card = document.createElement('div');
-    card.className = 'city-card expanded';
+    const card = document.createElement("div");
+    card.className = "city-card expanded";
     card.dataset.cityId = city.id;
     card.innerHTML = `
       <div class="city-card-header">${city.name}</div>
@@ -943,10 +971,10 @@ async function buildHourlyGrid() {
             class="hourly-input"
             data-city-id="${city.id}"
             data-hour="${hourNum}"
-            value="${prevGuess?.temp ?? ''}"
+            value="${prevGuess?.temp ?? ""}"
             min="-25"
             max="125"
-            ${isPastCutoff ? 'disabled' : ''}>
+            ${isPastCutoff ? "disabled" : ""}>
         </label>
 
         ${sixHrHourNum !== null ? `
@@ -956,16 +984,14 @@ async function buildHourlyGrid() {
               class="hourly-input"
               data-city-id="${city.id}"
               data-hour="${sixHrHourNum}"
-              value="${prev6HrGuess?.temp ?? ''}"
+              value="${prev6HrGuess?.temp ?? ""}"
               min="-25"
               max="125"
-              ${isPastCutoff ? 'disabled' : ''}>
+              ${isPastCutoff ? "disabled" : ""}>
           </label>
-        ` : ''}
+        ` : ""}
 
-        ${isPastCutoff
-          ? '<small style="color:#e74c3c;">Past cutoff</small>'
-          : ''}
+        ${isPastCutoff ? '<small style="color:#e74c3c;">Past cutoff</small>' : ""}
       </div>
     `;
 
@@ -980,30 +1006,21 @@ function convertHourLabel(label) {
 }
 
 function convertETToCityHourLabel(etHour, cityTimezone) {
-  const now = new Date();
-
-  const etDate = new Date(
-    now.toLocaleString("en-US", { timeZone: "America/New_York" })
-  );
+  const etNow = getETNow();
+  const etMarker = new Date(etNow.getTime());
 
   const hourPart = Math.floor(etHour);
   const minutePart = Number.isInteger(etHour) ? 0 : 30;
+  etMarker.setUTCHours(hourPart, minutePart, 0, 0);
 
-  etDate.setHours(hourPart, minutePart, 0, 0);
+  const label = new Intl.DateTimeFormat("en-US", {
+    timeZone: cityTimezone,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true
+  }).format(etMarker);
 
-  const cityTime = new Date(
-    etDate.toLocaleString("en-US", { timeZone: cityTimezone })
-  );
-
-  let hours = cityTime.getHours();
-  const minutes = cityTime.getMinutes();
-
-  const period = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12;
-  if (hours === 0) hours = 12;
-
-  const minuteText = minutes === 0 ? "" : `:${String(minutes).padStart(2, '0')}`;
-  return `${hours}${minuteText} ${period}`;
+  return label.replace(":00", "");
 }
 
 function updateHourlyButton() {
@@ -1075,13 +1092,11 @@ async function handleDailySubmit(e) {
 
     const ptNow = getPTNow();
     const ptCutoff = new Date(ptNow);
-    ptCutoff.setHours(12, 0, 0, 0);
+    ptCutoff.setUTCHours(12, 0, 0, 0);
 
-    const localNow = new Date(
-      new Date().toLocaleString("en-US", { timeZone: city.timezone })
-    );
-    const cutoff = new Date(localNow);
-    cutoff.setHours(12, 0, 0, 0);
+    const localNow = getTzDate(city.timezone || "UTC");
+    const cutoff = new Date(localNow.getTime());
+    cutoff.setUTCHours(12, 0, 0, 0);
 
     if (forecastDay === 'today' && (ptNow >= ptCutoff || localNow >= cutoff)) {
       blocked = true;
@@ -1199,7 +1214,7 @@ async function handleDailySubmit(e) {
 
   hasSavedForecast = true;
   setStatus(`<span style="color:green;"> Saved ${payload.length} forecasts! 🐰 </span>`);
-  buildDailyGrid();
+  await buildDailyGrid();
 
   if (predictedStreak?.ok) {
     const streakResult = await incrementDailyStreak(finalUserId, predictedStreak.nextStreak);
@@ -1392,9 +1407,9 @@ function initRevealBtn() {
 function initBindings() {
   const forecastDaySelect = document.getElementById('forecastDay');
   if (forecastDaySelect) {
-    forecastDaySelect.addEventListener('change', () => {
+    forecastDaySelect.addEventListener('change', async () => {
       updateCurrentDate();
-      buildDailyGrid();
+      await buildDailyGrid();
     });
   }
 
@@ -1464,18 +1479,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     buildHourSelector();
   }
 
-  setInterval(() => {
-    if (typeof shouldCheckNow === 'function' ? shouldCheckNow() : true) {
+  setInterval(async () => {
+    if (isDailyPage && (typeof shouldCheckNow === 'function' ? shouldCheckNow() : true)) {
       updateCurrentDate();
-      buildDailyGrid();
+      await buildDailyGrid();
     }
 
     if (isHourlyPage) {
       const current = updateHourlyCurrentDate();
-      if (current !== hourlyCurrentDateKey) {
+      if (current !== hourlyCurrentDateKey){
         hourlyCurrentDateKey = current;
-        if (selectedHour) buildHourlyGrid();
+        await buildHourlyGrid();
       }
     }
-  }, 60000);
-});
+  }, 60000)};
