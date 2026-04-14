@@ -255,6 +255,40 @@ async function refreshAndRecoverSession(currentSession = null, options = {}) {
   };
 }
 
+// Helper to ensure session exists for daily save. reuse current session if present; if none, create one anon session
+let createAnonSessionPromise = null;
+async function ensureSessionForDailySave() {
+  const initialRecovery = popAuthRecoveryState();
+  if (initialRecovery?.needsReauth) {
+    setStatus(`<span style="color:orange;">${initialRecovery.message}</span>`);
+    return null;
+  }
+
+  const session = await ensureSession(false, { allowAnonymous: false });    // get/recover session
+
+  const recovery = popAuthRecoveryState();    // check if verify & stale-token reauth is needed
+  if (recovery?.needsReauth) {    // ensure no silent guest fallback for verified users
+    setStatus(`<span style="color:orange;">${recovery.message}</span>`);
+    return null;
+  }
+
+  if (session?.user?.id) {
+    userId = session.user.id;
+    return session;
+  }
+
+  if (!createAnonSessionPromise) {
+    createAnonSessionPromise = (async () => {
+      const anonSession = await createAnonymousSession();
+      return anonSession;
+    })().finally(() => {
+      createAnonSessionPromise = null;
+    });
+  }
+
+  return createAnonSessionPromise;
+}
+
 // Helper to get existing user or create new anon user
 async function ensureSession(forceRefresh = false, options = {}) {
   const { allowAnonymous = false } = options;
@@ -1163,12 +1197,12 @@ async function handleDailySubmit(e) {
     return;
   }
 
-  const preSaveSession = await ensureSession(true, { allowAnonymous: true });    // ensure active user session before streak check (allow anon creation on first daily save)
-  const activeUserId = preSaveSession?.user?.id || userId;
-  if (!activeUserId) {
+  const preSaveSession = await ensureSessionForDailySave();    // single explicit creation point
+  if (!preSaveSession?.user?.id) {
     setStatus('<span style="color:red;"> No active session. Please try again. </span>');
     return;
   }
+  const activeUserId = preSaveSession.user.id;
   userId = activeUserId;
 
   let predictedStreak = null;      // predict streak increment before upsert using current DB state
@@ -1188,11 +1222,11 @@ async function handleDailySubmit(e) {
     }
   }
 
-  const result = await upsertWithSessionRecovery({      // save forecasts to table
+  const result = await upsertWithSessionRecovery({    // save forecasts to table
     table: 'daily_forecasts',
     rows: payload,
     onConflict: 'user_id,city_id,date',
-    allowAnonymous: true    // first daily save creates anon session
+    allowAnonymous: false    // no auto-create, handled before submit
   });
 
   if (result.error) {
