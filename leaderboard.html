@@ -290,15 +290,15 @@
 
   <script>
     const SUPABASE_URL = "https://ckyqknlxmjqlkqnxhgef.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNreXFrbmx4bWpxbGtxbnhoZ2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MDEwNjksImV4cCI6MjA4MDQ3NzA2OX0.KPzrKD3TW1CubAQhHyo5oJV0xQ_GLxBG96FSDfTN6p0";
-
+    const SUPABASE_PUB_KEY = "sb_publishable_lQ27fzzwJf27dUWPEW8UQA_NTY7naO6";
+    
     const statusEl = document.getElementById("status");
     const rowsEl = document.getElementById("rows");
     const refreshBtn = document.getElementById("refreshBtn");
 
     const headers = {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      apikey: SUPABASE_PUB_KEY,
+      Authorization: `Bearer ${SUPABASE_PUB_KEY}`,
       "Content-Type": "application/json"
     };
 
@@ -371,7 +371,7 @@
         const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
           method: "GET",
           headers: {
-            apikey: SUPABASE_ANON_KEY
+            apikey: SUPABASE_PUB_KEY
           },
           credentials: "include"
         });
@@ -400,8 +400,7 @@
       const viewDisplay = (row.display_name || "").trim();
       const username = sanitizeUsername(row.username);
 
-      // Prefer explicit display_name from view when available
-      if (viewDisplay && viewDisplay.toLowerCase() !== "anon") {
+      if (viewDisplay && viewDisplay.toLowerCase() !== "anon") {    // Prefer explicit display_name from view when available
         return viewDisplay;
       }
 
