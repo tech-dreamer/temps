@@ -1492,4 +1492,5 @@ document.addEventListener('DOMContentLoaded', async () => {
         await buildHourlyGrid();
       }
     }
-  }, 60000)};
+  }, 60000)
+});
