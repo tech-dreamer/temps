@@ -606,17 +606,9 @@ function getCityLocalDateISO(tz, offsetDays = 0) {    // get local date of city
 }
 
 function getDailyForecastDateISO(forecastDay = "today") {    // get forecast date based on PT
-  const ptNow = getPTNow();
-  const ptCutoff = new Date(ptNow.getTime());
-  ptCutoff.setUTCHours(12, 0, 0, 0);
+  const gameDate = getPTNow();
 
-  const gameDate = new Date(ptNow.getTime());
-
-  if (ptNow >= ptCutoff) {    // daily date switch at noon PT
-    gameDate.setUTCDate(gameDate.getUTCDate() + 1);
-  }
-
-  if (forecastDay === "tomorrow") {    // forecast date switch
+  if (forecastDay === "tomorrow") {    // tomorrow forecast date
     gameDate.setUTCDate(gameDate.getUTCDate() + 1);
   }
 
@@ -727,7 +719,6 @@ async function loadForecastData({
 function updateCurrentDate() {
   const dateDisplay = document.getElementById('currentDate');
   const forecastDaySelect = document.getElementById('forecastDay');
-
   if (!dateDisplay || !forecastDaySelect) return;
 
   const ptNow = getPTNow();
@@ -737,22 +728,22 @@ function updateCurrentDate() {
   const dateKey = toYMD(ptNow);
   const autoSwitchKey = `temps_auto_switched_${dateKey}`;
 
-  let hasAutoSwitched = false;
-  try {
-    hasAutoSwitched = sessionStorage.getItem(autoSwitchKey);
-  } catch (e) {
-    hasAutoSwitched = false;
-  }
-
-  if (ptNow >= ptCutoff && !hasAutoSwitched) {
-    forecastDaySelect.value = "tomorrow";
+  if (ptNow < ptCutoff) {    // new day reset, back to today before noon
+    forecastDaySelect.value = "today";
+    try { sessionStorage.removeItem(autoSwitchKey); } catch (_) {}
+  } else {    // after PT cutoff, switch once per day
+    let hasAutoSwitched = false;
     try {
-      sessionStorage.setItem(autoSwitchKey, "true");
-    } catch (e) {}    // storage blocked; ignore
+      hasAutoSwitched = sessionStorage.getItem(autoSwitchKey);
+    } catch (_) {}
+
+    if (!hasAutoSwitched) {
+      forecastDaySelect.value = "tomorrow";
+      try { sessionStorage.setItem(autoSwitchKey, "true"); } catch (_) {}
+    }
   }
 
   const ptToday = formatMonthDayInTZ(ptNow, "America/Los_Angeles");
-
   const tomorrow = new Date(ptNow.getTime());
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
   const ptTomorrow = formatMonthDayInTZ(tomorrow, "America/Los_Angeles");
@@ -1056,7 +1047,7 @@ async function handleDailySubmit(e) {
   const forecastDaySelect = document.getElementById('forecastDay');
   if (!forecastDaySelect) return;
 
-  const forecastDay = forecastDaySelect.value;
+  const forecastDay = forecastDaySelect.value || "today";
   const forecastDate = getDailyForecastDateISO(forecastDay);
 
   const inputs = document.querySelectorAll('.daily-high, .daily-low');
