@@ -1257,18 +1257,22 @@ document.addEventListener('click', (e) => {
 async function handleDailySubmit(e) {
   e.preventDefault();
 
-  const forecastDaySelect = document.getElementById('forecastDay');
+  const forecastDaySelect = document.getElementById("forecastDay");
   if (!forecastDaySelect) return;
 
   const forecastDay = forecastDaySelect.value || "today";
   const forecastDate = getDailyForecastDateISO(forecastDay);
 
-  const inputs = document.querySelectorAll('.daily-high, .daily-low');
+  const inputs = document.querySelectorAll(".daily-high, .daily-low");
   const rowsByCity = new Map();
-  let blocked = false;
+  const lockedCityNames = new Set();
   const dateKeys = new Set();
   let hasAnyInput = false;
+  let hasAnyOpenInput = false;
   let hasInvalidNumber = false;
+
+  const getCityName = (city, cityId) =>
+    city?.name || city?.city || city?.label || `City ${cityId}`;
 
   inputs.forEach((input) => {
     input.style.borderColor = "";
@@ -1278,7 +1282,8 @@ async function handleDailySubmit(e) {
 
   inputs.forEach((input) => {
     const raw = input.value.trim();
-    if (raw === '') return; // allows 0
+    if (raw === "") return; // allows 0; ignore empty
+    hasAnyInput = true;
 
     const cityId = Number(input.dataset.cityId);
     const numVal = Number(raw);
@@ -1291,24 +1296,26 @@ async function handleDailySubmit(e) {
       return;
     }
 
-    const city = cities.find(c => c.id === cityId);
+    const city = cities.find((c) => c.id === cityId);
     if (!city) return;
 
-    const ptNow = getPTNow();
-    const ptCutoff = new Date(ptNow);
-    ptCutoff.setUTCHours(12, 0, 0, 0);
+    // City-level cutoff check for today only
+    let isLocked = false;
+    if (forecastDay === "today") {
+      const localNow = getTzDate(city.timezone || "UTC");
+      const cutoff = new Date(localNow.getTime());
+      cutoff.setHours(12, 0, 0, 0); // local noon, not UTC noon
+      if (localNow >= cutoff) {
+        isLocked = true;
+      }
+    }
 
-    const localNow = getTzDate(city.timezone || "UTC");
-    const cutoff = new Date(localNow.getTime());
-    cutoff.setUTCHours(12, 0, 0, 0);
-
-    if (forecastDay === 'today' && (ptNow >= ptCutoff || localNow >= cutoff)) {
-      blocked = true;
-      return;
+    if (isLocked) {
+      lockedCityNames.add(getCityName(city, cityId));
+      return; // Skip locked city; still allow other open cities to save
     }
 
     const dateValue = forecastDate;
-
     let row = rowsByCity.get(cityId);
     if (!row) {
       row = {
@@ -1321,7 +1328,7 @@ async function handleDailySubmit(e) {
       rowsByCity.set(cityId, row);
     }
 
-    if (input.classList.contains('daily-high')) {
+    if (input.classList.contains("daily-high")) {
       row.high = numVal;
       row._hasHigh = true;
     } else {
@@ -1329,17 +1336,22 @@ async function handleDailySubmit(e) {
       row._hasLow = true;
     }
 
-    hasAnyInput = true;
+    hasAnyOpenInput = true;
     dateKeys.add(dateValue);
   });
 
   if (hasInvalidNumber) {
-    setStatus('<span style="color:red;"> Enter a valid number for all filled forecast fields </span>');
+    setStatus(
+      '<span style="color:red;"> Enter a valid number for all filled forecast fields </span>'
+    );
     return;
   }
 
-  if (blocked) {
-    setStatus('<span style="color:red;"> Cutoff passed for at least 1 city </span>');
+  if (lockedCityNames.size > 0 && !hasAnyOpenInput) {
+    const lockedList = [...lockedCityNames].join(", ");
+    setStatus(
+      `<span style="color:red;"> Cutoff passed for: ${lockedList}. No open-city forecasts to save. </span>`
+    );
     return;
   }
 
@@ -1348,7 +1360,7 @@ async function handleDailySubmit(e) {
     return;
   }
 
-  const lowOnlyCities = [];    // enforce high requirement
+  const lowOnlyCities = []; // enforce high requirement
   rowsByCity.forEach((row) => {
     if (row._hasLow && !row._hasHigh) {
       const lowInput = document.querySelector(`.daily-low[data-city-id="${row.city_id}"]`);
@@ -1375,7 +1387,7 @@ async function handleDailySubmit(e) {
     return;
   }
 
-  const preSaveSession = await ensureSessionForDailySave();    // single explicit creation point
+  const preSaveSession = await ensureSessionForDailySave(); // single explicit creation point
   if (!preSaveSession?.user?.id) {
     setStatus('<span style="color:red;"> No active session. Please try again. </span>');
     return;
@@ -1383,7 +1395,7 @@ async function handleDailySubmit(e) {
   const activeUserId = preSaveSession.user.id;
   userId = activeUserId;
 
-  let predictedStreak = null;      // predict streak increment before upsert using current DB state
+  let predictedStreak = null; // predict streak increment before upsert using current DB state
   for (const forecastDate of [...dateKeys]) {
     const incrementCheck = await checkIncrementDailyStreak(payload, forecastDate, activeUserId);
 
@@ -1400,11 +1412,11 @@ async function handleDailySubmit(e) {
     }
   }
 
-  const result = await upsertWithSessionRecovery({    // save forecasts to table
-    table: 'daily_forecasts',
+  const result = await upsertWithSessionRecovery({
+    table: "daily_forecasts",
     rows: payload,
-    onConflict: 'user_id,city_id,date',
-    allowAnonymous: false    // no auto-create, handled before submit
+    onConflict: "user_id,city_id,date",
+    allowAnonymous: false
   });
 
   if (result.error) {
@@ -1416,7 +1428,16 @@ async function handleDailySubmit(e) {
   if (finalUserId) userId = finalUserId;
 
   hasSavedForecast = true;
-  setStatus(`<span style="color:green;"> Saved ${payload.length} forecasts! 🐰 </span>`);
+
+  const lockedMsg =
+    lockedCityNames.size > 0
+      ? ` (excluded due cutoff: ${[...lockedCityNames].join(", ")})`
+      : "";
+
+  setStatus(
+    `<span style="color:green;"> Saved ${payload.length} forecast${payload.length === 1 ? "" : "s"}! 🐰 ${lockedMsg}</span>`
+  );
+
   await buildDailyGrid();
 
   if (predictedStreak?.ok) {
