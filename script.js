@@ -848,12 +848,9 @@ function getHourlyGameDateMeta() {
 }
 
 function updateHourlyButton() {
-  const btn =
-    document.getElementById("saveHourlyForecastBtn") ||
-    document.getElementById("saveHourlyBtn") ||
-    document.querySelector("button[data-hourly-save], button#saveHourlyForecast");
+  const hourlySaveBtn = document.querySelector('#hourlySaveBtn, #saveHourlyForecastBtn, #saveHourlyBtn, [data-hourly-save]');
 
-  if (!btn) return;
+  if (!hourlySaveBtn) return;
 
   const anySelected =
     document.querySelector(".hour-option.selected") !== null ||
@@ -861,11 +858,11 @@ function updateHourlyButton() {
     document.querySelector("#hourSelector .selected") !== null;
 
   if (anySelected) {
-    btn.textContent = "Save Hourly Forecasts";
-    btn.disabled = false;
+    hourlySaveBtn.textContent = "Save Hourly Forecasts";
+    hourlySaveBtn.disabled = false;
   } else {
-    btn.textContent = "Choose an Hour";
-    btn.disabled = true;
+    hourlySaveBtn.textContent = "Choose an Hour";
+    hourlySaveBtn.disabled = true;
   }
 }
 
