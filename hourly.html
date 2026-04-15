@@ -3,22 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title> Hourly Forecasts </title>
+  <title>Hourly Forecasts</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="style.css" />
   <style>
     .hourly-action-btn {
-      padding: 0.65rem 1.25rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14rem;
+      height: 2.75rem;
+      min-width: 14rem;
+      max-width: 14rem;
+      padding: 0 0.75rem;
+      box-sizing: border-box;
+      font-size: 0.95rem;
+      font-weight: 600;
       border-radius: 0.5rem;
       border: 1px solid #0f766e;
-      font: 600 1rem/1.25rem Arial, sans-serif;
-      min-width: 14rem;
       text-align: center;
+      white-space: nowrap;
+      text-decoration: none;
       cursor: pointer;
-      display: inline-flex;
-      justify-content: center;
-      align-items: center;
+      transition: all 0.2s ease;
     }
 
     #hourlySaveBtn {
@@ -34,13 +42,13 @@
     }
 
     #hourlyScoreBtn {
-      background: #32CD32;
+      background: #22c55e;
       color: #ffffff;
-      border: none;
+      border: 1px solid #16a34a;
     }
 
     #hourlyScoreBtn:hover {
-      background: #008000;
+      background: #16a34a;
       transform: translateY(-2px);
       box-shadow: 0 8px 18px rgba(16, 185, 129, 0.3);
     }
@@ -87,7 +95,9 @@
 
   <div style="text-align:center;margin:1rem 0 0.5rem;">
     <a href="score.html?mode=hourly">
-      <button type="button" id="hourlyScoreBtn" class="hourly-action-btn"> 📊 View My Hourly Scores </button>
+      <button type="button" id="hourlyScoreBtn" class="hourly-action-btn">
+        📊 View My Hourly Scores
+      </button>
     </a>
   </div>
 
