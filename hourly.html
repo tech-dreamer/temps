@@ -12,23 +12,20 @@
       display: none !important;
     }
 
+    /* Match daily "Go to Hourly Forecasts" size */
     #goToDailyBtn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
       padding: 0.8rem 1.3rem;
       background: #9b59b6;
-      color: #ffffff;
+      color: #fff;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      font-weight: 600;
-      font-size: 0.95rem;
-      transition: all 0.2s ease;
-      line-height: 1.2;
+      font-weight: 700;
+      font-size: 1.15rem;
+      line-height: 1.1;
       text-decoration: none;
       white-space: nowrap;
-      box-sizing: border-box;
+      transition: all 0.2s ease;
     }
 
     #goToDailyBtn:hover {
@@ -36,53 +33,49 @@
       transform: translateY(-1px);
     }
 
+    /* Make hourly action buttons match daily button sizing/height/line-height */
     .hourly-action-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 1rem;
-      box-sizing: border-box;
-      font-size: 0.95rem;
-      font-weight: 600;
-      border-radius: 0.5rem;
-      text-align: center;
-      text-decoration: none;
-      white-space: normal;
-      cursor: pointer;
-      transition: all 0.2s ease;
+      white-space: nowrap;
+      width: auto;
+      min-width: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
       line-height: 1.2;
+      padding: 1rem 2.2rem;
+      border-radius: 14px;
+      border: none;
+      box-sizing: border-box;
     }
 
     #hourlySaveBtn {
-      background: #3b82f6;
-      color: #ffffff;
-      border: 1px solid #2563eb;
+      background: #0096ff;   /* matches daily save look */
+      color: #fff;
+      border: none;
     }
 
     #hourlySaveBtn:hover {
-      background: #2563eb;
+      background: #3b82f6;
       transform: translateY(-2px);
-      box-shadow: 0 8px 18px rgba(59, 130, 246, 0.25);
+      box-shadow: 0 8px 18px rgba(79, 70, 229, 0.3);
     }
 
     #hourlyScoreBtn {
-      background: #22c55e;
-      color: #ffffff;
-      border: 1px solid #16a34a;
+      background: #32cd32;   /* matches daily View My Score */
+      color: #fff;
+      border: none;
     }
 
     #hourlyScoreBtn:hover {
-      background: #16a34a;
+      background: #2fb347;
       transform: translateY(-2px);
       box-shadow: 0 8px 18px rgba(16, 185, 129, 0.3);
     }
   </style>
 </head>
 <body>
-
   <div style="text-align:center; margin:1rem 0; display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap;">
     <a href="daily.html">
-      <button type="button" id="goToDailyBtn"> ← Go to Daily Forecasts </button>
+      <button type="button" id="goToDailyBtn">← Go to Daily Forecasts</button>
     </a>
   </div>
 
@@ -100,10 +93,8 @@
     </span>
   </p>
 
-  <!-- Hour Selector -->
   <div id="hourSelector" class="hour-selector"></div>
 
-  <!-- Forecast Form -->
   <form id="hourlyForm">
     <div id="hourlyGrid" class="city-grid"></div>
 
@@ -114,7 +105,6 @@
     </div>
   </form>
 
-  <!-- Status Messages -->
   <div id="status" style="text-align:center;margin-top:0.5rem;"></div>
 
   <div style="text-align:center;margin:1rem 0 0.5rem;">
