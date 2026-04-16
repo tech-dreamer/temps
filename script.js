@@ -2004,23 +2004,29 @@ document.addEventListener('DOMContentLoaded', async () => {  // main init
     if (!header) return;
   
     const dailyGrid = document.getElementById("dailyGrid");
-    const inDailyGrid = !!dailyGrid && dailyGrid.contains(header);
+    if (!dailyGrid || !dailyGrid.contains(header)) return;
   
-    console.log("[card click]", {
-      tag: e.target.tagName,
-      headerClass: header.className,
-      hasDailyGrid: !!dailyGrid,
-      inDailyGrid
-    });
+    const cards = dailyGrid.querySelectorAll(".city-card");
+    const before = cards[0]?.className;
   
-    if (dailyGrid && !inDailyGrid) return; // keep scoping
+    const beforeState = typeof allCardsExpanded !== "undefined" ? allCardsExpanded : null;
+    console.log("[card click] before", { before, beforeState });
   
     if (typeof setAllCardsExpanded === "function") {
       setAllCardsExpanded(!allCardsExpanded);
+      console.log("[card click] called setAllCardsExpanded", !allCardsExpanded);
     } else {
-      console.error("setAllCardsExpanded is not a function");
+      console.error("[card click] setAllCardsExpanded is NOT a function");
     }
-  }, true);  // capture phase to avoid being blocked by other listeners
+  
+    requestAnimationFrame(() => {
+      const after = cards[0]?.className;
+      console.log("[card click] after", after);
+      if (before === after) {
+        console.warn("[card click] DOM class didn't change; setAllCardsExpanded may be a no-op or using wrong selectors");
+      }
+    });
+  }, true);
 
   if (document.getElementById('hourSelector')) {
     buildHourSelector();
