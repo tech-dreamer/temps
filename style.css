@@ -498,3 +498,23 @@ button:disabled {
   text-decoration: underline;
   opacity: 1;
 }
+
+/* Keep forecast row space stable */
+.city-card .forecast-line {
+  min-height: 1.5rem;  // fixed slot even when empty
+  margin: 0;
+  color: #6b7280;
+  font-size: 1rem;
+  line-height: 1.4;
+  display: block;
+}
+
+.city-card .forecast-line:empty::before {
+  content: "\00A0";  // non-breaking space
+}
+
+/* Optional: better vertical rhythm inside card content */
+.city-card-content {
+  display: flex;
+  flex-direction: column;
+}
