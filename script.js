@@ -789,20 +789,20 @@ async function markBackupEmailPrompt() {
 const TIMEZONE_ET = "America/New_York";
 const TIMEZONE_PT = "America/Los_Angeles";
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"];
-let lastPtDateForUi = getPtTodayYmd();
+let lastPTDateForUi = getPTTodayYmd();
 // Helper to auto switch date selector to tomorrow after last city cutoff time
 function applyNoonAutoSelect() {
   const forecastDaySelect = document.getElementById("forecastDay");
   if (!forecastDaySelect) return false;
 
-  const todayPt = getPtTodayYmd();
+  const todayPT = getPTTodayYmd();
   const wasLockedForDay = forecastDaySelect.dataset.userSet === "1";
   const lockedDate = forecastDaySelect.dataset.userSetDate;
 
-  const dayChanged = todayPt !== lastPtDateForUi;
-  lastPtDateForUi = todayPt;
+  const dayChanged = todayPT !== lastPTDateForUi;
+  lastPTDateForUi = todayPT;
 
-  if (wasLockedForDay && lockedDate !== todayPt) {    // reset user today selection lock when PT date advances
+  if (wasLockedForDay && lockedDate !== todayPT) {    // reset user today selection lock when PT date advances
     delete forecastDaySelect.dataset.userSet;
     delete forecastDaySelect.dataset.userSetDate;
   }
@@ -835,7 +835,7 @@ function refreshForecastDayOptions() {
 }
 
 // Return today's wall-date in PT as YYYY-MM-DD, no parsing/local timezone drift
-function getPtTodayYmd(date = new Date()) {
+function getPTTodayYmd(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: TIMEZONE_PT,
     year: "numeric",
@@ -875,7 +875,7 @@ function shouldAutoUseTomorrowPT() {
 }
 
 function getDailyForecastDateISO(dayChoice = "today") {
-  const today = getPtTodayYmd(new Date());
+  const today = getPTTodayYmd(new Date());
   return addDaysYmd(today, dayChoice === "tomorrow" ? 1 : 0);
 }
 
@@ -1041,6 +1041,31 @@ function updateHourlyCurrentDate() {
   return state.gameDate;
 }
 
+let lastPTDate = getPTTodayYmd(), PTWait, PTPoll;
+function msUntilPT2359() {
+  for (let i = 0; i < 1441; i++) {
+    const p = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+    }).formatToParts(new Date(Date.now() + i * 60000));
+    const m = Object.fromEntries(p.map(x => [x.type, x.value]));
+    if (m.hour === "23" && m.minute === "59") return i * 60000;
+  }
+  return 60000;
+}
+const rollCheck = () => {
+  const d = getPTTodayYmd();
+  if (d !== lastPTDate) {
+    lastPTDate = d;
+    syncDailyDateUI(true);    // keep selection/date label behavior consistent
+  }
+};
+
+function startPTRolloverWatch() {
+  clearTimeout(PTWait); clearInterval(PTPoll);
+  PTWait = setTimeout(() => { rollCheck(); PTPoll = setInterval(rollCheck, 60000); }, msUntilPT2359());
+}
+startPTRolloverWatch();
+
 function getStationDisplay(city) {
   const raw = String(city?.station || '').trim().toUpperCase();
   if (!raw) return '';
@@ -1187,9 +1212,9 @@ async function buildDailyGrid() {
     guessesByCityDate.set(keyFor(g.city_id, g.date), g);
   }
 
-  const ptNow = getPTNow();
-  const ptCutoff = new Date(ptNow);
-  ptCutoff.setUTCHours(12, 0, 0, 0);
+  const PTNow = getPTNow();
+  const PTCutoff = new Date(PTNow);
+  PTCutoff.setUTCHours(12, 0, 0, 0);
 
   const formatYesterdayValue = (v) =>
     v === undefined || v === null ? "—" : `${v}°`;
@@ -1222,7 +1247,7 @@ async function buildDailyGrid() {
     cutoff.setUTCHours(12, 0, 0, 0);
 
     const isPastCutoff =
-      forecastDay === "today" && (ptNow >= ptCutoff || localNow >= cutoff);
+      forecastDay === "today" && (PTNow >= PTCutoff || localNow >= cutoff);
 
     const card = document.createElement("div");
     card.className = hasSavedForecast
@@ -1851,7 +1876,7 @@ function initBindings() {
       const value = forecastDaySelect.value;
       if (value === "today") {
         forecastDaySelect.dataset.userSet = "1";
-        forecastDaySelect.dataset.userSetDate = getPtTodayYmd();
+        forecastDaySelect.dataset.userSetDate = getPTTodayYmd();
       } else {
         delete forecastDaySelect.dataset.userSet;
         delete forecastDaySelect.dataset.userSetDate;
