@@ -1519,20 +1519,35 @@ function convertETToCityHourLabel(etHour, cityTimezone) {
 }
 
 let allCardsExpanded = false;
-function setAllCardsExpanded(expanded) {  // apply card expansion globally
-  allCardsExpanded = expanded;
-  document.querySelectorAll('.city-card').forEach(card => {
-    card.classList.toggle('expanded', expanded);
-    card.classList.toggle('collapsed', !expanded);
+function setAllCardsExpanded(expandAll) {  // apply card expansion globally
+  const dailyGrid = document.getElementById("dailyGrid");
+  if (!dailyGrid) return;
+
+  const cards = dailyGrid.querySelectorAll(".city-card");
+  if (!cards.length) {
+    console.warn("[setAllCardsExpanded] .city-card not found in #dailyGrid");
+    return;
+  }
+
+  cards.forEach((card) => {
+    card.classList.toggle("expanded", expandAll);
+    card.classList.toggle("collapsed", !expandAll);
+
+    const details = card.querySelector(".city-card-details, .city-card-content, .city-card-body");
+    if (details) details.hidden = !expandAll;
   });
+
+  allCardsExpanded = expandAll;
 }
 
 // Click handler
-document.addEventListener('click', (e) => {
-  const header = e.target.closest('.city-card-header');
+document.addEventListener("click", (e) => {
+  const header = e.target.closest(".city-card-header");
   if (!header) return;
-  const card = header.closest('.city-card');
-  if (!card) return;
+
+  const dailyGrid = document.getElementById("dailyGrid");
+  if (!dailyGrid || !dailyGrid.contains(header)) return;
+
   setAllCardsExpanded(!allCardsExpanded);
 });
 
@@ -1999,35 +2014,6 @@ document.addEventListener('DOMContentLoaded', async () => {  // main init
   }
 
   await loadCities();
-  document.addEventListener("click", (e) => {
-    const header = e.target.closest(".city-card-header");
-    if (!header) return;
-  
-    const dailyGrid = document.getElementById("dailyGrid");
-    if (!dailyGrid || !dailyGrid.contains(header)) return;
-  
-    const cards = dailyGrid.querySelectorAll(".city-card");
-    const before = cards[0]?.className;
-  
-    const beforeState = typeof allCardsExpanded !== "undefined" ? allCardsExpanded : null;
-    console.log("[card click] before", { before, beforeState });
-  
-    if (typeof setAllCardsExpanded === "function") {
-      setAllCardsExpanded(!allCardsExpanded);
-      console.log("[card click] called setAllCardsExpanded", !allCardsExpanded);
-    } else {
-      console.error("[card click] setAllCardsExpanded is NOT a function");
-    }
-  
-    requestAnimationFrame(() => {
-      const after = cards[0]?.className;
-      console.log("[card click] after", after);
-      if (before === after) {
-        console.warn("[card click] DOM class didn't change; setAllCardsExpanded may be a no-op or using wrong selectors");
-      }
-    });
-  }, true);
-
   if (document.getElementById('hourSelector')) {
     buildHourSelector();
   }
