@@ -1069,7 +1069,7 @@ async function buildDailyGrid() {
 
   const yesterdayDateList = [...new Set(Array.from(cityYesterdayById.values()))];
 
-  if (showYesterday && yesterdayDateList.length > 0) {    // yesterday actuals are public, no user requied; if missing, show Data Pending
+  if (showYesterday && yesterdayDateList.length > 0) {    // yesterday actuals are public, no user required
     try {
       const { data: yRows, error: yErr } = await client
         .from("daily_actuals")
@@ -1125,7 +1125,7 @@ async function buildDailyGrid() {
   ptCutoff.setUTCHours(12, 0, 0, 0);
 
   const formatYesterdayValue = (v) =>
-    v === undefined || v === null ? "Data Pending" : `${v}°`;
+    v === undefined || v === null ? "—" : `${v}°`;
 
   for (const city of cities) {
     const stationDisplay = getStationDisplay(city);
