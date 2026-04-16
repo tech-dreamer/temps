@@ -1041,30 +1041,43 @@ function updateHourlyCurrentDate() {
   return state.gameDate;
 }
 
-let lastPTDate = getPTTodayYmd(), PTWait, PTPoll;
-function msUntilPT2359() {
-  for (let i = 0; i < 1441; i++) {
-    const p = new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
-    }).formatToParts(new Date(Date.now() + i * 60000));
-    const m = Object.fromEntries(p.map(x => [x.type, x.value]));
-    if (m.hour === "23" && m.minute === "59") return i * 60000;
-  }
-  return 60000;
+let lastPTDate = getPTTodayYmd();
+let midnightTimer;
+
+function syncIfPTDateChanged() {
+  const today = getPTTodayYmd();
+  if (today === lastPTDate) return false;
+  lastPTDate = today;
+  syncDailyDateUI(true);
+  buildDailyGrid();
+  return true;
+}
+
+function scheduleNextPTMidnight() {
+  clearTimeout(midnightTimer);
+
+  const ms = msUntilPTMidnight();    // existing util midnight
+  midnightTimer = setTimeout(() => {
+    syncIfPTDateChanged();
+    scheduleNextPTMidnight();    // load next day
+  }, ms + 250);
+}
+
+function initDateRolloverWatcher() {
+  syncIfPTDateChanged();
+  scheduleNextPTMidnight();
+
+  const quickSync = () => syncIfPTDateChanged();    // lightweight fallback in case of sleep, clock change, or tab hidden-resume
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) quickSync(); });
+  window.addEventListener('focus', quickSync);
 }
 const rollCheck = () => {
   const d = getPTTodayYmd();
   if (d !== lastPTDate) {
     lastPTDate = d;
-    syncDailyDateUI(true);    // keep selection/date label behavior consistent
+    syncDailyDateUI(true);    // keep date selector label behavior consistent
   }
 };
-
-function startPTRolloverWatch() {
-  clearTimeout(PTWait); clearInterval(PTPoll);
-  PTWait = setTimeout(() => { rollCheck(); PTPoll = setInterval(rollCheck, 60000); }, msUntilPT2359());
-}
-startPTRolloverWatch();
 
 function getStationDisplay(city) {
   const raw = String(city?.station || '').trim().toUpperCase();
@@ -1949,6 +1962,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initBindings();
   applyNoonAutoSelect();
   refreshForecastDayOptions();
+  initDateRolloverWatcher();
 
   if (typeof initDailyHelpModal === 'function') {
     initDailyHelpModal();
@@ -1965,21 +1979,59 @@ document.addEventListener('DOMContentLoaded', async () => {
     buildHourSelector();
   }
 
-  setInterval(async () => {
-    if (isDailyPage && (typeof shouldCheckNow === 'function' ? shouldCheckNow() : true)) {
-      applyNoonAutoSelect();
-      syncDailyDateUI(true);
-      updateCurrentDate();
-      refreshForecastDayOptions();
-      await buildDailyGrid();
-    }
-
-    if (isHourlyPage) {
-      const current = updateHourlyCurrentDate();
-      if (current !== hourlyCurrentDateKey){
-        hourlyCurrentDateKey = current;
-        await buildHourlyGrid();
-      }
-    }
-  }, 60000)
-});
+  let hourlyRolloverTimer = null;
+  function getETOffsetMinutes(date = new Date()) {
+    const tz = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      timeZoneName: 'shortOffset'
+    }).formatToParts(date).find(p => p.type === 'timeZoneName')?.value;
+  
+    if (tz === 'EDT') return -240;
+    if (tz === 'EST') return -300;
+  
+    const match = tz?.match(/GMT([+-]\d{1,2})(?::(\d{2}))?/);
+    if (!match) return 0;
+    const h = Number(match[1]);
+    const m = Number(match[2] || 0);
+    return h * 60 + (h < 0 ? -m : m);
+  }
+  
+  function msUntilNext8pmET() {
+    const etParts = Object.fromEntries(
+      new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).formatToParts(new Date()).map(p => [p.type, p.value])
+    );
+  
+    const y = Number(etParts.year);
+    const mo = Number(etParts.month) - 1;
+    const d = Number(etParts.day);
+  
+    const offsetMin = getETOffsetMinutes();
+    let target = Date.UTC(y, mo, d, 20, 0, 0) - offsetMin * 60 * 1000;    // 20 ET
+    const now = Date.now();
+  
+    if (target <= now) target += 24 * 60 * 60 * 1000;    // next day
+    return target - now;
+  }
+  
+  function scheduleHourlyPageRollover() {
+    clearTimeout(hourlyRolloverTimer);
+  
+    hourlyRolloverTimer = setTimeout(async () => {
+      if (!isHourlyPage) return;
+      hourlyCurrentDateKey = updateHourlyCurrentDate();
+      await buildHourlyGrid();
+      scheduleHourlyPageRollover();    // schedule for next day at 8PM ET
+    }, msUntilNext8pmET());
+  }
+  
+  if (isHourlyPage) {
+    hourlyCurrentDateKey = updateHourlyCurrentDate();
+    await buildHourlyGrid();
+    scheduleHourlyPageRollover();
+  }
+}
