@@ -27,6 +27,22 @@ select, input {
   font-size: 1.15rem;
   border: 2px solid #4f46e5;
   border-radius: 12px;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+/* Restore spacing only for form-level controls */
+#tempsForm input,
+#tempsForm select,
+#hourlyForm input,
+#hourlyForm select {
+  margin: 0.6rem;
+}
+
+.daily-form input,
+.daily-form select,
+.hourly-form input,
+.hourly-form select {
   margin: 0.6rem;
 }
 
@@ -229,6 +245,12 @@ button:disabled {
   outline: none;
   border-color: #4f46e5;
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+}
+
+.city-card input {
+  margin: 0 !important;
+  width: 100%;
+  display: block;
 }
 
 /* DATE WRAPPER */
@@ -501,7 +523,7 @@ button:disabled {
 
 /* Keep forecast row space stable */
 .city-card .forecast-line {
-  min-height: 1.5rem;  // fixed slot even when empty
+  min-height: 1.5rem;  /* fixed slot even when empty */
   margin: 0 0 0.5rem 0;
   color: #6b7280;
   font-size: 1rem;
@@ -510,7 +532,7 @@ button:disabled {
 }
 
 .city-card .forecast-line:empty::before {
-  content: "\00A0";  // non-breaking space
+  content: "\00A0";  /* non-breaking space */
 }
 
 /* Optional: better vertical rhythm inside card content */
