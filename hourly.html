@@ -80,16 +80,21 @@
     }
     
     #hourSelector .hour-box {
-      transition: all 0.2s ease;
+      background: #dbeafe;
+      border: 1px solid #93c5fd;
+      color: #1e3a8a;
+      border-radius: 10px;
+      padding: 0.5rem 0.85rem;
+      margin: 0.25rem;
       cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 700;
     }
     
-    #hourSelector .hour-box.selected,
-    #hourSelector .hour-box.hour-selected {
-      background: #1d4ed8 !important;
+    #hourSelector .hour-box.selected {
+      background: #4169E1 !important;
       border-color: #1e40af !important;
       color: #ffffff !important;
-      font-weight: 700;
       box-shadow: 0 0 0 2px #1e3a8a;
     }
   </style>
