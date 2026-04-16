@@ -1386,8 +1386,8 @@ async function buildHourlyGrid() {
 
     const latestTempsUrl = getObsUrl(city);
     const latestTempsHtml = latestTempsUrl
-      ? `Latest temps: <a href="${latestTempsUrl}" target="_blank" rel="noopener noreferrer">Latest temps</a>`
-      : `Latest temps: N/A`;
+      ? `<a href="${latestTempsUrl}" target="_blank" rel="noopener noreferrer">Latest temps</a>`
+      : `Latest temps unavailable`;
 
     const card = document.createElement("div");
     card.className = "city-card expanded";
