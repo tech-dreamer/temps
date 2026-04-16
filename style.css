@@ -502,7 +502,7 @@ button:disabled {
 /* Keep forecast row space stable */
 .city-card .forecast-line {
   min-height: 1.5rem;  // fixed slot even when empty
-  margin: 0;
+  margin: 0 0 0.5rem 0;
   color: #6b7280;
   font-size: 1rem;
   line-height: 1.4;
