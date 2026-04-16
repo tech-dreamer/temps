@@ -1132,14 +1132,8 @@ async function loadCities() {
       '<span style="color:red;"> Failed to load cities </span>';
     return;
   }
-
-  for (const datum of data) {
-    datum.timezone = datum.timezones?.name || "UTC";
-    delete datum.timezones;
-    delete datum.timezone_id;
-  }
-
-  cities = data;
+  
+  cities = data.map(d => ({ ...d, id: Number(d.id), timezone: d.timezones?.name || d.timezone || "UTC" }));    // ensure numeric id and consistent timezone field
   updateCurrentDate();
   await buildDailyGrid();
 
@@ -1154,8 +1148,7 @@ async function buildDailyGrid() {
   if (!grid || !forecastDaySelect) return;
   updateCurrentDate();
 
-  grid.innerHTML = "<p>Loading cities...</p>";
-
+  grid.textContent = "Loading cities...";
   const forecastDay = forecastDaySelect.value || "today";
   const forecastDate = getDailyForecastDateISO(forecastDay);
   const showYesterday = forecastDay === "today";
@@ -1222,7 +1215,8 @@ async function buildDailyGrid() {
 
   const guessesByCityDate = new Map();
   for (const g of guesses || []) {
-    guessesByCityDate.set(keyFor(g.city_id, g.date), g);
+  const key = keyFor(Number(g.city_id), g.date);
+  guessesByCityDate.set(key, g);
   }
 
   const PTNow = getPTNow();
@@ -1251,7 +1245,7 @@ async function buildDailyGrid() {
       : "";
 
     const prevGuess = guessesByCityDate.get(keyFor(city.id, targetDate)) || {};
-    const hasSavedForecast =
+    const cityHasSavedForecast =
       prevGuess &&
       (prevGuess.high !== undefined || prevGuess.low !== undefined);
 
@@ -1262,52 +1256,61 @@ async function buildDailyGrid() {
     const isPastCutoff =
       forecastDay === "today" && (PTNow >= PTCutoff || localNow >= cutoff);
 
-    const card = document.createElement("div");
-    card.className = hasSavedForecast
-      ? "city-card expanded"
-      : "city-card collapsed";
-
-    card.innerHTML = `
-      <div class="city-card-header">
-        <span class="city-title">${city.name}</span>
-        ${stationDisplay ? `<small class="city-station">(${stationDisplay})</small>` : ""}
-      </div>
-      <div class="city-card-content">
-        ${showYesterday
-          ? `<p><small>Yesterday: ${yesterdayLabel}</small></p>`
-          : ""}
-
-        ${hasSavedForecast
-          ? `<p><small> My current forecast: H ${prevGuess.high ?? "-"}° / L ${prevGuess.low ?? "-"}° </small></p>`
-          : ""}
-
-        <label>High Temp °F:
-          <input type="number"
-            class="daily-high"
-            data-city-id="${Number(city.id)}"
-            value="${prevGuess.high ?? ""}"
-            min="-25"
-            max="125"
-            ${isPastCutoff ? "disabled" : ""}>
-        </label>
-
-        <label>Low Temp °F:
-          <input type="number"
-            class="daily-low"
-            data-city-id="${Number(city.id)}"
-            value="${prevGuess.low ?? ""}"
-            min="-50"
-            max="100"
-            ${isPastCutoff ? "disabled" : ""}>
-        </label>
-
-        ${isPastCutoff
-          ? '<small style="color:#e74c3c; display:block; margin-top:0.5rem;"> Past cutoff (noon local) </small>'
-          : ""}
-      </div>
-    `;
-
-    grid.appendChild(card);
+    console.debug("Rendering city:", city.id, city.name);
+    try {
+      const card = document.createElement("div");
+      card.className = cityHasSavedForecast
+        ? "city-card expanded"
+        : "city-card collapsed";
+  
+      card.innerHTML = `
+        <div class="city-card-header">
+          <span class="city-title">${city.name}</span>
+          ${stationDisplay ? `<small class="city-station">(${stationDisplay})</small>` : ""}
+        </div>
+        <div class="city-card-content">
+          ${showYesterday
+            ? `<p><small>Yesterday: ${yesterdayLabel}</small></p>`
+            : ""}
+  
+          ${cityHasSavedForecast
+            ? `<p><small> My current forecast: H ${prevGuess.high ?? "-"}° / L ${prevGuess.low ?? "-"}° </small></p>`
+            : ""}
+  
+          <label>High Temp °F:
+            <input type="number"
+              class="daily-high"
+              data-city-id="${Number(city.id)}"
+              value="${prevGuess.high ?? ""}"
+              min="-25"
+              max="125"
+              ${isPastCutoff ? "disabled" : ""}>
+          </label>
+  
+          <label>Low Temp °F:
+            <input type="number"
+              class="daily-low"
+              data-city-id="${Number(city.id)}"
+              value="${prevGuess.low ?? ""}"
+              min="-50"
+              max="100"
+              ${isPastCutoff ? "disabled" : ""}>
+          </label>
+  
+          ${isPastCutoff
+            ? '<small style="color:#e74c3c; display:block; margin-top:0.5rem;"> Past cutoff (noon local) </small>'
+            : ""}
+        </div>
+      `;
+  
+      grid.appendChild(card);
+    } catch (err) {
+      console.error("Failed to build city card for", city, err);
+      const fallback = document.createElement("div");    // append a fallback card so UI remains consistent
+      fallback.className = "city-card collapsed";
+      fallback.innerHTML = `<div class="city-card-header">${city.name}</div><div class="city-card-content"><small style="color:orange;"> Failed to render this city </small></div>`;
+      grid.appendChild(fallback);
+    }
   }
 }
 
@@ -2034,4 +2037,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     await buildHourlyGrid();
     scheduleHourlyPageRollover();
   }
-}
+});
