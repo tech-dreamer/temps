@@ -1055,11 +1055,19 @@ function syncIfPTDateChanged() {
 
 function scheduleNextPTMidnight() {
   clearTimeout(midnightTimer);
+  const nowPT = getPTNow();    // Date whose UTC fields represent PT wall-clock
+  const y = nowPT.getUTCFullYear();
+  const mo = nowPT.getUTCMonth();    // zero-based
+  const d = nowPT.getUTCDate();
 
-  const ms = msUntilPTMidnight();    // existing util midnight
+  const nextMidnightUtcMs = Date.UTC(y, mo, d + 1, 0, 0, 0);    // next PT midnight expressed as UTC timestamp
+  const nowMs = Date.now();
+  let ms = nextMidnightUtcMs - nowMs;    // compute ms until next midnight in PT
+  if (!Number.isFinite(ms) || ms < 0) ms = 0;
+
   midnightTimer = setTimeout(() => {
     syncIfPTDateChanged();
-    scheduleNextPTMidnight();    // load next day
+    scheduleNextPTMidnight();    // schedule next timer
   }, ms + 250);
 }
 
