@@ -11,7 +11,6 @@ let selectedHour = null;
 let hourlyCurrentDateKey = '';
 let isDailyPage = false;
 let isHourlyPage = false;
-let lastPtDateForUi = getPtTodayYmd();
 const BACKUP_EMAIL_STREAK = 7;
 const BACKUP_EMAIL_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -790,7 +789,7 @@ async function markBackupEmailPrompt() {
 const TIMEZONE_ET = "America/New_York";
 const TIMEZONE_PT = "America/Los_Angeles";
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"];
-
+let lastPtDateForUi = getPtTodayYmd();
 // Helper to auto switch date selector to tomorrow after last city cutoff time
 function applyNoonAutoSelect() {
   const forecastDaySelect = document.getElementById("forecastDay");
