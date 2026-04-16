@@ -1275,6 +1275,12 @@ async function buildDailyGrid() {
     const isPastCutoff =
       forecastDay === "today" && (PTNow >= PTCutoff || localNow >= cutoff);
 
+    const forecastText = cityHasSavedForecast
+      ? `My current forecast: H ${prevGuess.high ?? "-"}° / L ${prevGuess.low ?? "-"}°`
+      : "";
+
+    const forecastHtml = `<small>${forecastText || "\u00A0"}</small>`;
+
     try {
       const card = document.createElement("div");
       card.className = "city-card";
@@ -1287,13 +1293,8 @@ async function buildDailyGrid() {
           ${stationDisplay ? `<small class="city-station">(${stationDisplay})</small>` : ""}
         </div>
         <div class="city-card-content">
-          ${showYesterday
-            ? `<p><small>Yesterday: ${yesterdayLabel}</small></p>`
-            : ""}
-
-          ${cityHasSavedForecast
-            ? `<p><small> My current forecast: H ${prevGuess.high ?? "-"}° / L ${prevGuess.low ?? "-"}° </small></p>`
-            : ""}
+          ${showYesterday ? `<p><small>Yesterday: ${yesterdayLabel}</small></p>` : ""}
+          <p class="forecast-line">${forecastHtml}</p>
 
           <label>High Temp °F:
             <input type="number"
