@@ -1948,17 +1948,17 @@ function initDailyHelpModal() {
   const showModal = () => modal.classList.remove("hidden");
   const hideModal = () => modal.classList.add("hidden");
 
-  howToBtn.addEventListener("click", (e) => {    // Show modal on How To button click
+  howToBtn.addEventListener("click", (e) => {  // show modal on How To button click
     e.preventDefault();
     showModal();
   });
 
-  understoodBtn.addEventListener("click", (e) => {      // close model only with Understood button
+  understoodBtn.addEventListener("click", (e) => {  // close modal only with Understood button
     e.preventDefault();
     hideModal();
   });
 
-  const xButtons = modal.querySelectorAll(    // hide close UI inside modal
+  const xButtons = modal.querySelectorAll(  // hide close UI inside modal
     '#helpCloseBtn, .help-close, .close-btn, .modal-close, [aria-label="Close"], [data-modal-close]'
   );
   xButtons.forEach((btn) => {
@@ -1981,7 +1981,7 @@ function syncDailyDateUI(force = false) {
   return didDateUIChange;
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', async () => {  // main init
   await handleAuthCallbackFromUrl();
   detectPageMode();
   initBindings();
@@ -1999,6 +1999,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   await loadCities();
+
+  const dailyGrid = document.getElementById("dailyGrid");
+  if (dailyGrid && !dailyGrid.dataset.cardsToggleBound) {
+    dailyGrid.dataset.cardsToggleBound = "1";
+    dailyGrid.addEventListener("click", (e) => {
+      const header = e.target.closest(".city-card-header");
+      if (!header) return;
+      setAllCardsExpanded(!allCardsExpanded);
+    });
+  }
 
   if (document.getElementById('hourSelector')) {
     buildHourSelector();
@@ -2036,10 +2046,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const d = Number(etParts.day);
   
     const offsetMin = getETOffsetMinutes();
-    let target = Date.UTC(y, mo, d, 20, 0, 0) - offsetMin * 60 * 1000;    // 20 ET
+    let target = Date.UTC(y, mo, d, 20, 0, 0) - offsetMin * 60 * 1000;  // 20 ET
     const now = Date.now();
   
-    if (target <= now) target += 24 * 60 * 60 * 1000;    // next day
+    if (target <= now) target += 24 * 60 * 60 * 1000;  // next day
     return target - now;
   }
   
@@ -2050,7 +2060,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!isHourlyPage) return;
       hourlyCurrentDateKey = updateHourlyCurrentDate();
       await buildHourlyGrid();
-      scheduleHourlyPageRollover();    // schedule for next day at 8PM ET
+      scheduleHourlyPageRollover();  // schedule for next day at 8PM ET
     }, msUntilNext8pmET());
   }
   
