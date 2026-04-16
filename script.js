@@ -1163,6 +1163,7 @@ async function buildDailyGrid() {
   const grid = document.getElementById("dailyGrid");
   const forecastDaySelect = document.getElementById("forecastDay");
   if (!grid || !forecastDaySelect) return;
+
   updateCurrentDate();
 
   grid.textContent = "Loading cities...";
@@ -1174,11 +1175,12 @@ async function buildDailyGrid() {
   let guesses = [];
 
   const cityYesterdayById = new Map();
+
   if (showYesterday) {
     cities.forEach((city) => {
       const tz = city.timezone || "UTC";
-      const y = getCityLocalDateISO(tz, -1);
-      cityYesterdayById.set(Number(city.id), y);
+      const yesterday = getCityLocalDateISO(tz, -1);
+      cityYesterdayById.set(Number(city.id), yesterday);
     });
   }
 
@@ -1232,8 +1234,8 @@ async function buildDailyGrid() {
 
   const guessesByCityDate = new Map();
   for (const g of guesses || []) {
-  const key = keyFor(Number(g.city_id), g.date);
-  guessesByCityDate.set(key, g);
+    const key = keyFor(Number(g.city_id), g.date);
+    guessesByCityDate.set(key, g);
   }
 
   const PTNow = getPTNow();
@@ -1241,7 +1243,7 @@ async function buildDailyGrid() {
   PTCutoff.setUTCHours(12, 0, 0, 0);
 
   const formatYesterdayValue = (v) =>
-    v === undefined || v === null ? "—" : `${v}°`;
+    v === undefined || v === null ? "— (Pending)" : `${v}°`;
 
   for (const city of cities) {
     const stationDisplay = getStationDisplay(city);
@@ -1273,13 +1275,12 @@ async function buildDailyGrid() {
     const isPastCutoff =
       forecastDay === "today" && (PTNow >= PTCutoff || localNow >= cutoff);
 
-    console.debug("Rendering city:", city.id, city.name);
     try {
       const card = document.createElement("div");
-      card.className = cityHasSavedForecast
-        ? "city-card expanded"
-        : "city-card collapsed";
-  
+      card.className = "city-card";
+      card.classList.toggle("expanded", allCardsExpanded);
+      card.classList.toggle("collapsed", !allCardsExpanded);
+
       card.innerHTML = `
         <div class="city-card-header">
           <span class="city-title">${city.name}</span>
@@ -1289,11 +1290,11 @@ async function buildDailyGrid() {
           ${showYesterday
             ? `<p><small>Yesterday: ${yesterdayLabel}</small></p>`
             : ""}
-  
+
           ${cityHasSavedForecast
             ? `<p><small> My current forecast: H ${prevGuess.high ?? "-"}° / L ${prevGuess.low ?? "-"}° </small></p>`
             : ""}
-  
+
           <label>High Temp °F:
             <input type="number"
               class="daily-high"
@@ -1303,7 +1304,7 @@ async function buildDailyGrid() {
               max="125"
               ${isPastCutoff ? "disabled" : ""}>
           </label>
-  
+
           <label>Low Temp °F:
             <input type="number"
               class="daily-low"
@@ -1313,18 +1314,21 @@ async function buildDailyGrid() {
               max="100"
               ${isPastCutoff ? "disabled" : ""}>
           </label>
-  
+
           ${isPastCutoff
             ? '<small style="color:#e74c3c; display:block; margin-top:0.5rem;"> Past cutoff (noon local) </small>'
             : ""}
         </div>
       `;
-  
+
       grid.appendChild(card);
     } catch (err) {
       console.error("Failed to build city card for", city, err);
-      const fallback = document.createElement("div");    // append a fallback card so UI remains consistent
-      fallback.className = "city-card collapsed";
+
+      const fallback = document.createElement("div");
+      fallback.className = "city-card";
+      fallback.classList.toggle("expanded", allCardsExpanded);
+      fallback.classList.toggle("collapsed", !allCardsExpanded);
       fallback.innerHTML = `<div class="city-card-header">${city.name}</div><div class="city-card-content"><small style="color:orange;"> Failed to render this city </small></div>`;
       grid.appendChild(fallback);
     }
@@ -1514,16 +1518,23 @@ function convertETToCityHourLabel(etHour, cityTimezone) {
   }
 }
 
-// Click handler (works on both pages)
+let allCardsExpanded = false;
+
+function setAllCardsExpanded(expanded) {    // apply card expandion globally
+  allCardsExpanded = expanded;
+  document.querySelectorAll('.city-card').forEach(card => {
+    card.classList.toggle('expanded', expanded);
+    card.classList.toggle('collapsed', !expanded);
+  });
+}
+
+// Click handler
 document.addEventListener('click', (e) => {
   const header = e.target.closest('.city-card-header');
   if (!header) return;
-
   const card = header.closest('.city-card');
   if (!card) return;
-
-  card.classList.toggle('collapsed');
-  card.classList.toggle('expanded');
+  setAllCardsExpanded(!allCardsExpanded);
 });
 
 // Daily save handler
