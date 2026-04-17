@@ -1036,7 +1036,7 @@ function updateHourlyCurrentDate() {
   if (!el) return getHourlyGameDateMeta().gameDate;
 
   const state = getHourlyGameDateMeta();
-  el.textContent = `Forecast date (ET): ${state.gameDateLabel}`;
+  el.textContent = `Forecast date: ${state.gameDateLabel}`;
   return state.gameDate;
 }
 
