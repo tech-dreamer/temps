@@ -288,14 +288,27 @@
       align-items: center;
       justify-content: space-between;
       margin-top: 12px;
-      gap: 12px;
+      gap: 0.75 rem;
+      flex-direction: column;
       flex-wrap: wrap;
     }
 
     .pager-actions {
       display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .pager-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      width: 100%;
+    }
+
+    .button-purple {
+      background-color: #CF9FFF;
     }
 
     .footer-row {
@@ -491,13 +504,14 @@
       </div>
 
       <div class="pager">
-        <span id="pagerInfo" class="meta">0 entries</span>
-        <div class="go-daily-row" style="margin-top: 8px; width: 100%; display: flex; justify-content: flex-start;">
-          <button id="goDailyBtn" class="button secondary" type="button"> Go to Daily </button>
-        </div>
-        <div class="pager-actions">
-          <button id="prevPage" class="button secondary" type="button"> Previous </button>
-          <button id="nextPage" class="button secondary" type="button"> Next </button>
+        <span id="pagerInfo" class="meta"> 0 entries </span>
+        <div class="pager-bottom">
+          <button id="goDailyBtn" class="button button-purple" type="button"> Go to Daily </button>
+          <div class="pager-actions">
+            <button id="prevPage" class="button secondary" type="button"> Previous </button>
+            <button id="nextPage" class="button secondary" type="button"> Next </button>
+            <button id="statsBtn" class="button secondary" type="button"> My Stats </button>
+          </div>
         </div>
       </div>
 
