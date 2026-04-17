@@ -462,7 +462,6 @@
           <label>&nbsp;</label>
           <div class="btn-group">
             <button id="clearBtn" class="button ghost" type="button"> Clear Filters </button>
-            <button id="refreshBtn" class="button secondary" type="button"> Refresh </button>
           </div>
         </div>
       </div>
@@ -493,9 +492,12 @@
 
       <div class="pager">
         <span id="pagerInfo" class="meta">0 entries</span>
+        <div class="go-daily-row" style="margin-top: 8px; width: 100%; display: flex; justify-content: flex-start;">
+          <button id="goDailyBtn" class="button secondary" type="button"> Go to Daily </button>
+        </div>
         <div class="pager-actions">
-          <button id="prevPage" class="button secondary" type="button">Previous</button>
-          <button id="nextPage" class="button secondary" type="button">Next</button>
+          <button id="prevPage" class="button secondary" type="button"> Previous </button>
+          <button id="nextPage" class="button secondary" type="button"> Next </button>
         </div>
       </div>
 
@@ -524,8 +526,8 @@
     const toDateInput = document.getElementById("toDate");
     const pageSizeInput = document.getElementById("pageSize");
     const clearBtn = document.getElementById("clearBtn");
-    const refreshBtn = document.getElementById("refreshBtn");
     const statsBtn = document.getElementById("statsBtn");
+    const goDailyBtn = document.getElementById("goDailyBtn");
 
     const dailyModeBtn = document.getElementById("dailyModeBtn");
     const hourlyModeBtn = document.getElementById("hourlyModeBtn");
@@ -1277,9 +1279,8 @@
       applyFilters(true);
     });
 
-    refreshBtn.addEventListener("click", () => {
-      renderSourceLine(state.mode);
-      loadData();
+    goDailyBtn.addEventListener("click", () => {
+      window.location.href = "daily.html";
     });
 
     prevPageBtn.addEventListener("click", () => {
