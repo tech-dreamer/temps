@@ -656,14 +656,14 @@
 
     function formatInt(v) {
       const n = toNumber(v);
-      if (n === null) return `${"—"}°`;
-      return `${Math.round(n)}°`;
+      if (n === null) return `${"—"}`;
+      return `${Math.round(n)}`;
     }
     
     function formatAbsError(v) {
       const n = toNumber(v);
-      if (n === null) return `${"—"}°`;
-      return `${Math.abs(Math.round(n))}°`;
+      if (n === null) return `${"—"}`;
+      return `${Math.abs(Math.round(n))}`;
     }
 
     function formatRange(row, isForecast = true) {
@@ -672,11 +672,11 @@
       const isHourly = modeConfigFor(state.mode).hasHour;
     
       if (isHourly) {
-        return high === null ? "—" : formatInt(high);
+        return high === null ? "—" : formatInt(high)°;
       }
     
       if (high === null && low === null) return "—";
-      return `H ${formatInt(high)} / L ${formatInt(low)}`;
+      return `H ${formatInt(high)}° / L ${formatInt(low)}°`;
     }
 
     function parseDateValue(value) {
