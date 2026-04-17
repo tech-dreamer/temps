@@ -654,16 +654,29 @@
       return getFirstNumber(row, ["error_low"]);
     }
 
-    function fmtInt(v, fallback = "—") {
+    function formatInt(v) {
       const n = toNumber(v);
-      return n === null ? fallback : Math.round(n).toLocaleString();
+      if (n === null) return `${"—"}°`;
+      return `${Math.round(n)}°`;
+    }
+    
+    function formatAbsError(v) {
+      const n = toNumber(v);
+      if (n === null) return `${"—"}°`;
+      return `${Math.abs(Math.round(n))}°`;
     }
 
-    function fmtSigned(v, fallback = "—") {
-      const n = toNumber(v);
-      if (n === null) return fallback;
-      const rounded = Math.round(n);
-      return `${rounded}°`;
+    function formatRange(row, isForecast = true) {
+      const high = isForecast ? getForecastHigh(row) : getActualHigh(row);
+      const low = isForecast ? getForecastLow(row) : getActualLow(row);
+      const isHourly = modeConfigFor(state.mode).hasHour;
+    
+      if (isHourly) {
+        return high === null ? "—" : formatInt(high);
+      }
+    
+      if (high === null && low === null) return "—";
+      return `H ${formatInt(high)} / L ${formatInt(low)}`;
     }
 
     function parseDateValue(value) {
@@ -671,15 +684,13 @@
 
       const s = String(value).trim();
 
-      // parse YYYY-MM-DD as an ET date safely, no local UTC rollover
-      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);  // parse YYYY-MM-DD as an ET date safely, no local UTC rollover
       if (m) {
         const year = Number(m[1]);
         const monthIndex = Number(m[2]) - 1;
         const day = Number(m[3]);
 
-        // use local-noon UTC anchor to avoid date drift when formatted in ET
-        return Date.UTC(year, monthIndex, day, 12, 0, 0);
+        return Date.UTC(year, monthIndex, day, 12, 0, 0);  // use local-noon UTC anchor to avoid date drift when formatted in ET
       }
 
       return Date.parse(s) || 0;
@@ -703,8 +714,7 @@
 
       const eps = 1e-9;
 
-      // Handles 20.5, 14.5, 20, 14 etc.
-      const asNumber = Number(s);
+      const asNumber = Number(s);  // handle 20.5, 14.5, 20, 14, etc
       if (Number.isFinite(asNumber)) {
         const h = Math.trunc(asNumber);
         const frac = asNumber - h;
@@ -712,8 +722,7 @@
         return makeHourInfo(h, isSixHourHigh, isSixHourHigh ? 30 : 0);
       }
 
-      // Handles formats like "8 pm", "8:00 PM", "2:30pm", "14:30"
-      const m = s.match(/^(\d{1,2})(?::(\d{1,2}))?\s*(am|pm)?$/i);
+      const m = s.match(/^(\d{1,2})(?::(\d{1,2}))?\s*(am|pm)?$/i);  // handle formats like "8 pm", "8:00 PM", "2:30pm", "14:30"
       if (m) {
         const baseHourRaw = Number(m[1]);
         const minuteRaw = Number(m[2] || 0);
@@ -729,8 +738,7 @@
         return makeHourInfo(h, isSixHourHigh, isSixHourHigh ? 30 : 0);
       }
 
-      // Fallback: parse anything date-like and take extracted hour
-      const ts = Date.parse(s);
+      const ts = Date.parse(s);  // fallback: parse anything date-like and take extracted hour
       if (Number.isNaN(ts)) return null;
       const dt = new Date(ts);
       const mns = dt.getMinutes();
@@ -762,27 +770,12 @@
         year: "numeric"
       }).format(new Date(t));
 
-      if (!hasHour) return `${dateText} ET`;
+      if (!hasHour) return `${dateText}`;
 
       const hourInfo = typeof hourParser === "function" ? hourParser(row.hour) : null;
       if (!hourInfo) return `${dateText} ET`;
 
       return `${dateText}, ${formatHourLabel(hourInfo.hour)} ET${hourInfo.isSixHourHigh ? " 6-hr high" : ""}`;
-    }
-
-    function formatRange(row, isForecast = true) {
-      const high = isForecast ? getForecastHigh(row) : getActualHigh(row);
-      const low = isForecast ? getForecastLow(row) : getActualLow(row);
-      const isHourly = modeConfigFor(state.mode).hasHour;
-
-      if (high === null && low === null) return "—";
-
-      if (isHourly || low === null) return `${fmtInt(high)}°`;
-
-      if (high === null) return `Low ${fmtInt(low)}°`;
-      if (low === null) return `High ${fmtInt(high)}°`;
-
-      return `High ${fmtInt(high)}° / Low ${fmtInt(low)}°`;
     }
 
     function accuracyColor(value) {
@@ -808,8 +801,8 @@
       const isHourly = modeConfigFor(state.mode).hasHour;
 
       if (primary === null && secondary === null) return "—";
-      if (isHourly || secondary === null) return fmtSigned(primary);
-      return `${fmtSigned(primary)} / ${fmtSigned(secondary)}`;
+      if (isHourly || secondary === null) return formatAbsError(primary);
+      return `H ${formatAbsError(primary)} / L ${formatAbsError(secondary)}`;
     }
 
     function dateSortValue(row) {
@@ -1094,7 +1087,7 @@
           const color = accuracyColor(err);
           const dot = document.createElement("span");
           dot.className = `accuracy-dot ${color}`;
-          dot.title = err === null ? "No error data" : `Error: ${fmtSigned(err)}`;
+          dot.title = err === null ? "No error data" : `Error: ${formatAbsError(err)}`;
           tdColor.appendChild(dot);
           tr.appendChild(tdColor);
         }
