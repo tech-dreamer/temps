@@ -197,7 +197,7 @@ button:disabled {
   display: flex;
   justify-content: flex-start;
   align-items: center;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.6rem;  /* space under city name/header */
 }
 
 /* ARROW */
@@ -217,11 +217,11 @@ button:disabled {
   transform: rotate(180deg);
 }
 
-.city-card p small {
+.city-card p small { 
   color: #6b7280;
   font-size: 1rem;
   display: block;
-  margin-bottom: 1.2rem;
+  margin-bottom: 1.2rem;  /* Breathing room for "My current forecast" */
 }
 
 .city-card label {
