@@ -541,3 +541,16 @@ button:disabled {
   display: flex;
   flex-direction: column;
 }
+
+#hourlyForm .hourly-cutoff,
+#hourlyForm .latest-temps-link,
+#hourlyForm .latest-temps-link a {
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  font-family: inherit !important;
+}
+
+#hourlyForm .latest-temps-link {
+  margin-top: 0.6rem !important;
+}
