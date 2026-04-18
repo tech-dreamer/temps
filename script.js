@@ -879,14 +879,25 @@ function getDailyForecastDateISO(dayChoice = "today") {
 }
 
 function formatDisplayDate(ymd) {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const asDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));    // use a safe UTC noon for locale formatting
-  return asDate.toLocaleDateString("en-US", {
+  if (!ymd) return "";
+
+  const [year, month, day] = ymd.split("-").map(Number);
+
+  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));  // use a safe UTC noon for locale formatting
+
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: TIMEZONE_PT,
-    month: "short",
     day: "numeric",
+    month: "short",
     year: "numeric",
-  });
+  }).formatToParts(date).reduce((acc, p) => {
+    if (p.type === "day") acc.day = p.value;
+    if (p.type === "month") acc.month = p.value.replace(/\.$/, "");  // remove optional trailing dot in some locales
+    if (p.type === "year") acc.year = p.value;
+    return acc;
+  }, {});
+
+  return `${parts.day} ${parts.month} ${parts.year}`;
 }
 
 // Update current date label on daily page
