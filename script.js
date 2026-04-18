@@ -1301,9 +1301,9 @@ async function buildDailyGrid() {
 
     const forecastText = cityHasSavedForecast
       ? `My current forecast: H ${formatForecastValue(prevGuess.high)} / L ${formatForecastValue(prevGuess.low)}`
-      : "";
-
-    const forecastHtml = `<small>${forecastText || "\u00A0"}</small>`;
+      : "Awaiting my forecast";
+    
+    const forecastHtml = `<small>${forecastText}</small>`;
 
     try {
       const card = document.createElement("div");
