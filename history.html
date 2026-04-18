@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Forecast History</title>
+  <title> Forecast History </title>
   <style>
     :root {
       --bg: #f8fafc;
@@ -219,14 +219,6 @@
       min-width: 860px;
     }
 
-    .history-table .accuracy-col,
-    .history-table .accuracy-cell,
-    .history-table .color-col,
-    .history-table .color-cell {
-      text-align: center;
-      vertical-align: middle;
-    }
-
     thead th {
       background: #f8fafc;
       text-align: left;
@@ -332,7 +324,6 @@
     }
 
     .accuracy-cell {
-      text-align: center;
       white-space: nowrap;
     }
 
@@ -340,15 +331,22 @@
     .history-table td.accuracy-cell {
       width: 125px;
       min-width: 125px;
-      text-align: center;
     }
 
     .history-table.daily-mode th.color-col,
     .history-table.daily-mode td.color-cell {
-      text-align: left;
+      text-align: center;
       width: 58px;
       min-width: 58px;
       white-space: nowrap;
+    }
+
+    .history-table thead th.accuracy-col,
+    .history-table thead th.color-col,
+    .history-table tbody td.accuracy-cell,
+    .history-table tbody td.color-cell {
+      text-align: center;
+      vertical-align: middle;
     }
 
     .accuracy-dot {
@@ -590,6 +588,10 @@
       mood: "desc"
     };
 
+    const MONTH_NAMES = [
+      "Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"
+    ];
+
     const state = {
       mode: "daily",
       rows: [],
@@ -805,13 +807,13 @@
     function formatDateDDMMYYYY(value) {
       const t = parseDateValue(value);
       if (!Number.isFinite(t)) return "—";
-    
+
       const d = new Date(t);
-      const day = String(d.getUTCDate()).padStart(2, "0");
-      const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const day = d.getUTCDate();
+      const month = MONTH_NAMES[d.getUTCMonth()] || "—";
       const year = d.getUTCFullYear();
-    
-      return `${day}-${month}-${year}`;
+
+      return `${day} ${month} ${year}`;
     }
 
     function formatHourLabel(hour24) {
