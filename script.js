@@ -1243,7 +1243,22 @@ async function buildDailyGrid() {
   PTCutoff.setUTCHours(12, 0, 0, 0);
 
   const formatYesterdayValue = (v) =>
-    v === undefined || v === null ? "— (Pending)" : `${v}°`;
+    v === undefined || v === null ? null : `${v}°`;
+
+  const formatForecastValue = (v) =>
+    v === undefined || v === null ? "—" : `${v}°`;
+
+  const buildYesterdayText = (high, low) => {
+    const hasHigh = high !== undefined && high !== null;
+    const hasLow = low !== undefined && low !== null;
+
+    if (!hasHigh && !hasLow) return "Pending";
+
+    const hText = hasHigh ? formatYesterdayValue(high) : "—";
+    const lText = hasLow ? formatYesterdayValue(low) : "—";
+
+    return `H ${hText} / L ${lText}`;
+  };
 
   for (const city of cities) {
     const stationDisplay = getStationDisplay(city);
@@ -1258,9 +1273,7 @@ async function buildDailyGrid() {
       : null;
 
     const yesterdayLabel = showYesterday
-      ? `H ${formatYesterdayValue(cityYesterdayActual?.high)} / L ${formatYesterdayValue(
-          cityYesterdayActual?.low
-        )}`
+      ? buildYesterdayText(cityYesterdayActual?.high, cityYesterdayActual?.low)
       : "";
 
     const prevGuess = guessesByCityDate.get(keyFor(city.id, targetDate)) || {};
@@ -1276,7 +1289,7 @@ async function buildDailyGrid() {
       forecastDay === "today" && (PTNow >= PTCutoff || localNow >= cutoff);
 
     const forecastText = cityHasSavedForecast
-      ? `My current forecast: H ${prevGuess.high ?? "-"}° / L ${prevGuess.low ?? "-"}°`
+      ? `My current forecast: H ${formatForecastValue(prevGuess.high)} / L ${formatForecastValue(prevGuess.low)}`
       : "";
 
     const forecastHtml = `<small>${forecastText || "\u00A0"}</small>`;
