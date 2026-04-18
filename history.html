@@ -507,8 +507,8 @@
                 <th data-sort="actual" data-label="Actual"> Actual <span class="sort-arrow"></span></th>
                 <th data-sort="accuracy" data-label="Accuracy (Error)" class="accuracy-col"> Accuracy (Error) <span class="sort-arrow"></span></th>
                 <th data-sort="color" data-label="Color" class="color-col mode-daily-col"> Color Score <span class="sort-arrow"></span></th>
-                <th data-sort="coins" data-label="Coins"> Coins <span class="sort-arrow"></span></th>
-                <th data-sort="mood" data-label="Mood" class="mode-daily-col"> Mood <span class="sort-arrow"></span></th>
+                <th data-sort="coins" data-label="Coins" class="coins-col"> Coins <span class="sort-arrow"></span></th>
+                <th data-sort="mood" data-label="Mood" class="mood-col mode-daily-col"> Mood <span class="sort-arrow"></span></th>
               </tr>
             </thead>
             <tbody id="historyBody"></tbody>
@@ -1139,6 +1139,7 @@
         tdAccuracy.textContent = formatAccuracy(row);
 
         const tdCoins = document.createElement("td");
+        tdCoins.className = "coins-col";
         tdCoins.textContent = formatInt(row.coins);
 
         tr.appendChild(tdDate);
@@ -1163,6 +1164,7 @@
 
         if (state.mode === "daily") {
           const tdMood = document.createElement("td");
+          tdMood.className = "mood-col";
           tdMood.textContent = row.mood || "—";
           tr.appendChild(tdMood);
         }
