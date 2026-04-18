@@ -297,6 +297,14 @@
       flex-wrap: wrap;
     }
 
+    .pager-info {
+      width: 100%;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding-bottom: 10px;
+    }
+
     .pager-actions {
       display: flex;
       gap: 0.5rem;
@@ -521,7 +529,7 @@
       </div>
 
       <div class="pager">
-        <span id="pagerInfo" class="meta"> 0 entries </span>
+        <span id="pagerInfo" class="pager-info"> 0 entries </span>
         <div class="pager-bottom">
           <button id="goDailyBtn" class="button button-cozy-purple" type="button"> Go to Daily </button>
           <div class="pager-actions">
