@@ -400,16 +400,18 @@
 
     .history-table thead th.accuracy-col,
     .history-table thead th.color-col,
+    .history-table thead th.coins-col,
+    .history-table thead th.mood-col,
     .history-table tbody td.accuracy-cell,
     .history-table tbody td.color-cell,
-    .history-table th.coins-col,
-    .history-table th.mood-col,
-    .history-table td.coins-cell,
-    .history-table td.mood-cell,
-    .history-table td.coins-col,
-    .history-table td.mood-col {
-      text-align: center;
-      vertical-align: middle;
+    .history-table tbody td.coins-col,
+    .history-table tbody td.mood-col,
+    .history-table tbody td.coins-cell,
+    .history-table tbody td.mood-cell,
+    .history-table td.coins-col > *,
+    .history-table td.mood-col > * {
+      text-align: center !important;
+      vertical-align: middle !important;
     }
 
     @media (max-width: 960px) {
