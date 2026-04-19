@@ -52,14 +52,24 @@
     }
     
     #scoreList:not(.is-hourly) {
-      display: grid !important;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      width: 100%;
-      gap: 10px;
-      align-items: stretch;
-      text-align: center !important;
-      overflow: visible; /* no scrollbar */
-      padding-bottom: 0;
+      display: grid;
+      gap: 1rem;
+      width: min(100%, var(--score-max-width));
+      margin-inline: auto;
+      grid-template-columns: repeat(var(--score-cols), minmax(0, 1fr));
+    }
+
+    #scoreList:not(.is-hourly) {
+      --score-cols: 3;
+      --score-max-width: 72rem;
+    }
+    #scoreList:not(.is-hourly)[data-cols="2"] {
+      --score-cols: 2;
+      --score-max-width: 48rem;
+    }
+    #scoreList:not(.is-hourly)[data-cols="1"] {
+      --score-cols: 1;
+      --score-max-width: 24rem;
     }
     
     #scoreList:not(.is-hourly) .score-row {
@@ -1110,16 +1120,32 @@
 
   function buildShare(scores, totalCoins, totalMood, currentStreak) {
     if (!shareBtn) return;
-
-    shareBtn.onclick = async () => {
+    
+    const buildShareText = () => {  // keep helper logic near click handler to make it easy to tweak later
       const circles = cityCirclesFromScores(scores || []);
-      const gameDate = ydayLabel;
-      const text = `Temps with Friends — ${gameDate}
-${circles}
-🪙 ${totalCoins}
-💗 ${formatSignedNumber(totalMood)}
-⭐ ${currentStreak}`;
-
+  
+      const totalCities =  // total number of cities
+        Array.isArray(scores) && scores.length > 0
+          ? scores.length
+          : circles.trim()
+              ? circles.trim().split(/\s+/).filter(Boolean).length
+              : 0;
+  
+      const successCount = (circles.match(/[🟢🟡]/g) || []).length;  // count of green or yellow circles
+  
+      const dateLine = `${ydayLabel}\t${successCount}/${totalCities}`;  // tab between date & x/#
+  
+      return [
+        'Temps with Friends',
+        dateLine,
+        circles,
+        `🪙 ${totalCoins} 💗 ${formatSignedNumber(totalMood)} ⭐ ${currentStreak}`,
+      ].join('\n\n');  // 1 blank line between each line
+    };
+  
+    shareBtn.onclick = async () => {
+      const text = buildShareText();
+  
       const ok = await copyText(text);
       if (ok) {
         showShareStatus("✅ Score copied!");
@@ -1134,9 +1160,10 @@ ${circles}
     if (!scoreListEl) return;
 
     const isHourly = activeMode === "hourly";
-    const scoreTable = isHourly ? "hourly_scores" : "daily_scores";
+    const scoreTable = isHourly ? "hourly_scores" : "daily_scores";  // switch to hourly clears old daily data-cols, switch back to daily will set fresh data-cols in daily render flow
 
     scoreListEl.classList.toggle("is-hourly", isHourly);
+    if (isHourly) scoreListEl.removeAttribute("data-cols");
 
     if (scoreDateEl) {
       if (isHourly) {
@@ -1298,6 +1325,9 @@ ${circles}
 
       scoreListEl.appendChild(row);
     });
+
+    const count = Math.min(scoreListEl.children.length, 3);
+    scoreListEl.dataset.cols = String(count);
 
     renderCityCircles(scores);
     buildShare(scores, totalCoins, totalMood, currentStreak);
