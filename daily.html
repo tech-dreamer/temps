@@ -10,12 +10,92 @@
     #helpCloseBtn {
       display: none !important;
     }
+
+    :root {
+      --brand-purple: #BF40BF;
+      --brand-purple-hover: #A63BA6;
+      --brand-blue: #4169E1;
+      --brand-blue-hover: #3556CA;
+      --brand-green: #228B22;
+      --brand-green-hover: #1D7A1D;
+    }
+
+    #goToHourlyBtn {
+      padding: 0.8rem 1.3rem;
+      background: var(--brand-purple);
+      color: #fff;
+      border: 1px solid var(--brand-purple);
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 1.15rem;
+      line-height: 1.1;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    #goToHourlyBtn:hover {
+      background: var(--brand-purple-hover);
+      border-color: var(--brand-purple-hover);
+      transform: translateY(-1px);
+    }
+
+    #submitDailyBtn {
+      background: var(--brand-blue);
+      color: #fff;
+      border: 1px solid var(--brand-blue);
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: all 0.2s ease;
+    }
+
+    #submitDailyBtn:hover {
+      background: var(--brand-blue-hover);
+      border-color: var(--brand-blue-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(65, 105, 225, 0.28);
+    }
+    
+    #helpBtn {
+      background: var(--brand-blue);
+      color: #fff !important;
+      border: 1px solid var(--brand-blue);
+      border-radius: 8px;
+      font-weight: 700;
+      transition: all 0.2s ease;
+    }
+  
+    #helpBtn:hover {
+      background: var(--brand-blue-hover);
+      border-color: var(--brand-blue-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(65, 105, 225, 0.28);
+    }
+
+    #revealBtn {
+      background: var(--brand-green);
+      color: #fff;
+      border: 1px solid var(--brand-green);
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: all 0.2s ease;
+    }
+
+    #revealBtn:hover {
+      background: var(--brand-green-hover);
+      border-color: var(--brand-green-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(34, 139, 34, 0.28);
+    }
   </style>
 </head>
 <body>
   <div style="text-align:center; margin:1rem 0;">
     <a href="hourly.html">
-      <button style="padding:0.8rem 1.3rem; background:#9b59b6; color:#fff; border:none; border-radius:8px; cursor:pointer;">
+      <button type="button" id="goToHourlyBtn">
         Go to Hourly Forecasts
       </button>
     </a>
