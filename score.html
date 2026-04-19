@@ -53,20 +53,24 @@
     
     #scoreList:not(.is-hourly) {
       display: flex !important;
-      flex-direction: column !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
       align-items: stretch !important;
-      justify-content: center !important;
-      gap: 8px;
+      justify-content: flex-start !important;
+      gap: 10px;
       width: 100%;
-      overflow-x: visible;
+      overflow-x: auto;
       overflow-y: visible;
       text-align: center !important;
+      padding-bottom: 6px;
+      scrollbar-gutter: stable;
     }
 
     #scoreList:not(.is-hourly) .score-row {
-      width: 100% !important;
-      justify-content: center !important;
-      text-align: center !important;
+      width: 290px !important;
+      min-width: 290px !important;
+      max-width: 290px !important;
+      flex: 0 0 auto !important;
     }
 
     #scoreList:not(.is-hourly) .score-row .detail-line,
@@ -403,6 +407,18 @@
         padding: 10px 4px;
       }
 
+      #scoreList:not(.is-hourly) {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        gap: 8px;
+      }
+      
+      #scoreList:not(.is-hourly) .score-row {
+        width: min(290px, 90vw) !important;
+        min-width: min(290px, 90vw) !important;
+        max-width: min(290px, 90vw) !important;
+      }
+      
       #scoreList.is-hourly {
         display: block;
         width: 100%;
@@ -414,22 +430,19 @@
         gap: 10px;
         width: 100%;
       }
-      
+
       .hourly-hour-group {
-        display: flex;
-        align-items: flex-start;
+        flex-direction: column;
+        align-items: stretch;
         gap: 10px;
       }
       
       .hourly-hour-label {
-        flex: 0 0 110px;
-        min-width: 90px;
-        font-weight: 600;
-        font-size: 1.125rem;
-        color: #0f172a;
         text-align: center;
-        padding-top: 9px;
-        white-space: nowrap;
+        padding-top: 0;
+        font-weight: 600;
+        font-size: 1.2rem;
+        margin-bottom: 2px;
       }
       
       .hourly-table-wrap {
@@ -459,35 +472,18 @@
       .hourly-inline-table th:first-child {
         width: 35%;
       }
-      
-      @media (max-width: 700px) {
-        .hourly-hour-group {
-          flex-direction: column;
-          align-items: stretch;
-          gap: 16px;
-        }
-      
-        .hourly-hour-label {
-          text-align: center;
-          padding-top: 0;
-          font-weight: 600;
-          font-size: 1.2rem;
-          margin-bottom: 2px;
-        }
+
+      .hourly-hour-label {
+        flex: 0 0 110px;
+        min-width: 90px;
+        font-weight: 600;
+        font-size: 1.25rem;
+        color: #0f172a;
+        text-align: center;
+        padding-top: 9px;
+        white-space: nowrap;
       }
     }
-
-    .hourly-hour-label {
-      flex: 0 0 110px;
-      min-width: 90px;
-      font-weight: 600;
-      font-size: 1.25rem;
-      color: #0f172a;
-      text-align: center;
-      padding-top: 9px;
-      white-space: nowrap;
-    }
-
   </style>
 </head>
 <body>
