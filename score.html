@@ -1118,42 +1118,38 @@
     }
   }
 
-  function buildShare(scores, totalCoins, totalMood, currentStreak) {
+  function buildShare(scores, totalCoins, totalMood, currentStreak, shareSummary = null) {
     if (!shareBtn) return;
-
-    const formatShareDate = (label) => {
+  
+    const formatShareDate = (label) => {  // format date as DD MM
       const s = String(label || "").trim();
       const m = s.match(/^([A-Za-z]{3,9})\s+(\d{1,2})$/);
       if (m) return `${m[2]} ${m[1]}`;
       return s;
     };
-
+  
     shareBtn.onclick = async () => {
       const rows = Array.isArray(scores) ? scores : [];
-
-      const cityIds = Array.isArray(CITY_ORDER) && CITY_ORDER.length  // total number of cities
+      const cityIds = Array.isArray(CITY_ORDER) && CITY_ORDER.length
         ? CITY_ORDER
-        : rows.map((r) => r?.city_id).filter((v, i, arr) => v != null && arr.indexOf(v) === i);
-
-      const circlesByCity = cityIds.map((cityId) =>  // build share circles in the exact city order
+        : rows.map((r) => r?.city_id).filter((v, i, a) => v != null && a.indexOf(v) === i);
+  
+      const circlesByCity = cityIds.map((cityId) =>
         resultCircle(rows.find((r) => Number(r?.city_id) === Number(cityId)) || {})
       );
-
+  
+      const successCount = shareSummary?.successCount ?? circlesByCity.filter((c) => c === "🟢" || c === "🟡").length;
+      const totalCount = shareSummary?.totalCount ?? circlesByCity.length;
       const circles = circlesByCity.join(" ");
-
-      const successCount = circlesByCity.filter((c) => c === "🟢" || c === "🟡").length;  // number of green or yellow circles
-
-      const totalCount = cityIds.length;
-
-      const dateLine = `${formatShareDate(ydayLabel)}    ${successCount}/${totalCount}`;  // tab/4 spaces separator
-
+  
+      const dateLine = `${formatShareDate(ydayLabel)}    ${successCount}/${totalCount}`;
       const text = [
         "Temps With Friends",
         dateLine,
         circles,
         `🪙 ${totalCoins} 💗 ${formatSignedNumber(totalMood)} ⭐ ${currentStreak}`,
       ].join("\n\n");
-
+  
       const ok = await copyText(text);
       if (ok) {
         showShareStatus("✅ Score copied!");
@@ -1167,8 +1163,45 @@
   async function loadScore() {
     if (!scoreListEl) return;
 
+    const scoreRatioEl =
+      document.getElementById("scoreRatio");
+
+    const getCityIdsForSummary = (rows = []) => {
+      if (Array.isArray(CITY_ORDER) && CITY_ORDER.length > 0) return CITY_ORDER;
+      return rows
+        .map((r) => r?.city_id)
+        .filter((v, i, a) => v != null && a.indexOf(v) === i);
+    };
+
+    const buildCitySummary = (rows = []) => {
+      const cityIds = getCityIdsForSummary(rows);
+      const cityRows = Array.isArray(rows) ? rows : [];
+
+      const circlesByCity = cityIds.map((cityId) => {
+        const row = cityRows.find((r) => Number(r?.city_id) === Number(cityId)) || {};
+        return resultCircle(row);
+      });
+
+      const successCount = circlesByCity.filter((c) => c === "🟢" || c === "🟡").length;
+      const totalCount = cityIds.length;
+
+      return { circlesByCity, successCount, totalCount };
+    };
+
+    const renderScoreRatioLine = (summaryOrNull, isVisible = true) => {
+      if (!scoreRatioEl) return;
+      if (!isVisible || !summaryOrNull) {
+        scoreRatioEl.textContent = "";
+        scoreRatioEl.style.display = "none";
+        return;
+      }
+      const { successCount, totalCount } = summaryOrNull;
+      scoreRatioEl.textContent = `${successCount}/${totalCount}`;
+      scoreRatioEl.style.display = "";
+    };
+
     const isHourly = activeMode === "hourly";
-    const scoreTable = isHourly ? "hourly_scores" : "daily_scores";  // switch to hourly clears old daily data-cols, switch back to daily will set fresh data-cols in daily render flow
+    const scoreTable = isHourly ? "hourly_scores" : "daily_scores";
 
     scoreListEl.classList.toggle("is-hourly", isHourly);
     if (isHourly) scoreListEl.removeAttribute("data-cols");
@@ -1187,6 +1220,7 @@
       if (coinTotalEl) coinTotalEl.textContent = "0";
       if (moodTotalEl) moodTotalEl.textContent = "—";
       if (streakEl) streakEl.textContent = "—";
+      renderScoreRatioLine(null, false);
       return;
     }
 
@@ -1221,11 +1255,15 @@
     if (scoreError) {
       console.error("Score Fetch Error:", scoreError);
       scoreListEl.innerHTML = `<p>Could not load ${isHourly ? "hourly" : "daily"} scores.</p>`;
-      showBanner(`Could not load ${isHourly ? "hourly" : "daily"} scores: ${scoreError.message || "Unknown error"}`, true);
+      showBanner(
+        `Could not load ${isHourly ? "hourly" : "daily"} scores: ${scoreError.message || "Unknown error"}`,
+        true
+      );
 
       if (coinTotalEl) coinTotalEl.textContent = "0";
       if (moodTotalEl) moodTotalEl.textContent = isHourly ? "—" : "0";
       if (streakEl) streakEl.textContent = isHourly ? "—" : "0";
+      renderScoreRatioLine(null, !isHourly);
       return;
     }
 
@@ -1258,13 +1296,18 @@
         if (moodTotalEl) moodTotalEl.textContent = "—";
         if (streakEl) streakEl.textContent = "—";
         if (coinTotalEl) coinTotalEl.textContent = "0";
+        renderScoreRatioLine(null, false);
         revealRows(0, true, 0, 0, 0);
       } else {
+        const dailySummary = buildCitySummary([]);
         renderCityCircles([]);
+        renderScoreRatioLine(dailySummary, true);
+
         if (coinTotalEl) coinTotalEl.textContent = "0";
         if (moodTotalEl) moodTotalEl.textContent = "0";
         if (streakEl) streakEl.textContent = String(currentStreak);
-        buildShare([], 0, 0, currentStreak);
+
+        buildShare([], 0, 0, currentStreak, dailySummary);
         revealRows(0, false, currentStreak, 0, 0);
       }
 
@@ -1277,12 +1320,18 @@
 
     if (isHourly) {
       renderHourlyScores(scores);
-      totalCoins = scores.reduce((sum, s) => (hasHourlyForecast(s) ? sum + Number(s.coins || 0) : sum), 0);
+      totalCoins = scores.reduce(
+        (sum, s) => (hasHourlyForecast(s) ? sum + Number(s.coins || 0) : sum),
+        0
+      );
       if (moodTotalEl) moodTotalEl.textContent = "—";
       if (streakEl) streakEl.textContent = "—";
+      renderScoreRatioLine(null, false);
       revealRows(scores.length, true, 0, totalCoins, 0);
       return;
     }
+
+    const dailySummary = buildCitySummary(scores);
 
     scores.forEach((s) => {
       const row = document.createElement("div");
@@ -1338,7 +1387,9 @@
     scoreListEl.dataset.cols = String(count);
 
     renderCityCircles(scores);
-    buildShare(scores, totalCoins, totalMood, currentStreak);
+    renderScoreRatioLine(dailySummary, true);
+
+    buildShare(scores, totalCoins, totalMood, currentStreak, dailySummary);
     revealRows(scores.length, false, currentStreak, totalCoins, totalMood);
   }
 
