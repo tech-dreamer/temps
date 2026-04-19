@@ -11,11 +11,9 @@
   <style>
     :root {
       --brand-purple: #BF40BF;
-      --brand-purple-hover: #A63BA6;
-    
+      --brand-purple-hover: #A63BA6;    
       --brand-blue: #4169E1;
-      --brand-blue-hover: #3556CA;
-    
+      --brand-blue-hover: #3556CA;    
       --brand-green: #228B22;
       --brand-green-hover: #1D7A1D;
     
@@ -23,6 +21,7 @@
       --brand-blue-soft-border: #B9C7F4;
       --brand-shadow-blue: rgba(65, 105, 225, 0.28);
       --brand-shadow-green: rgba(34, 139, 34, 0.28);
+      --brand-text-on-dark: #ffffff;
     }
     
     body {
@@ -122,7 +121,7 @@
       padding: 0 14px;
       font-size: 16px;
       font-weight: 700;
-      border: 1px solid #d1d5db;
+      border: 1px solid var(--brand-blue-soft-border);
       border-radius: 10px;
       background: #f9fafb;
       color: #111827;
@@ -130,10 +129,12 @@
       box-sizing: border-box;
       text-align: center;
       white-space: nowrap;
+      transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
     }
     
     .menu-btn:hover {
-      filter: brightness(0.98);
+      filter: none;
+      border-color: color-mix(in srgb, var(--brand-blue-soft-border) 55%, #111827);
     }
     
     .top-nav{
@@ -144,14 +145,14 @@
     }
 
     .top-nav .menu-btn {
-      background: #a78bfa;      /* cozy purple */
-      border-color: #8b5cf6;
-      color: #ffffff;
-      font-weight: 700;
+      background: var(--brand-purple);
+      border-color: var(--brand-purple);
+      color: var(--brand-text-on-dark);
     }
 
     .top-nav .menu-btn:hover {
-      background: #8b5cf6;
+      background: var(--brand-purple-hover);
+      border-color: var(--brand-purple-hover);
     }
 
     .mode-switch-wrap {
@@ -200,15 +201,14 @@
     }
 
     .home-btn {
-      background: #93c5fd;      /* cozy blue */
-      border-color: #60a5fa;
-      color: #1e3a8a;
-      font-weight: 700;
+      background: var(--brand-blue);
+      border-color: var(--brand-blue);
+      color: var(--brand-text-on-dark);
     }
 
     .home-btn:hover {
-      background: #60a5fa;
-      color: #1e40af;
+      background: var(--brand-blue-hover);
+      border-color: var(--brand-blue-hover);
     }
 
     .city-block {
@@ -354,13 +354,14 @@
     }
 
     #shareBtn {
-      background: #86efac;       /* cozy green */
-      border-color: #4ade80;
-      color: #14532d;
+      background: var(--brand-green);
+      border-color: var(--brand-green);
+      color: var(--brand-text-on-dark);
     }
-
+    
     #shareBtn:hover {
-      background: #6ee7b7;
+      background: var(--brand-green-hover);
+      border-color: var(--brand-green-hover);
     }
 
     #scoreErrorBanner {
