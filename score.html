@@ -1120,89 +1120,45 @@
 
   function buildShare(scores, totalCoins, totalMood, currentStreak) {
     if (!shareBtn) return;
-  
+
     const formatShareDate = (label) => {
-      const s = String(label || '').trim();
-      const m1 = s.match(/^([A-Za-z]{3,9})\s+(\d{1,2})$/);  // MM DD
-      if (m1) return `${m1[2]} ${m1[1]}`;
-      const m2 = s.match(/^(\d{1,2})\s+([A-Za-z]{3,9})$/);  // DD MM
-      return m2 ? `${m2[1]} ${m2[2]}` : s;
+      const s = String(label || "").trim();
+      const m = s.match(/^([A-Za-z]{3,9})\s+(\d{1,2})$/);
+      if (m) return `${m[2]} ${m[1]}`;
+      return s;
     };
-  
-    const normalizeScoreToEmoji = (entry) => {
-      if (entry == null) return '';
-      if (typeof entry === 'string') {
-        const direct = entry.match(/[🟢🟡⚪]/);
-        if (direct) return direct[0];
-  
-        const s = entry.toLowerCase();
-        if (s.includes('green') || s === 'correct' || s === 'success' || s === '2') return '🟢';
-        if (s.includes('yellow') || s === 'partial' || s === '1') return '🟡';
-        return '⚪';
-      }
-  
-      if (typeof entry === 'number') {
-        if (entry === 2) return '🟢';
-        if (entry === 1) return '🟡';
-        if (entry === 0) return '⚪';
-      }
-  
-      if (typeof entry === 'object') {
-        return normalizeScoreToEmoji(
-          entry.result ?? entry.status ?? entry.state ?? entry.outcome ?? entry.value ?? entry.score ?? ''
-        );
-      }
-  
-      return '';
-    };
-  
-    const getCountSummary = (scores, circlesText) => {
-      const cleanCircles =  // strip html/entities in case cityCirclesFromScores returns HTML string
-        circlesText
-          ? String(circlesText)
-              .replace(/<[^>]*>/g, '')
-              .replace(/&nbsp;|&#160;/g, ' ')
-              .trim()
-          : '';
-  
-      let emojis = cleanCircles.match(/[🟢🟡⚪]/g) || [];
-      if (emojis.length === 0) {
-        const arr = Array.isArray(scores)
-          ? scores
-          : scores && typeof scores === 'object'
-            ? Object.values(scores)
-            : [];
-        emojis = arr.map(normalizeScoreToEmoji).filter(Boolean);
-      }
-  
-      const success = emojis.filter((c) => c === '🟢' || c === '🟡').length;
-      return { success, total: emojis.length, emojis };
-    };
-  
+
     shareBtn.onclick = async () => {
-      const circles = cityCirclesFromScores(scores || []);
-      const circlesText =
-        typeof circles === 'string'
-          ? circles
-          : circles?.textContent || circles?.innerText || '';
-  
-      const { success, total, emojis } = getCountSummary(scores, circlesText);
-      const circleLine = emojis.join(' ') || circlesText.trim();
-  
-      const dateLine = `${formatShareDate(ydayLabel)}    ${success}/${total}`;  // tab/4-space separator
-  
+      const rows = Array.isArray(scores) ? scores : [];
+
+      const cityIds = Array.isArray(CITY_ORDER) && CITY_ORDER.length  // total number of cities
+        ? CITY_ORDER
+        : rows.map((r) => r?.city_id).filter((v, i, arr) => v != null && arr.indexOf(v) === i);
+
+      const circlesByCity = cityIds.map((cityId) =>  // build share circles in the exact city order
+        resultCircle(rows.find((r) => Number(r?.city_id) === Number(cityId)) || {})
+      );
+
+      const circles = circlesByCity.join(" ");
+
+      const successCount = circlesByCity.filter((c) => c === "🟢" || c === "🟡").length;  // number of green or yellow circles
+
+      const totalCount = cityIds.length;
+
+      const dateLine = `${formatShareDate(ydayLabel)}    ${successCount}/${totalCount}`;  // tab/4 spaces separator
+
       const text = [
-        'Temps With Friends',
+        "Temps With Friends",
         dateLine,
-        circleLine,
+        circles,
         `🪙 ${totalCoins} 💗 ${formatSignedNumber(totalMood)} ⭐ ${currentStreak}`,
-      ].join('\n\n');  // one blank line between each line
-  
+      ].join("\n\n");
+
       const ok = await copyText(text);
       if (ok) {
-        showShareStatus('✅ Score copied!');
+        showShareStatus("✅ Score copied!");
       } else {
-        showShareStatus('⚠️ Clipboard is blocked here. Use text box below.', 'error');
+        showShareStatus("⚠️ Clipboard is blocked here. Use text box below.", "error");
         showManualShareFallback(text);
       }
     };
