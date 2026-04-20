@@ -63,6 +63,7 @@
 
     /* Center any empty-state <p> injected in #scoreList */
     #scoreList > p,
+    #scoreList > .session-empty-msg,
     #scoreList > .no-score-msg,
     #scoreList > .hourly-empty {
       grid-column: 1 / -1;
@@ -74,6 +75,8 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      font-size: 1rem;
+      font-weight: 500;
     }
 
     #scoreList:not(.is-hourly) .no-score-msg {
