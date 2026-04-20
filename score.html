@@ -61,6 +61,15 @@
       scrollbar-width: thin;
     }
 
+    #scoreList:not(.is-hourly) .no-score-msg {
+      grid-column: 1 / -1;
+      width: 100%;
+      justify-self: stretch;
+      display: flex;
+      justify-content: center;
+      text-align: center;
+    }
+
     #scoreList:not(.is-hourly) {
       --score-cols: 3;
       --score-max-width: 72rem;
@@ -1350,7 +1359,7 @@
     }
 
     if (!scores || scores.length === 0) {
-      scoreListEl.innerHTML = `<p>No ${isHourly ? "hourly" : "daily"} score yet. Stay tuned & keep forecasting.</p>`;
+      scoreListEl.innerHTML = `<p class="msg no-score-msg">No ${isHourly ? "hourly" : "daily"} score yet. Stay tuned & keep forecasting.</p>`;
 
       if (isHourly) {
         if (moodTotalEl) moodTotalEl.textContent = "—";
