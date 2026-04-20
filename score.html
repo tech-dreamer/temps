@@ -828,12 +828,12 @@
 
   function formatAbs(v) {
     if (v === null || v === undefined || v === "" || Number.isNaN(Number(v))) return "—";
-    return `${Math.abs(Math.round(Number(v)))}`;
+    return `${Math.abs(Math.round(Number(v)))}°`;
   }
 
-  function toNumOrDash(v) {
+  function toDegreeorDash(v) {
     if (!hasValue(v) || Number.isNaN(Number(v))) return "—";
-    return `${Math.round(Number(v))}`;
+    return `${Math.round(Number(v))}°`;
   }
 
   function cityDisplay(row) {
@@ -1087,9 +1087,9 @@
 
         tr.innerHTML = `
           <td style="text-align:left;padding:8px 6px;">${escapeHtml(cityName)}</td>
-          <td style="text-align:right;padding:8px 6px;">${escapeHtml(toNumOrDash(hourlyForecast))}°</td>
-          <td style="text-align:right;padding:8px 6px;">${escapeHtml(toNumOrDash(hourlyActual))}°</td>
-          <td style="text-align:right;padding:8px 6px;">${escapeHtml(formatAbs(hourlyError))}°</td>
+          <td style="text-align:right;padding:8px 6px;">${escapeHtml(toDegreeorDash(hourlyForecast))}</td>
+          <td style="text-align:right;padding:8px 6px;">${escapeHtml(toDegreeorDash(hourlyActual))}</td>
+          <td style="text-align:right;padding:8px 6px;">${escapeHtml(formatAbs(hourlyError))}</td>
           <td style="text-align:right;padding:8px 6px;">🪙 ${escapeHtml(forecasted ? `${Number(s.coins || 0)}` : "0")}</td>
         `;
 
@@ -1420,11 +1420,11 @@
       if (forecasted) {
         const lines = [
           "My Forecasts:",
-          `H ${toNumOrDash(s.forecast_high)}° / L ${toNumOrDash(s.forecast_low)}°`,
+          `H ${toDegreeorDash(s.forecast_high)} / L ${toDegreeorDash(s.forecast_low)}`,
           "Actual Temps:",
-          `H ${toNumOrDash(s.actual_high)}° / L ${toNumOrDash(s.actual_low)}°`,
+          `H ${toDegreeorDash(s.actual_high)} / L ${toDegreeorDash(s.actual_low)}`,
           "Accuracy (Error):",
-          `H ${formatAbs(s.error_high)}° / L ${formatAbs(s.error_low)}°`,
+          `H ${formatAbs(s.error_high)} / L ${formatAbs(s.error_low)}`,
         ];
 
         lines.forEach((line) => {
