@@ -1,12 +1,12 @@
-/* App-wide accent palette (for all non-leaderboard pages) */
+/* App-wide color palette (for all non-leaderboard pages) */
 :root {
-  --brand-purple: #DA70D6;      /* orchid */
-  --brand-purple-hover: #DF00FF;
+  --brand-purple: #BF40BF;  /* bright purple */
+  --brand-purple-hover: #A63BA6; 
 
-  --brand-blue: #4169E1;        /* royal blue */
+  --brand-blue: #4169E1;  /* royal blue */
   --brand-blue-hover: #3556CA;
 
-  --brand-green: #228B22;       /* forest green */
+  --brand-green: #228B22;  /* forest green */
   --brand-green-hover: #1D7A1D;
 
   --brand-blue-soft: #E8EDFF;
