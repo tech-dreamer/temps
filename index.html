@@ -18,6 +18,7 @@
       --media-text: #9b73ff;
       --media-small: #8f6dff;
       --media-muted: #7759d1;
+      --brand purple: #BF40BF;
     }
 
     * { box-sizing: border-box; }
@@ -160,11 +161,11 @@
     </section>
 
     <div class="actions">
-      <button type="button" id="learnBtn">Learn</button>
-      <button type="button" id="tryBtn">Try</button>
+      <button type="button" id="learnBtn"> About </button>
+      <button type="button" id="tryBtn"> Try </button>
     </div>
 
-    <div class="muted">Add an animation or pic in the placeholder area later.</div>
+    <div class="muted"> Add an animation or pic in the placeholder area later </div>
   </main>
 
   <script>
@@ -184,7 +185,7 @@
     tryBtn.addEventListener("click", () => {
       learnPanel.classList.add("visible");
       placeholderText.classList.add("hidden");
-      learnBtn.textContent = "Learn"; // reset button label state
+      learnBtn.textContent = "Learn";  // reset button label state
 
       setTimeout(() => {
         window.location.href = "daily.html";
