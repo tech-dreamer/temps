@@ -718,7 +718,7 @@ async function checkIncrementDailyStreak(payload, forecastDate, explicitUserId =
 }
 
 // Update user's current mood & streak
-async function incrementDailyStreak(userId, forecastDate = null) {
+async function incrementDailyStreak(client, userId, forecastDate = null) {
   if (!userId) {
     return { ok: false, reason: "NO_USER", error: "Missing userId." };
   }
@@ -781,7 +781,7 @@ async function incrementDailyStreak(userId, forecastDate = null) {
   const targetYMD = toYMD(target);
 
   try {  // get most recent forecast date of user
-    const latestRes = await supabase
+    const latestRes = await client
       .from("daily_forecasts")
       .select("date")
       .eq("user_id", userId)
@@ -792,7 +792,7 @@ async function incrementDailyStreak(userId, forecastDate = null) {
       return { ok: false, reason: "FETCH_LATEST_FORECAST_ERROR", error: latestRes.error };
     }
 
-    const statsRes = await supabase  // get user streak stats
+    const statsRes = await client  // get user streak stats
       .from("user_stats")
       .select("current_streak, record_streak")
       .eq("user_id", userId)
@@ -808,7 +808,6 @@ async function incrementDailyStreak(userId, forecastDate = null) {
     const currentStreak = statsRes.data ? Number(statsRes.data.current_streak || 0) : 0;
     const recordStreak = statsRes.data ? Number(statsRes.data.record_streak || 0) : 0;
 
-
     if (latest && target.getTime() === latest.getTime()) {  // no change if selected date is same as latest forecast date
       if (!statsRes.data) {  // initialize streak to 1 if no stats row exists yet
         const initPayload = {
@@ -817,7 +816,7 @@ async function incrementDailyStreak(userId, forecastDate = null) {
           record_streak: 1,
         };
 
-        const initRes = await supabase
+        const initRes = await client
           .from("user_stats")
           .upsert(initPayload, { onConflict: "user_id" });
 
@@ -845,7 +844,7 @@ async function incrementDailyStreak(userId, forecastDate = null) {
       };
     }
 
-    const prevRes = await supabase  // get latest forecast date before selected date
+    const prevRes = await client  // get latest forecast date before selected date
       .from("daily_forecasts")
       .select("date")
       .eq("user_id", userId)
@@ -898,7 +897,7 @@ async function incrementDailyStreak(userId, forecastDate = null) {
       payload.record_streak = nextStreak;
     }
 
-    const upRes = await supabase
+    const upRes = await client
       .from("user_stats")
       .upsert(payload, { onConflict: "user_id" });
 
@@ -1925,7 +1924,7 @@ async function handleDailySubmit(e) {
   await buildDailyGrid();
 
   if (predictedStreak?.ok) {  // increment streak only once after successful save
-    const streakResult = await incrementDailyStreak(finalUserId, forecastDate);
+    const streakResult = await incrementDailyStreak(client, finalUserId, forecastDate);
     if (streakResult.ok) {
       await promptAndSaveBackupEmail(streakResult.data.current_streak);
       setStatus(`<span style="color:#16a34a;">${streakResult.message}</span>`, true);
