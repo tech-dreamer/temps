@@ -718,46 +718,57 @@ async function checkIncrementDailyStreak(payload, forecastDate, explicitUserId =
 }
 
 // Update user's current mood & streak
-async function incrementDailyStreak(uid, nextStreak) {
+async function incrementDailyStreak(uid) {
   try {
-    const { data: row, error: readError } = await client    // read current values
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+    const { data: row, error: readError } = await client
       .from("user_stats")
-      .select("current_streak, mood")
+      .select("current_streak, mood, coins, total_coins, last_streak_date")
       .eq("user_id", uid)
       .maybeSingle();
 
-    if (readError) return { ok: false, error: readError };
+    if (readError) {
+      return { ok: false, error: readError };
+    }
 
-    const prevStreak = Number(row?.current_streak ?? 0) || 0;
-    const prevMood = Number(row?.mood ?? 0) || 0;
-    const nextMood = Math.min(25, prevMood + 1);
+    const prevStreak = Number(row?.current_streak ?? 0);
+    const prevMood = Number(row?.mood ?? 0);
+    const lastStreakDate = row?.last_streak_date ?? null;
+
+    if (lastStreakDate === today) {  // do not increment twice in same day
+      return {
+        ok: false,
+        reason: "ALREADY_UPDATED_TODAY",
+        data: row,
+        prevStreak,
+        prevMood,
+      };
+    }
+
+    const nextStreak = lastStreakDate === yesterday ? prevStreak + 1 : 1;
+    const nextMood = Math.min(50, prevMood + 1);
+
+    const payload = {
+      user_id: uid,
+      current_streak: Number.isFinite(nextStreak) ? nextStreak : 1,
+      mood: nextMood,
+      last_streak_date: today,
+    };
 
     const { data: updated, error } = await client
       .from("user_stats")
-      .upsert(
-        { user_id: uid, current_streak: nextStreak, mood: nextMood },
-        { onConflict: "user_id" }
-      )
+      .upsert(payload, { onConflict: "user_id" })
       .select()
       .single();
 
-    if (error) return { ok: false, error };
+    if (error) {
+      return { ok: false, error };
+    }
 
-    const moodCapped = prevMood >= 50;
-    const message = moodCapped
-      ? `🎉 Yay, my streak grew to ${nextStreak}! Mood is already maxed at 50.`
-      : `🎉 Yay, my streak grew to ${nextStreak}! Mood rose +1 to ${nextMood}.`;
-
-    return {
-      ok: true,
-      data: updated,
-      prevStreak,
-      nextStreak,
-      prevMood,
-      nextMood,
-      moodCapped,
-      message,
-    };
+    const message = `🎉 Yay, my streak grew to ${updated.current_streak}! Mood is now ${updated.mood}.`;
+    return { ok: true, changed: true, data: updated, message };
   } catch (err) {
     return { ok: false, error: err };
   }
@@ -1606,7 +1617,8 @@ async function handleDailySubmit(e) {
   inputs.forEach((input) => {
     if (input.disabled) return;
     const raw = input.value.trim();
-    if (raw === "") return;  // allow 0, ignore empty
+    if (raw === "") return;  // allow empty, treat as not entered
+
     hasAnyInput = true;
 
     const cityId = Number(input.dataset.cityId);
@@ -1623,11 +1635,11 @@ async function handleDailySubmit(e) {
     const city = cities.find((c) => c.id === cityId);
     if (!city) return;
 
-    let isLocked = false;  // city-level cutoff check for today
+    let isLocked = false;
     if (forecastDay === "today") {
       const localNow = getTzDate(city.timezone || "UTC");
       const cutoff = new Date(localNow.getTime());
-      cutoff.setUTCHours(12, 0, 0, 0);  // local noon, not UTC noon
+      cutoff.setUTCHours(12, 0, 0, 0);  // noon local cutoff
       if (localNow >= cutoff) {
         isLocked = true;
       }
@@ -1635,7 +1647,7 @@ async function handleDailySubmit(e) {
 
     if (isLocked) {
       lockedCityNames.add(getCityName(city, cityId));
-      return;  // skip locked city, still allow input for open cities
+      return;  // skip locked city value
     }
 
     const dateValue = forecastDate;
@@ -1646,7 +1658,7 @@ async function handleDailySubmit(e) {
         city: city.name,
         date: dateValue,
         _hasHigh: false,
-        _hasLow: false
+        _hasLow: false,
       };
       rowsByCity.set(cityId, row);
     }
@@ -1664,16 +1676,12 @@ async function handleDailySubmit(e) {
   });
 
   if (hasInvalidNumber) {
-    setStatus(
-      '<span style="color:red;"> Enter a valid number for all filled forecast fields </span>'
-    );
+    setStatus('<span style="color:red;"> Enter a valid number for all filled forecast fields </span>');
     return;
   }
 
   if (lockedCityNames.size > 0 && !hasAnyOpenInput) {
-    setStatus(
-      `<span style="color:red;"> Cutoff passed for all cities today </span>`
-    );
+    setStatus('<span style="color:red;"> Cutoff passed for all cities today </span>');
     return;
   }
 
@@ -1682,7 +1690,7 @@ async function handleDailySubmit(e) {
     return;
   }
 
-  const lowOnlyCities = [];  // enforce high requirement
+  const lowOnlyCities = [];
   rowsByCity.forEach((row) => {
     if (row._hasLow && !row._hasHigh) {
       const lowInput = document.querySelector(`.daily-low[data-city-id="${row.city_id}"]`);
@@ -1709,17 +1717,18 @@ async function handleDailySubmit(e) {
     return;
   }
 
-  const preSaveSession = await ensureSessionForDailySave();  // single explicit creation point
+  const preSaveSession = await ensureSessionForDailySave();
   if (!preSaveSession?.user?.id) {
     setStatus('<span style="color:red;"> No active session. Please try again. </span>');
     return;
   }
+
   const activeUserId = preSaveSession.user.id;
   userId = activeUserId;
 
-  let predictedStreak = null;  // predict streak increment before upsert using current DB state
-  for (const forecastDate of [...dateKeys]) {
-    const incrementCheck = await checkIncrementDailyStreak(payload, forecastDate, activeUserId);
+  let predictedStreak = null;  // predict if this save is likely to increment streak
+  for (const date of [...dateKeys]) {
+    const incrementCheck = await checkIncrementDailyStreak(payload, date, activeUserId);
 
     if (incrementCheck.ok) {
       if (!predictedStreak || (incrementCheck.nextStreak || 0) > (predictedStreak.nextStreak || 0)) {
@@ -1738,11 +1747,13 @@ async function handleDailySubmit(e) {
     table: "daily_forecasts",
     rows: payload,
     onConflict: "user_id,city_id,date",
-    allowAnonymous: false
+    allowAnonymous: false,
   });
 
-  if (result.error) {
-    setStatus(`<span style="color:red;"> Save failed: ${result.error.message}</span>`);
+  if (!result || result.error) {
+    const errMsg = result?.error?.message ? `: ${result.error.message}` : "";
+    console.error("Forecast save failed:", result?.error);
+    setStatus(`<span style="color:red;"> Save failed${errMsg}</span>`);
     return;
   }
 
@@ -1757,18 +1768,24 @@ async function handleDailySubmit(e) {
   setStatus(
     `<span style="color:green;"> Saved ${payload.length} forecast${payload.length === 1 ? "" : "s"}! 🐰 ${lockedMsg}</span>`
   );
-
   await buildDailyGrid();
 
-  if (predictedStreak?.ok) {
-    const streakResult = await incrementDailyStreak(finalUserId, predictedStreak.nextStreak);
+  if (predictedStreak?.ok) {  // increment streak only once after successful save
+    const streakResult = await incrementDailyStreak(finalUserId);
     if (streakResult.ok) {
-      await promptAndSaveBackupEmail(predictedStreak.nextStreak);
-      setStatus(`<span style="color: #16a34a;">${streakResult.message}</span>`, true);
+      await promptAndSaveBackupEmail(streakResult.data.current_streak);
+      setStatus(`<span style="color:#16a34a;">${streakResult.message}</span>`, true);
+    } else if (streakResult.reason === "ALREADY_UPDATED_TODAY") {
+      console.log("Streak already updated today.");
     } else {
       console.warn("Daily streak increment write failed:", streakResult.error);
-      setStatus(`<span style="color:orange;"> Saved, but streak update failed: ${streakResult.error.message}</span>`, true);
+      setStatus(
+        `<span style="color:orange;"> Saved, but streak update failed: ${streakResult.error?.message || "Unknown error"}</span>`,
+        true
+      );
     }
+  } else {
+    console.log("No qualifying streak trigger for this save");
   }
 }
 
