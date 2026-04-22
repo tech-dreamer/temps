@@ -29,7 +29,7 @@
       margin-top: 1.5rem;
     }
     #restore-btn {
-      background: var(--blue);
+      background: var(--brand-blue);
       color: #fff;
       border: 0;
       border-radius: 10px;
@@ -40,13 +40,23 @@
       max-width: 220px;
     }
     #restore-btn:hover { background: var(--blue-dark); }
-    #restore-panel {
-      margin-top: 0.85rem;
+    #restore-backdrop {
+      position: fixed;
+      inset: 0;
       display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      background: rgba(0, 0, 0, 0.45);
+      z-index: 9999;
+    }
+    #restore-panel {
+      width: min(92vw, 420px);
+      background: #fff;
       border: 1px solid #dbeafe;
-      background: #f8fbff;
-      padding: 0.9rem;
       border-radius: 10px;
+      padding: 0.9rem;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.2);
     }
     .row {
       display: flex;
@@ -86,10 +96,15 @@
     <div class="restore-wrap">
       <button id="restore-btn" type="button"> Restore My Account </button>
 
-      <div id="restore-panel">
-        <div class="row">
-          <input id="restore-email" type="email" placeholder="you@example.com" autocomplete="email" />
-          <button id="send-restore" type="button"> Send recovery link </button>
+      <div id="restore-backdrop">
+        <div id="restore-panel">
+          <div class="row">
+            <input id="restore-email" type="email" placeholder="you@example.com" autocomplete="email" />
+            <button id="send-restore" type="button"> Send recovery link </button>
+          </div>
+          <div class="row" style="justify-content:flex-end; margin-top:0.6rem;">
+            <button id="close-restore" type="button" style="background:#334155;"> Close </button>
+          </div>
         </div>
       </div>
 
@@ -110,10 +125,21 @@
     const emailInput = document.getElementById("restore-email");
     const sendRestoreBtn = document.getElementById("send-restore");
     const restoreStatus = document.getElementById("restore-status");
+    const restoreBackdrop = document.getElementById("restore-backdrop");
+    const closeRestoreBtn = document.getElementById("close-restore");
 
     function setStatus(msg, tone = "muted") {
       restoreStatus.className = tone;
       restoreStatus.textContent = msg || "";
+    }
+
+    function openRestoreModal() {
+      setStatus("");
+      restoreBackdrop.style.display = "flex";
+      emailInput.focus();
+    }
+    function closeRestoreModal() {
+      restoreBackdrop.style.display = "none";
     }
 
     function isRecoveryRedirect() {
@@ -143,20 +169,20 @@
         window.history.replaceState({}, document.title, window.location.pathname);
       }
 
-      restorePanel.style.display = "none";
+      closeRestoreModal();
       restoreBtn.style.display = "none";
       const restoredName =
         user?.user_metadata?.display_name ||
         user?.user_metadata?.username ||
         user.email;
 
-      setStatus(`Welcome back, ${restoredName}! Your account is restored.`, "ok");
+      setStatus(`Welcome back, ${restoredName}! Your account is restored 🎉`, "ok");
     }
 
-    restoreBtn.addEventListener("click", () => {
-      setStatus("");
-      restorePanel.style.display = restorePanel.style.display === "none" ? "block" : "none";
-      if (restorePanel.style.display === "block") emailInput.focus();
+    restoreBtn.addEventListener("click", openRestoreModal);
+    closeRestoreBtn.addEventListener("click", closeRestoreModal);
+    restoreBackdrop.addEventListener("click", (e) => {
+      if (e.target === restoreBackdrop) closeRestoreModal();
     });
 
     sendRestoreBtn.addEventListener("click", async () => {
