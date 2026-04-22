@@ -1775,7 +1775,6 @@ async function handleDailySubmit(e) {
   const inputs = document.querySelectorAll(".daily-high, .daily-low");
   const rowsByCity = new Map();
   const lockedCityNames = new Set();
-  const dateKeys = new Set();
   let hasAnyInput = false;
   let hasAnyOpenInput = false;
   let hasInvalidNumber = false;
@@ -1847,7 +1846,6 @@ async function handleDailySubmit(e) {
     }
 
     hasAnyOpenInput = true;
-    dateKeys.add(dateValue);
   });
 
   if (hasInvalidNumber) {
@@ -1880,7 +1878,7 @@ async function handleDailySubmit(e) {
 
   if (lowOnlyCities.length) {
     setStatus(
-      `<span style="color:red;"> A Low requires a High in the same city. Missing High forecast for: ${lowOnlyCities.join(", ")}</span>`
+      `<span style="color:red;"> A Low requires a High in the same city. Save High forecast for: ${lowOnlyCities.join(", ")}</span>`
     );
     return;
   }
@@ -1901,23 +1899,6 @@ async function handleDailySubmit(e) {
   const activeUserId = preSaveSession.user.id;
   userId = activeUserId;
 
-  let predictedStreak = null;  // predict if this save is likely to increment streak
-  for (const date of [...dateKeys]) {
-    const incrementCheck = await checkIncrementDailyStreak(payload, date, activeUserId);
-
-    if (incrementCheck.ok) {
-      if (!predictedStreak || (incrementCheck.nextStreak || 0) > (predictedStreak.nextStreak || 0)) {
-        predictedStreak = incrementCheck;
-      }
-    } else if (
-      incrementCheck.reason !== "ALREADY_REACHED_THRESHOLD" &&
-      incrementCheck.reason !== "RESULT_STILL_UNDER_THRESHOLD" &&
-      incrementCheck.reason !== "NO_HIGHS_IN_PAYLOAD"
-    ) {
-      console.warn("[streak skip reason]", incrementCheck.reason, incrementCheck);
-    }
-  }
-
   const result = await upsertWithSessionRecovery({
     table: "daily_forecasts",
     rows: payload,
@@ -1928,7 +1909,7 @@ async function handleDailySubmit(e) {
   if (!result || result.error) {
     const errMsg = result?.error?.message ? `: ${result.error.message}` : "";
     console.error("Forecast save failed:", result?.error);
-    setStatus(`<span style="color:red;"> Save failed${errMsg}</span>`);
+    setStatus(`<span style="color:red;"> Save failed ${errMsg}</span>`);
     return;
   }
 
@@ -1945,22 +1926,26 @@ async function handleDailySubmit(e) {
   );
   await buildDailyGrid();
 
-  if (predictedStreak?.ok) {  // increment streak only once after successful save
-    const streakResult = await incrementDailyStreak(client, finalUserId, forecastDate);
-    if (streakResult.ok) {
-      await promptAndSaveBackupEmail(streakResult.data.current_streak);
-      setStatus(`<span style="color:#16a34a;">${streakResult.message}</span>`, true);
-    } else if (streakResult.reason === "ALREADY_UPDATED_TODAY") {
-      console.log("Streak already updated today.");
-    } else {
-      console.warn("Daily streak increment write failed:", streakResult.error);
-      setStatus(
-        `<span style="color:orange;"> Saved, but streak update failed: ${streakResult.error?.message || "Unknown error"}</span>`,
-        true
-      );
-    }
+  const streakResult = await incrementDailyStreak(client, finalUserId, forecastDate);
+
+  if (streakResult.ok) {
+    await promptAndSaveBackupEmail(streakResult.data.current_streak);
+    setStatus(`<span style="color:#16a34a;">${streakResult.message}</span>`, true);
+  } else if (
+    streakResult.reason === "WAITING_FOR_SECOND_FORECAST" ||
+    streakResult.reason === "NO_CHANGE_ALREADY_REWARDED_FOR_DATE" ||
+    streakResult.reason === "NO_CHANGE"
+  ) {
+    setStatus(
+      `<span style="color:#64748b;">${streakResult.message || "Streak unchanged"}</span>`,
+      true
+    );
   } else {
-    console.log("No qualifying streak trigger for this save");
+    console.warn("Daily streak increment write failed:", streakResult.error);
+    setStatus(
+      `<span style="color:orange;"> Saved, but streak update failed: ${streakResult.error?.message || "Unknown error"}</span>`,
+      true
+    );
   }
 }
 
@@ -1968,23 +1953,23 @@ async function handleDailySubmit(e) {
 async function handleHourlySubmit(e) {
   e.preventDefault();
 
-  const session = await ensureSession(false, { allowAnonymous: false });      // require an existing user before allowing hourly save
+  const session = await ensureSession(false, { allowAnonymous: false });  // require an existing user before allowing hourly save
   const recovery = popAuthRecoveryState();
   if (recovery?.needsReauth) {
     setStatus(`<span style="color:orange;">${recovery.message}</span>`);
     return;
   }
   if (!session?.user?.id) {
-    setStatus('<span style="color:orange;"> Save a daily forecast to create your user session. </span>');
+    setStatus('<span style="color:orange;"> Save a daily forecast to create your user session </span>');
     return;
   }
   userId = session.user.id;
   const status = document.getElementById("status");
-  const cityRows = new Map();    // cityId maps to row data for validation
+  const cityRows = new Map();  // cityId maps to row data for validation
   const payload = [];
 
   if (!selectedHour) {
-    if (status) status.innerHTML = '<span style="color:red;">Select an hour first.</span>';
+    if (status) status.innerHTML = '<span style="color:red;"> Select an hour first </span>';
     return;
   }
 
