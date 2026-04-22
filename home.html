@@ -219,7 +219,7 @@
         const { error: otpErr } = await client.auth.signInWithOtp({  // send recovery magic link to email
           email,
           options: {
-            emailRedirectTo: `${window.location.origin}/home.html`
+            emailRedirectTo: "https://cozybun.github.io/temps/home.html"
           }
         });
 
