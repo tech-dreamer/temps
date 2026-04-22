@@ -811,48 +811,55 @@ async function incrementDailyStreak(client, userId, forecastDate = null) {
     const recordStreak = statsRes.data ? Number(statsRes.data.record_streak || 0) : 0;
     const currentMood = statsRes.data ? Number(statsRes.data.mood || 0) : 0;
 
-    if (latest && target.getTime() === latest.getTime()) {  // no streak increment if selected date same as last forecast date
-      if (!statsRes.data) {
-        const initPayload = {
-          user_id: userId,
-          current_streak: 1,
-          record_streak: 1,
-          mood: currentMood + 1,
-        };
+    const isSameDate = latest && target.getTime() === latest.getTime();
 
-        const initRes = await client
-          .from("user_stats")
-          .upsert(initPayload, { onConflict: "user_id" });
+    if (isSameDate) {  // only increment streak when same-date city forecast threshold is reached
+      const sameDayRes = await client
+        .from("daily_forecasts")
+        .select("city_id")
+        .eq("user_id", userId)
+        .eq("date", targetYMD)
+        .not("high", "is", null);
 
-        if (initRes.error) {
-          return { ok: false, reason: "INIT_STATS_ERROR", error: initRes.error };
-        }
-
+      if (sameDayRes.error) {
         return {
-          ok: true,
-          reason: "INIT_SAME_DATE",
-          message:
-            "Streak initialized to 1 (same-day forecast with no prior user stats row), mood +1.",
+          ok: false,
+          reason: "COUNT_SAME_DAY_FORECASTS_ERROR",
+          error: sameDayRes.error.message || sameDayRes.error,
+        };
+      }
+
+      const sameDayCityCount = new Set((sameDayRes.data || []).map((r) => Number(r.city_id))).size;
+
+      if (sameDayCityCount < 2) {  // wait after first save of the date
+        return {
+          ok: false,
+          reason: "WAITING_FOR_SECOND_FORECAST",
+          message: `No streak change: ${targetYMD} has ${sameDayCityCount} city forecast(s); needs 2.`,
           data: {
-            current_streak: 1,
-            record_streak: 1,
-            mood: currentMood + 1,
+            current_streak: currentStreak,
+            record_streak: recordStreak,
+            mood: currentMood,
+            forecasted_cities_for_date: sameDayCityCount,
             latest_forecast_date: targetYMD,
           },
         };
       }
 
-      return {
-        ok: false,
-        reason: "NO_CHANGE_SAME_DATE",
-        message: `No change: already logged for ${targetYMD}.`,
-        data: {
-          current_streak: currentStreak,
-          record_streak: recordStreak,
-          mood: currentMood,
-          latest_forecast_date: toYMD(latest),
-        },
-      };
+      if (sameDayCityCount > 2) {  // 3rd+ forecast for same date does not increment streak additionally
+        return {
+          ok: false,
+          reason: "NO_CHANGE_ALREADY_REWARDED_FOR_DATE",
+          message: `No streak change: ${targetYMD} already had threshold reached.`,
+          data: {
+            current_streak: currentStreak,
+            record_streak: recordStreak,
+            mood: currentMood,
+            forecasted_cities_for_date: sameDayCityCount,
+            latest_forecast_date: targetYMD,
+          },
+        };
+      }
     }
 
     const prevRes = await client  // get latest forecast date before selected date
@@ -904,11 +911,11 @@ async function incrementDailyStreak(client, userId, forecastDate = null) {
       current_streak: nextStreak,
     };
 
-    if (!statsRes.data || nextStreak >= recordStreak) {  // update record streak if new streak >= record streak
+    if (!statsRes.data || nextStreak >= recordStreak) {
       payload.record_streak = nextStreak;
     }
 
-    if (nextReason === "INCREMENT" || nextReason === "RESET" || nextReason === "INIT") {  // add +1 mood when streak is increased or reset
+    if (nextReason === "INCREMENT" || nextReason === "RESET" || nextReason === "INIT") {
       payload.mood = currentMood + 1;
     }
 
