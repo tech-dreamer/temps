@@ -719,6 +719,10 @@ async function checkIncrementDailyStreak(payload, forecastDate, explicitUserId =
 
 // Update user's current mood & streak
 async function incrementDailyStreak(client, userId, forecastDate = null) {
+  if (!client || typeof client.from !== "function") {
+    return { ok: false, reason: "NO_CLIENT", error: "Invalid Supabase client." };
+  }
+
   if (!userId) {
     return { ok: false, reason: "NO_USER", error: "Missing userId." };
   }
@@ -770,9 +774,7 @@ async function incrementDailyStreak(client, userId, forecastDate = null) {
     return `${y}-${m}-${da}`;
   };
 
-  const dayDiff = (a, b) => {
-    return Math.round((a.getTime() - b.getTime()) / 86400000);
-  };
+  const dayDiff = (a, b) => Math.round((a.getTime() - b.getTime()) / 86400000);
 
   const target = toDateOnlyUTC(forecastDate);
   if (!target) {
@@ -792,9 +794,9 @@ async function incrementDailyStreak(client, userId, forecastDate = null) {
       return { ok: false, reason: "FETCH_LATEST_FORECAST_ERROR", error: latestRes.error };
     }
 
-    const statsRes = await client  // get user streak stats
+    const statsRes = await client  // get user streak and mood stats
       .from("user_stats")
-      .select("current_streak, record_streak")
+      .select("current_streak, record_streak, mood")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -807,13 +809,15 @@ async function incrementDailyStreak(client, userId, forecastDate = null) {
 
     const currentStreak = statsRes.data ? Number(statsRes.data.current_streak || 0) : 0;
     const recordStreak = statsRes.data ? Number(statsRes.data.record_streak || 0) : 0;
+    const currentMood = statsRes.data ? Number(statsRes.data.mood || 0) : 0;
 
-    if (latest && target.getTime() === latest.getTime()) {  // no change if selected date is same as latest forecast date
-      if (!statsRes.data) {  // initialize streak to 1 if no stats row exists yet
+    if (latest && target.getTime() === latest.getTime()) {  // no streak increment if selected date same as last forecast date
+      if (!statsRes.data) {
         const initPayload = {
           user_id: userId,
           current_streak: 1,
           record_streak: 1,
+          mood: currentMood + 1,
         };
 
         const initRes = await client
@@ -827,8 +831,14 @@ async function incrementDailyStreak(client, userId, forecastDate = null) {
         return {
           ok: true,
           reason: "INIT_SAME_DATE",
-          message: "Streak initialized to 1 (same-day forecast with no prior user stats row)",
-          data: { current_streak: 1, record_streak: 1, latest_forecast_date: targetYMD },
+          message:
+            "Streak initialized to 1 (same-day forecast with no prior user stats row), mood +1.",
+          data: {
+            current_streak: 1,
+            record_streak: 1,
+            mood: currentMood + 1,
+            latest_forecast_date: targetYMD,
+          },
         };
       }
 
@@ -839,6 +849,7 @@ async function incrementDailyStreak(client, userId, forecastDate = null) {
         data: {
           current_streak: currentStreak,
           record_streak: recordStreak,
+          mood: currentMood,
           latest_forecast_date: toYMD(latest),
         },
       };
@@ -862,7 +873,7 @@ async function incrementDailyStreak(client, userId, forecastDate = null) {
     let nextStreak = 1;
     let nextReason = "RESET";
 
-    if (!prevDate) {  // if no older forecast date exists for user
+    if (!prevDate) {
       nextStreak = 1;
       nextReason = "INIT";
     } else {
@@ -881,6 +892,7 @@ async function incrementDailyStreak(client, userId, forecastDate = null) {
           data: {
             current_streak: currentStreak,
             record_streak: recordStreak,
+            mood: currentMood,
             latest_forecast_date: latest ? toYMD(latest) : null,
           },
         };
@@ -892,9 +904,12 @@ async function incrementDailyStreak(client, userId, forecastDate = null) {
       current_streak: nextStreak,
     };
 
-    // update record streak only if new streak >= record streak
-    if (!statsRes.data || nextStreak >= recordStreak) {
+    if (!statsRes.data || nextStreak >= recordStreak) {  // update record streak if new streak >= record streak
       payload.record_streak = nextStreak;
+    }
+
+    if (nextReason === "INCREMENT" || nextReason === "RESET" || nextReason === "INIT") {  // add +1 mood when streak is increased or reset
+      payload.mood = currentMood + 1;
     }
 
     const upRes = await client
@@ -910,14 +925,14 @@ async function incrementDailyStreak(client, userId, forecastDate = null) {
       reason: nextReason,
       message:
         nextReason === "INCREMENT"
-          ? `Streak increased to ${nextStreak}.`
+          ? `Streak increased to ${nextStreak}, mood +1.`
           : nextReason === "RESET"
-            ? `Streak reset to 1`
-            : `Streak initialized to 1`,
+          ? `Streak reset to 1, mood +1.`
+          : `Streak initialized to 1, mood +1.`,
       data: {
         current_streak: nextStreak,
-        record_streak:
-          payload.record_streak !== undefined ? payload.record_streak : recordStreak,
+        record_streak: payload.record_streak !== undefined ? payload.record_streak : recordStreak,
+        mood: currentMood + 1,
         selected_forecast_date: targetYMD,
         previous_forecast_date: prevDate ? toYMD(prevDate) : null,
       },
