@@ -21,7 +21,7 @@ body {
   margin: 2rem auto;
   padding: 1rem;
   background: #f4f6fb;
-  font-size: 1.15rem;
+  font-size: 1.2rem;
 }
 
 h1 {
@@ -279,7 +279,7 @@ button:disabled {
   align-items: center;
   gap: 0.5rem;
   margin-left: 0.6rem;
-  font-size: 1.3rem;
+  font-size: 1.5rem;
   font-weight: 600;
 }
 
@@ -468,6 +468,7 @@ button:disabled {
   margin-top: 0.3rem !important;
   margin-bottom: 0.6rem !important;
   text-align: center;
+  font-size: 1.3rem;
   font-weight: 600;
 }
 
