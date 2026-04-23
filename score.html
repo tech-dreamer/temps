@@ -1420,12 +1420,34 @@
     const circles = circlesByCity.join(" ");
 
     const dateLine = `${formatShareDate(ydayLabel)}    ${successCount}/${totalCount}`;
-    const text = [
+    const shareLines = [
       "Temps With Friends",
       dateLine,
+      "",
       circles,
+      "",
       `🪙 ${totalCoins} 💗 ${formatSignedNumber(totalMood)} ⭐ ${currentStreak}`,
-    ].join("\n\n");
+    ];
+    
+    const visibleLines = shareLines.filter((line) => line.trim() !== "");
+    const maxLen = Math.max(...visibleLines.map((line) => Array.from(line).length, 1));
+    
+    const centeredText = shareLines
+      .map((line) => {
+        const raw = String(line ?? "");
+        const len = Array.from(raw).length;
+        if (!raw.trim()) return "";
+    
+        const padTotal = Math.max(0, maxLen - len);
+        const left = Math.floor(padTotal / 2);
+        const right = padTotal - left;
+        const nbsp = "\u00A0";  // non-breaking space for copy paste stability
+    
+        return `${nbsp.repeat(left)}${raw}${nbsp.repeat(right)}`;
+      })
+      .join("\n");
+
+    const text = centeredText;
 
     shareBtn.onclick = async () => {
       const ok = await copyText(text);
