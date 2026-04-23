@@ -52,14 +52,22 @@
       min-width: 0;
       font-size: 1.15rem;
       font-weight: 700;
-      line-height: 1.2;
-      padding: 1rem 2.2rem;
+      line-height: 1;
+      height: 3rem;
+      min-height: 3rem;
+      padding: 0 1.75rem;
       border-radius: 14px;
       border: 1px solid transparent;
       box-sizing: border-box;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
       transition: all 0.2s ease;
       color: var(--text-on-brand);
+      text-decoration: none;
+      appearance: none;
+      -webkit-appearance: none;
     }
 
     #hourlySaveBtn {
@@ -177,5 +185,34 @@
   </div>
 
   <script src="script.js"></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const dateEl = document.getElementById('currentHourlyDate');
+    if (!dateEl) return;
+
+    const formatDate = () => {
+      const raw = (dateEl.textContent || '').trim();
+      if (!raw || raw.toLowerCase().includes('loading')) return;
+
+      const parsed = new Date(raw);  // first try native parsing
+      if (!Number.isNaN(parsed.getTime())) {
+        dateEl.textContent = new Intl.DateTimeFormat('en-GB', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        }).format(parsed);
+        return;
+      }
+
+      const match = raw.match(/^([A-Za-z]{3,9})\s+(\d{1,2}),\s*(\d{4})$/);
+      if (match) dateEl.textContent = `${match[2]} ${match[1]} ${match[3]}`;
+    };
+
+    formatDate();
+
+    const mo = new MutationObserver(formatDate);  // if script.js sets/updates it later, keep it corrected
+    mo.observe(dateEl, { childList: true, characterData: true, subtree: true });
+  });
+  </script>
 </body>
 </html>
