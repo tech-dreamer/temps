@@ -1390,162 +1390,151 @@
 
   function buildShare(scores = [], totalCoins = 0, totalMood = 0, currentStreak = 0, shareSummary = null) {
     if (!shareBtn) return;
-
+  
     const toNumber = (v, fallback = 0) => {
-        const n = Number(v);
-        return Number.isFinite(n) ? n : fallback;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : fallback;
     };
-
-    const formatSignedNumber = (v) => {
-        const n = toNumber(v, 0);
-        return n > 0 ? `+${n}` : `${n}`;
+  
+    const formatSigned = (v) => {
+      const n = toNumber(v, 0);
+      return n > 0 ? `+${n}` : `${n}`;
     };
-
+  
     const formatShareDate = (label) => {
-        const s = String(label || "").trim();
-        const m = s.match(/^([A-Za-z]{3,9})\s+(\d{1,2})$/);
-        return m ? `${m[2]} ${m[1]}` : s;
+      const s = String(label || "").trim();
+      const m = s.match(/^([A-Za-z]{3,9})\s+(\d{1,2})$/);
+      return m ? `${m[2]} ${m[1]}` : s;
     };
-
+  
     const rows = Array.isArray(scores) ? scores : [];
-
-    let cityIds = [];  // keep existing order if available, otherwise preserve first-seen order from scores
+  
+    let cityIds = [];
     if (Array.isArray(CITY_ORDER) && CITY_ORDER.length) {
-        cityIds = CITY_ORDER.slice();
+      cityIds = CITY_ORDER.slice();
     } else {
-        const seen = new Set();
-        for (const row of rows) {
-            const id = row?.city_id;
-            if (id == null || seen.has(id)) continue;
-            seen.add(id);
-            cityIds.push(id);
-        }
+      const seen = new Set();
+      for (const row of rows) {
+        const id = row?.city_id;
+        if (id == null || seen.has(id)) continue;
+        seen.add(id);
+        cityIds.push(id);
+      }
     }
-
+  
     const circlesByCity = cityIds.map((cityId) => {
-        const row = rows.find((r) => Number(r?.city_id) === Number(cityId)) || {};
-        return typeof resultCircle === "function" ? resultCircle(row) : "";
+      const row = rows.find((r) => Number(r?.city_id) === Number(cityId)) || {};
+      return resultCircle(row);
     });
-
+  
     const allSkipped =
-        circlesByCity.length === 0 ||
-        circlesByCity.every((c) => c === "⚪" || c === "" || c == null);
-
+      circlesByCity.length === 0 ||
+      circlesByCity.every((c) => c === "⚪" || c === "" || c == null);
+  
     if (typeof setShareEnabled === "function") {
-        setShareEnabled(!allSkipped);
+      setShareEnabled(!allSkipped);
     }
-
+  
     if (allSkipped) {
-        shareBtn.onclick = null;
-        return;
+      shareBtn.onclick = null;
+      return;
     }
-
+  
     const successCount = toNumber(
-        shareSummary?.successCount,
-        circlesByCity.filter((c) => c === "🟢" || c === "🟡").length
+      shareSummary?.successCount,
+      circlesByCity.filter((c) => c === "🟢" || c === "🟡").length
     );
     const totalCount = toNumber(shareSummary?.totalCount, circlesByCity.length);
-
+  
     const circles = circlesByCity.join(" ");
     const dateLine = `${formatShareDate(ydayLabel)}    ${successCount}/${totalCount}`;
-    const statsLine = `🪙 ${toNumber(totalCoins, 0)}  💗 ${formatSignedNumber(totalMood)}  ⭐ ${toNumber(currentStreak, 0)}`;
-
-    const buildWidthFn = (() => {  // emoji-aware visual width estimator (fallback to naive for older browsers)
-        const segmenter =
-            typeof Intl !== "undefined" && "Segmenter" in Intl
-                ? new Intl.Segmenter("en", { granularity: "grapheme" })
-                : null;
-
-        const isEmoji = (seg) => /\p{Extended_Pictographic}/u.test(seg);
-
-        if (!segmenter) {
-            return (s) => {
-                let w = 0;
-                for (const ch of String(s)) {
-                    const cp = ch.codePointAt(0);
-                    w += (cp >= 0x1f300 && cp <= 0x1faff) || (cp >= 0x2600 && cp <= 0x27bf) ? 2 : 1;
-                }
-                return w;
-            };
-        }
-
-        return (s) => {
-            let w = 0;
-            for (const { segment } of segmenter.segment(String(s))) {
-                if (!segment) continue;
-                if (segment === " ") {
-                    w += 1;
-                } else if (isEmoji(segment)) {
-                    w += 2;
-                } else {
-                    w += 1;
-                }
-            }
-            return w;
-        };
-    })();
-
+    const statsLine = `🪙 ${toNumber(totalCoins, 0)}  💗 ${formatSigned(totalMood)}  ⭐ ${toNumber(currentStreak, 0)}`;
+  
     const lines = [
       { text: "Temps With Friends", isSpace: false, bias: 1 },  // +1 space
       { text: "", isSpace: true },
-      { text: dateLine, isSpace: false, bias: 1 },  // +1 space
+      { text: dateLine, isSpace: false, bias: 1 },
       { text: "", isSpace: true },
       { text: circles, isSpace: false, bias: 0 },
       { text: "", isSpace: true },
       { text: statsLine, isSpace: false, bias: 0 },
     ];
-
+  
+    const visualWidth = (() => {  // emoji-aware visual width estimator
+      const segmenter =
+        typeof Intl !== "undefined" && "Segmenter" in Intl
+          ? new Intl.Segmenter("en", { granularity: "grapheme" })
+          : null;
+  
+      const isEmoji = (seg) => /\p{Extended_Pictographic}/u.test(seg);
+  
+      if (!segmenter) {
+        return (s) => {
+          let w = 0;
+          for (const ch of String(s)) {
+            const cp = ch.codePointAt(0);
+            w += (cp >= 0x1f300 && cp <= 0x1faff) || (cp >= 0x2600 && cp <= 0x27bf) ? 2 : 1;
+          }
+          return w;
+        };
+      }
+  
+      return (s) => {
+        let w = 0;
+        for (const { segment } of segmenter.segment(String(s))) {
+          if (!segment) continue;
+          if (segment === " ") w += 1;
+          else if (isEmoji(segment)) w += 2;
+          else w += 1;
+        }
+        return w;
+      };
+    })();
+  
     const contentLines = lines.filter((l) => !l.isSpace);
-    const maxWidth = Math.max(...contentLines.map((l) => buildWidthFn(l.text)));
-
+    const maxWidth = Math.max(0, ...contentLines.map((l) => visualWidth(l.text)));
+  
     const centeredText = lines
       .map((line) => {
         if (line.isSpace) return "";
-    
-        const basePad = Math.max(
-          0,
-          Math.floor((maxWidth - visualWidth(line.text)) / 2)
-        );
-    
-        const extraPad = Number.isFinite(line.bias) ? Math.max(line.bias, 0) : 0;
+        const basePad = Math.max(0, Math.floor((maxWidth - visualWidth(line.text)) / 2));
+        const extraPad = Number.isFinite(line.bias) ? Math.max(line.bias, 0) : 0;  // apply bias when padding
         return " ".repeat(basePad + extraPad) + line.text;
       })
       .join("\n");
-
+  
     const showMonospaceFallback = (text) => {
-        if (typeof showManualShareFallback === "function") {
-            try {
-                showManualShareFallback(text);
-
-                const existing =  // style existing fallback text area
-                    document.querySelector("#share-fallback textarea") ||
-                    document.querySelector(".share-fallback textarea");
-                if (existing) {
-                    existing.style.fontFamily =
-                        "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace";
-                }
-                return;
-            } catch {}  // fall through to inline fallback
-        }
-
-        const box = document.createElement("textarea");  // safe fallback if existing helper not in this scope
-        box.value = text;
-        box.readOnly = true;
-        box.rows = 9;
-        box.className = "w-full p-2 border rounded-md";
-        box.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace";
-        box.style.whiteSpace = "pre";
-        box.style.resize = "vertical";
-
-        document.body.appendChild(box);
-        box.focus();
-        box.select();
+      if (typeof showManualShareFallback === "function") {
+        try {
+          showManualShareFallback(text);
+          return;
+        } catch {}
+      }
+  
+      const box = document.createElement("textarea");
+      box.value = text;
+      box.readOnly = true;
+      box.rows = 9;
+      box.style.width = "100%";
+      box.style.minHeight = "110px";
+      box.style.marginTop = "10px";
+      box.style.padding = "8px";
+      box.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace";
+      box.style.fontSize = "14px";
+      box.style.whiteSpace = "pre";
+      box.style.resize = "vertical";
+  
+      document.body.appendChild(box);
+      box.focus();
+      box.select();
     };
-
+  
     shareBtn.onclick = async () => {
-        const ok = await copyText(centeredText);
-        if (typeof showShareStatus === "function") { showShareStatus(ok ? "✅ Score copied!" : "⚠️ Clipboard blocked here. Use text box below.", ok ? "ok" : "error"); }
-        if (!ok) showMonospaceFallback(centeredText);
+      const ok = await copyText(centeredText);
+      if (typeof showShareStatus === "function") {
+        showShareStatus(ok ? "✅ Score copied!" : "⚠️ Clipboard blocked here. Use text box below.", ok ? "ok" : "error");
+      }
+      if (!ok) showMonospaceFallback(centeredText);
     };
   }
 
