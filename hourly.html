@@ -54,7 +54,6 @@
       font-weight: 700;
       line-height: 1;
       height: 3rem;
-      min-height: 3rem;
       padding: 0 1.75rem;
       border-radius: 14px;
       border: 1px solid transparent;
@@ -155,8 +154,9 @@
 
   <h1 style="text-align:center;"> ⏲️ My Hourly Forecasts 🔮 </h1>
 
-  <p id="currentHourlyDate" style="text-align:center;font-weight:600;margin:0.5rem auto;">
-    Forecast date loading...
+  <p style="text-align:center;font-weight:600;margin:0.5rem auto;">
+    <span id="currentHourlyDate" style="display:none;"> Forecast date loading... </span>
+    <span id="currentHourlyDateDisplay"> Forecast date loading... </span>
   </p>
 
   <p style="text-align:center; margin:0.5rem auto 1rem; color:#000;">
@@ -191,33 +191,44 @@
 
   <script src="script.js"></script>
   <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const dateEl = document.getElementById('currentHourlyDate');
-    if (!dateEl) return;
-
-    const formatDate = () => {
-      const raw = (dateEl.textContent || '').trim();
-      if (!raw || raw.toLowerCase().includes('loading')) return;
-
-      const parsed = new Date(raw);  // first try native parsing
-      if (!Number.isNaN(parsed.getTime())) {
-        dateEl.textContent = new Intl.DateTimeFormat('en-GB', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric'
-        }).format(parsed);
-        return;
-      }
-
-      const match = raw.match(/^([A-Za-z]{3,9})\s+(\d{1,2}),\s*(\d{4})$/);
-      if (match) dateEl.textContent = `${match[2]} ${match[1]} ${match[3]}`;
-    };
-
-    formatDate();
-
-    const mo = new MutationObserver(formatDate);  // if script.js sets/updates it later, keep it corrected
-    mo.observe(dateEl, { childList: true, characterData: true, subtree: true });
-  });
+    document.addEventListener('DOMContentLoaded', () => {
+      const rawEl = document.getElementById('currentHourlyDate');  // used by script.js logic
+      const displayEl = document.getElementById('currentHourlyDateDisplay');  // visible to user
+  
+      if (!rawEl || !displayEl) return;
+  
+      const toDDMonYYYY = (raw) => {
+        const match = raw.match(/^([A-Za-z]{3,9})\s+(\d{1,2}),\s*(\d{4})$/);
+        if (match) return `${match[2]} ${match[1]} ${match[3]}`;
+  
+        const parsed = new Date(raw);
+        if (!Number.isNaN(parsed.getTime())) {
+          return new Intl.DateTimeFormat('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+          }).format(parsed);
+        }
+  
+        return '';
+      };
+  
+      const syncDate = () => {
+        const raw = (rawEl.textContent || '').trim();
+        if (!raw || /loading/i.test(raw)) {
+          displayEl.textContent = raw || 'Forecast date loading...';
+          return;
+        }
+  
+        const formatted = toDDMonYYYY(raw);
+        displayEl.textContent = formatted || raw; // fallback safe
+      };
+  
+      syncDate();
+  
+      const mo = new MutationObserver(syncDate);  // keep display synced if script.js updates raw date later
+      mo.observe(rawEl, { childList: true, characterData: true, subtree: true });
+    });
   </script>
 </body>
 </html>
