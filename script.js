@@ -14,14 +14,14 @@ const BACKUP_EMAIL_STREAK = 7;
 const BACKUP_EMAIL_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const HOURLY_LABELS = [
-  "1PM",    // "Noon",
-  "2PM",
-  "3PM",
-  "4PM",
-  "5PM",
-  "6PM",
-  "7PM",
-  "8PM"
+  "1 PM",    // "Noon",
+  "2 PM",
+  "3 PM",
+  "4 PM",
+  "5 PM",
+  "6 PM",
+  "7 PM",
+  "8 PM"
 ];
 const HOURLY_GAME_SWITCH_HOUR_ET = 20; // 19
 
