@@ -41,7 +41,7 @@
       transform: translateY(-1px);
     }
 
-    #submitDailyBtn {
+    #dailySaveBtn {
       background: var(--brand-blue);
       color: #fff;
       border: 1px solid var(--brand-blue);
@@ -51,7 +51,7 @@
       transition: all 0.2s ease;
     }
 
-    #submitDailyBtn:hover {
+    #dailySaveBtn:hover {
       background: var(--brand-blue-hover);
       border-color: var(--brand-blue-hover);
       transform: translateY(-1px);
@@ -109,7 +109,7 @@
       margin-bottom: 0;
     }
 
-    #revealBtn {
+    #dailyScoreBtn {
       background: var(--brand-green);
       color: #fff;
       border: 1px solid var(--brand-green);
@@ -119,7 +119,7 @@
       transition: all 0.2s ease;
     }
 
-    #revealBtn:hover {
+    #dailyScoreBtn:hover {
       background: var(--brand-green-hover);
       border-color: var(--brand-green-hover);
       transform: translateY(-1px);
@@ -203,11 +203,9 @@
   <div id="status" style="text-align:center; margin-top:0.8rem; min-height:1.3rem;"></div>
 
   <div style="text-align:center; margin: 0;">
-    <button id="revealBtn"> 🐰 View My Score </button>
+    <button id="dailyScoreBtn"> 🐰 View My Score </button>
   </div>
-
-  <div id="revealResults"></div>
-
+  
   <script src="script.js"></script>
 </body>
 </html>
