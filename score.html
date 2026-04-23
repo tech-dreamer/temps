@@ -1390,80 +1390,78 @@
 
   function buildShare(scores, totalCoins, totalMood, currentStreak, shareSummary = null) {
     if (!shareBtn) return;
-
-    const formatShareDate = (label) => {  // format date as DD MM
+  
+    const formatShareDate = (label) => {
       const s = String(label || "").trim();
       const m = s.match(/^([A-Za-z]{3,9})\s+(\d{1,2})$/);
       if (m) return `${m[2]} ${m[1]}`;
       return s;
     };
-
+  
     const rows = Array.isArray(scores) ? scores : [];
     const cityIds = Array.isArray(CITY_ORDER) && CITY_ORDER.length
       ? CITY_ORDER
       : rows.map((r) => r?.city_id).filter((v, i, a) => v != null && a.indexOf(v) === i);
-
+  
     const circlesByCity = cityIds.map((cityId) =>
       resultCircle(rows.find((r) => Number(r?.city_id) === Number(cityId)) || {})
     );
-
+  
     const allSkipped = circlesByCity.length === 0 || circlesByCity.every((c) => c === "⚪");
     setShareEnabled(!allSkipped);
-
+  
     if (allSkipped) {
       shareBtn.onclick = null;
       return;
     }
-
+  
     const successCount = shareSummary?.successCount ?? circlesByCity.filter((c) => c === "🟢" || c === "🟡").length;
     const totalCount = shareSummary?.totalCount ?? circlesByCity.length;
     const circles = circlesByCity.join(" ");
-
+  
     const dateLine = `${formatShareDate(ydayLabel)}    ${successCount}/${totalCount}`;
-    const shareLines = [
-      "Temps With Friends",
-      "",
-      dateLine,
-      "",
-      circles,
-      "",
-      `🪙 ${totalCoins} 💗 ${formatSignedNumber(totalMood)} ⭐ ${currentStreak}`,
+    
+    const statsLine = `🪙 ${totalCoins}  💗 ${formatSignedNumber(totalMood)}  ⭐ ${currentStreak}`;
+  
+    const lines = [  // build lines with metadata for centering logic
+      { text: "Temps With Friends", isHeader: true },
+      { text: "", isSpace: true },
+      { text: dateLine, isDate: true },
+      { text: "", isSpace: true },
+      { text: circles, isCircles: true },
+      { text: "", isSpace: true },
+      { text: statsLine, isStats: true },
     ];
-    
-    const getVisualLen = (s) => {   // inline width helper
-      const chars = Array.from(s);
-      return chars.reduce((len, ch) => {
-        const cp = ch.codePointAt(0);
-        const isWide =
-          (cp >= 0x1F300 && cp <= 0x1FAFF) ||  // many emoji/symbols
-          (cp >= 0x2600 && cp <= 0x27BF) ||  // misc symbols
-          (cp >= 0x1D400 && cp <= 0x1F9FF);  // broad emoji-ish range fallback
-        return len + (isWide ? 2 : 1);
-      }, 0);
+  
+    const getVisualWidth = (s) => {  // compute visual width accounting for emoji being 2 chars wide on most platforms
+      let width = 0;
+      for (const char of s) {
+        const code = char.codePointAt(0);
+        if (code > 0x2000) width += 2;
+        else width += 1;
+      }
+      return width;
     };
-    
-    const maxLen = Math.max(
-      1,
-      ...shareLines.filter((l) => l.trim()).map((l) => getVisualLen(l))
-    );
-    
-    const centeredText = shareLines
-      .map((line) => {
-        if (!line.trim()) return "";
-        const pad = Math.max(0, Math.floor((maxLen - getVisualLen(line)) / 2));
-        return "\u2007".repeat(pad) + line;  // left-only padding
-      })
-      .join("\n");
-
-    const text = centeredText;
-
+  
+    const contentLines = lines.filter((l) => !l.isSpace);  // find the longest line (excluding empty lines)
+    const maxWidth = Math.max(...contentLines.map((l) => getVisualWidth(l.text)));
+  
+    const centered = lines.map((line) => {  // center each line using spaces
+      if (line.isSpace) return "";
+      
+      const width = getVisualWidth(line.text);
+      const padding = Math.max(0, Math.floor((maxWidth - width) / 2));
+      
+      return " ".repeat(padding) + line.text;  // use regular spaces for padding (most reliable cross-platform)
+    }).join("\n");
+  
     shareBtn.onclick = async () => {
-      const ok = await copyText(text);
+      const ok = await copyText(centered);
       if (ok) {
         showShareStatus("✅ Score copied!");
       } else {
         showShareStatus("⚠️ Clipboard is blocked here. Use text box below.", "error");
-        showManualShareFallback(text);
+        showManualShareFallback(centered);
       }
     };
   }
