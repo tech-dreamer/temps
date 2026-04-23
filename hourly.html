@@ -45,6 +45,14 @@
       box-shadow: 0 6px 14px rgba(166, 59, 166, 0.25);
     }
 
+    #forecastDateLine,
+    #forecastDateLine span,
+    #currentHourlyDateDisplay {
+      font-size: 1.3rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
     /* Make hourly action buttons match daily button sizing/height/line-height */
     .hourly-action-btn {
       white-space: nowrap;
@@ -70,25 +78,23 @@
       -webkit-appearance: none;
     }
     
-    #hourlySaveBtn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    #hourlySaveBtn:hover {
-      background: var(--brand-blue-hover);
-      border-color: var(--brand-blue-hover);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 18px var(--brand-shadow-blue);
-    }
-
+    /* explicit save button states */
     #hourlySaveBtn {
       background: var(--brand-blue);
       border-color: var(--brand-blue);
       color: var(--text-on-brand);
     }
     
-    #hourlySaveBtn:hover:not(:disabled) {
+    #hourlySaveBtn:disabled {
+      background: var(--brand-blue) !important;
+      border-color: var(--brand-blue) !important;
+      color: var(--text-on-brand) !important;
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    
+    #hourlySaveBtn:hover:not(:disabled),
+    #hourlySaveBtn:focus-visible:not(:disabled) {
       background: var(--brand-blue-hover);
       border-color: var(--brand-blue-hover);
       transform: translateY(-2px);
@@ -161,10 +167,11 @@
   </div>
 
   <h1 style="text-align:center;"> ⏲️ My Hourly Forecasts 🔮 </h1>
-  <p id="forecastDateLine" style="text-align:center;font-weight:600;margin:0.5rem auto; font-size: 1.2rem;">
+
+  <p id="forecastDateLine" style="text-align:center;margin:0.5rem auto;">
     <span>Forecast Date: </span>
-    <span id="currentHourlyDateDisplay">Forecast date loading...</span>
-    <span id="currentHourlyDate" style="display:none;">Forecast date loading...</span>
+    <span id="currentHourlyDateDisplay"> Forecast date loading... </span>
+    <span id="currentHourlyDate" style="display:none;"> Forecast date loading... </span>
   </p>
 
   <p style="text-align:center; margin:0.5rem auto 1rem; color:#000;">
