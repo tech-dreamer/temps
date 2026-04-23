@@ -1486,25 +1486,31 @@
     })();
 
     const lines = [
-        { text: "Temps With Friends", isSpace: false },
-        { text: "", isSpace: true },
-        { text: dateLine, isSpace: false },
-        { text: "", isSpace: true },
-        { text: circles, isSpace: false },
-        { text: "", isSpace: true },
-        { text: statsLine, isSpace: false },
+      { text: "Temps With Friends", isSpace: false, bias: 1 },  // +1 space
+      { text: "", isSpace: true },
+      { text: dateLine, isSpace: false, bias: 1 },  // +1 space
+      { text: "", isSpace: true },
+      { text: circles, isSpace: false, bias: 0 },
+      { text: "", isSpace: true },
+      { text: statsLine, isSpace: false, bias: 0 },
     ];
 
     const contentLines = lines.filter((l) => !l.isSpace);
     const maxWidth = Math.max(...contentLines.map((l) => buildWidthFn(l.text)));
 
     const centeredText = lines
-        .map((line) => {
-            if (line.isSpace) return "";
-            const pad = Math.max(0, Math.floor((maxWidth - buildWidthFn(line.text)) / 2));
-            return " ".repeat(pad) + line.text;
-        })
-        .join("\n");
+      .map((line) => {
+        if (line.isSpace) return "";
+    
+        const basePad = Math.max(
+          0,
+          Math.floor((maxWidth - visualWidth(line.text)) / 2)
+        );
+    
+        const extraPad = Number.isFinite(line.bias) ? Math.max(line.bias, 0) : 0;
+        return " ".repeat(basePad + extraPad) + line.text;
+      })
+      .join("\n");
 
     const showMonospaceFallback = (text) => {
         if (typeof showManualShareFallback === "function") {
