@@ -1541,9 +1541,7 @@ async function buildDailyGrid() {
     const cutoff = new Date(localNow.getTime());
     cutoff.setUTCHours(12, 0, 0, 0);
 
-    const isPastCutoff =
-      forecastDay === "today" && (PTNow >= PTCutoff || localNow >= cutoff);
-
+    const isPastCutoff = forecastDay === "today" && localNow >= cutoff;
     const forecastText = cityHasSavedForecast
       ? `My current forecast: H ${formatForecastValue(prevGuess.high)} / L ${formatForecastValue(prevGuess.low)}`
       : "Awaiting my forecast";
@@ -2008,11 +2006,10 @@ async function handleDailySubmit(e) {
   }
 }
 
-// Hourly save handler
 async function handleHourlySubmit(e) {
   e.preventDefault();
 
-  const session = await ensureSession(false, { allowAnonymous: false });  // require an existing user before allowing hourly save
+  const session = await ensureSession(false, { allowAnonymous: false });
   const recovery = popAuthRecoveryState();
   if (recovery?.needsReauth) {
     setStatus(`<span style="color:orange;">${recovery.message}</span>`);
@@ -2024,8 +2021,9 @@ async function handleHourlySubmit(e) {
   }
   userId = session.user.id;
   const status = document.getElementById("status");
-  const cityRows = new Map();  // cityId maps to row data for validation
+  const cityRows = new Map();
   const payload = [];
+  const invalidInputs = [];
 
   if (!selectedHour) {
     if (status) status.innerHTML = '<span style="color:red;"> Select an hour first </span>';
@@ -2065,27 +2063,32 @@ async function handleHourlySubmit(e) {
 
   let blocked = false;
   const EPS = 1e-6;
-  const sameHour = (a, b) =>
-    Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) < EPS;
+  const sameHour = (a, b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) < EPS;
 
   document.querySelectorAll(".hourly-input").forEach((input) => {
     if (input.disabled) return;
 
-    const raw = input.value.trim();
+    const raw = String(input.value ?? "").trim();
     if (!raw) return;
 
     const cityId = Number(input.dataset.cityId);
     const inputHour = Number(input.dataset.hour);
-    const numVal = Number(raw);
+    const city = cities.find((c) => c.id === cityId);
+    const cityName = city?.name ?? `City ${cityId}`;
+    const hourLabel = input.dataset.hourLabel ?? input.dataset.hour;
 
-    if (Number.isNaN(cityId) || Number.isNaN(inputHour) || Number.isNaN(numVal)) return;
+    const numVal = Number(raw);
+    if (!Number.isFinite(numVal)) {
+      invalidInputs.push(`${cityName} (${hourLabel})`);
+      markInvalid(input);
+      return;
+    }
 
     if (!useTomorrow && etNow >= selectedCutoff) {
       blocked = true;
       return;
     }
 
-    const city = cities.find((c) => c.id === cityId);
     if (!city) return;
 
     const row = cityRows.get(cityId) || {
@@ -2096,10 +2099,7 @@ async function handleHourlySubmit(e) {
       sixHrInput: null
     };
 
-    if (sameHour(inputHour, selectedHourNum)) {
-      row.hourlyVal = numVal;
-    }
-
+    if (sameHour(inputHour, selectedHourNum)) row.hourlyVal = numVal;
     if (sameHour(inputHour, sixHrHourNum)) {
       row.sixHrVal = numVal;
       row.sixHrInput = input;
@@ -2116,6 +2116,11 @@ async function handleHourlySubmit(e) {
     });
   });
 
+  if (invalidInputs.length) {
+    setStatus('<span style="color:red;"> Invalid input(s), please enter integers </span>');
+    return;
+  }
+
   if (blocked) {
     setStatus('<span style="color:red;"> Cutoff passed for this hour </span>');
     return;
@@ -2128,10 +2133,10 @@ async function handleHourlySubmit(e) {
 
   const validationMessages = [];
 
-  cityRows.forEach((row, cityId) => {
-    if (!row.sixHrInput) return;    // no 6-hr rule if no 6-hr input entered
+  cityRows.forEach((row) => {
+    if (!row.sixHrInput) return;
 
-    const cityCard = document.querySelector(`#hourlyGrid .city-card[data-city-id="${cityId}"]`);
+    const cityCard = document.querySelector(`#hourlyGrid .city-card[data-city-id="${row.cityId}"]`);
     const msgHost = cityCard?.querySelector(".city-card-content");
 
     if (row.hourlyVal === undefined) {
