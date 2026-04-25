@@ -133,6 +133,22 @@
       row-gap: 2rem;  /* guaranteed spacing between each row */
     }
 
+    .score-value {
+      display: inline-block;
+    }
+    
+    .score-positive {
+      color: #228B22;
+    }
+    
+    .score-negative {
+      color: #D70040; /* carmine */
+    }
+
+    .score-neutral {
+      color: inherit;
+    }
+
     .score-summary > * {
       margin: 0;
     }
@@ -1053,6 +1069,14 @@
     return `${Math.round(Number(v))}°`;
   }
 
+  function scoreValueClass(v) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "score-neutral";
+    if (n > 0) return "score-positive";
+    if (n < 0) return "score-negative";
+    return "score-neutral";
+  }
+
   function cityDisplay(row) {
     if (row.city && String(row.city).trim()) return String(row.city).trim();
     if (row.city_id !== null && row.city_id !== undefined) {
@@ -1099,6 +1123,12 @@
     return userData?.user?.id || null;
   }
 
+  function disableShareForNoSession(reason = "No active session. Please sign in.") {
+    if (!shareBtn) return;
+    setShareEnabled(false, reason);
+    shareBtn.onclick = null;  // prevent stale click action from prior session
+  }
+
   async function checkAuth() {
     const userId = await getSessionUserId();
     if (!userId) {
@@ -1112,7 +1142,8 @@
       if (coinTotalEl) coinTotalEl.textContent = "0";
       if (moodTotalEl) moodTotalEl.textContent = "—";
       if (streakEl) streakEl.textContent = "—";
-    
+
+      disableShareForNoSession("No active session. Save a daily forecast to create session.");
       return false;
     }
     currentUserId = userId;
@@ -1612,6 +1643,7 @@
       if (moodTotalEl) moodTotalEl.textContent = "—";
       if (streakEl) streakEl.textContent = "—";
       renderScoreRatioLine(null, false);
+      disableShareForNoSession("No active session. Please sign in again.");
       return;
     }
 
@@ -1743,8 +1775,14 @@
         </div>
         <div class="msg">${escapeHtml(s.message || (forecasted ? "" : "No submission"))}</div>
         <div class="detail"></div>
-        <div class="coin">${escapeHtml(forecasted ? `🪙 ${Number(s.coins || 0)}` : "🪙 0")}</div>
-        <div class="mood">${escapeHtml(forecasted ? `💗 ${formatSignedNumber(s.mood)}` : "💗 —")}</div>
+        <div class="coin"><span class="score-value ${escapeHtml(scoreValueClass(forecasted ? Number(s.coins || 0) : 0))}">
+          ${escapeHtml(`🪙 ${forecasted ? Math.round(Number(s.coins || 0)) : 0`)}
+        </span></div>
+        <div class="mood"><span class="score-value ${escapeHtml(scoreValueClass(
+          forecasted && s.mood !== null && s.mood !== undefined && s.mood !== "" ? Number(s.mood) : NaN
+        ))}">
+          ${escapeHtml(`💗 ${forecasted ? formatSignedNumber(s.mood) : "—"`)}
+        </span></div>
       `;
 
       const detail = row.querySelector(".detail");
@@ -1798,6 +1836,7 @@
       if (coinTotalEl) coinTotalEl.textContent = "0";
       if (moodTotalEl) moodTotalEl.textContent = "—";
       if (streakEl) streakEl.textContent = "—";
+      disableShareForNoSession("No active session. Please sign in again.");
     }
   });
 
