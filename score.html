@@ -1776,7 +1776,7 @@
         <div class="msg">${escapeHtml(s.message || (forecasted ? "" : "No submission"))}</div>
         <div class="detail"></div>
         <div class="coin"><span class="score-value ${escapeHtml(scoreValueClass(forecasted ? Number(s.coins || 0) : 0))}">
-          ${escapeHtml(`🪙 ${forecasted ? Math.round(Number(s.coins || 0)) : 0`)}
+          ${escapeHtml('🪙 ' + (forecasted ? Math.round(Number(s.coins || 0)) : 0))}
         </span></div>
         <div class="mood"><span class="score-value ${escapeHtml(scoreValueClass(
           forecasted && s.mood !== null && s.mood !== undefined && s.mood !== "" ? Number(s.mood) : NaN
