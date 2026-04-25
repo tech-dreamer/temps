@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title> Home </title>
+  <title>Home</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
@@ -209,7 +209,7 @@
       margin-top: 0.6rem;
     }
 
-    /* Floating gear icon */
+    /* Floating tiny gear icon */
     #open-account-settings {
       position: fixed;
       top: 12px;
@@ -280,16 +280,16 @@
 <body>
   <div class="page">
     <div class="restore-wrap" id="restore-wrap">
-      <button id="restore-btn" type="button"> Restore My Account </button>
+      <button id="restore-btn" type="button">Restore My Account</button>
 
       <div id="restore-backdrop">
         <div id="restore-panel">
           <div class="row">
             <input id="restore-email" type="email" placeholder="you@example.com" autocomplete="email" />
-            <button id="send-restore" type="button"> Send recovery link </button>
+            <button id="send-restore" type="button">Send recovery link</button>
           </div>
           <div class="row" style="justify-content:flex-end; margin-top:0.6rem;">
-            <button id="close-restore" type="button"> Close </button>
+            <button id="close-restore" type="button">Close</button>
           </div>
         </div>
       </div>
@@ -550,7 +550,7 @@
       const changedEmail = nextEmail !== originalProfile.email;
 
       if (!changedUsername && !changedEmail) {
-        setStatus(accountStatus, "No changes to save.", "muted");
+        setStatus(accountStatus, "No changes to save", "muted");
         return;
       }
 
