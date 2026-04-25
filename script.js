@@ -951,10 +951,10 @@ async function incrementDailyStreak(client, userId, forecastDate = null) {
         nextStreak = 1;
         nextReason = "RESET";
       } else {
-        return {
+        return {  // keep streak idempotent & monotonic: same day (0) already counted for this date; past date (<0) out-of-order, do not decrease streak
           ok: false,
           reason: "NO_CHANGE",
-          message: `No change for ${targetYMD} (non-forward date sequence).`,
+          message: `No change for ${targetYMD} (non-forward date sequence)`,
           data: {
             current_streak: currentStreak,
             record_streak: recordStreak,
@@ -1034,6 +1034,7 @@ const TIMEZONE_ET = "America/New_York";
 const TIMEZONE_PT = "America/Los_Angeles";
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"];
 let lastPTDateForUi = getPTTodayYmd();
+
 // Helper to auto switch date selector to tomorrow after last city cutoff time
 function applyNoonAutoSelect() {
   const forecastDaySelect = document.getElementById("forecastDay");
