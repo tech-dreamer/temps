@@ -720,7 +720,7 @@
     <div class="stat-item">🪙 <span id="coinTotal">0</span></div>
     <div class="stat-row">
       <div class="stat-item">💗 <span id="moodTotal">0</span></div>
-      <div class="stat-item">⭐ <span id="currentStreak">0</span></div>
+      <div class="stat-item">🌟 <span id="currentStreak">0</span></div>
     </div>
   </div>
 
@@ -1481,7 +1481,7 @@
   
     const circles = circlesByCity.join(" ");
     const dateLine = `${formatShareDate(ydayLabel)}    ${successCount}/${totalCount}`;
-    const statsLine = `🪙 ${toNumber(totalCoins, 0)}  💗 ${formatSigned(totalMood)}  ⭐ ${toNumber(currentStreak, 0)}`;
+    const statsLine = `🪙 ${toNumber(totalCoins, 0)}  💗 ${formatSigned(totalMood)}  🌟 ${toNumber(currentStreak, 0)}`;
   
     const lines = [
       { text: "Temps With Friends", isSpace: false, bias: 1 },  // +1 space
