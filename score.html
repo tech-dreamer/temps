@@ -792,21 +792,21 @@
     <div class="mode-switch-wrap">
       <div id="categorySwitch" class="mode-switch">
         <button
-          id="modeFinanceBtn"
+          id="categoryFinanceBtn"
           type="button"
           class="mode-switch-btn">
           Finance
         </button>
     
         <button
-          id="modeQuestionsBtn"
+          id="categoryQuestionsBtn"
           type="button"
           class="mode-switch-btn">
           Questions
         </button>
     
         <button
-          id="modeTempsBtn"
+          id="categoryTempsBtn"
           type="button"
           class="mode-switch-btn active">
           Temps
@@ -964,6 +964,13 @@
   function setCategory(category) {
     console.log("category:", category);
     activeCategory = category;
+    const statsEl = document.getElementById("stats");
+    if (statsEl) {
+      statsEl.style.display =
+        category === "finance"
+          ? "none"
+          : "";
+    }
     categoryFinanceBtn?.classList.toggle(
       "active",
       category === "finance"
@@ -1849,6 +1856,9 @@
   async function loadFinanceScore() {
     console.log("loadFinanceScore called");
     if (!financeSummaryEl) return;
+    if (scoreDateEl) {
+      scoreDateEl.textContent = dateLabelFromYMD(todayInPT);
+    }
   
     const { data, error } = await client
       .from("finance_scores")
