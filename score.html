@@ -1871,9 +1871,9 @@
       console.error("Finance Score Error:", error);
   
       financeSummaryEl.innerHTML = `
-        <div style="text-align:center;">
+        <p class="msg no-score-msg">
           Cannot load finance score
-        </div>
+        </p>
       `;
       return;
     }
@@ -1881,9 +1881,9 @@
     if (!data) {
       scoreListEl.innerHTML = "";
       financeSummaryEl.innerHTML = `
-        <div style="text-align:center;">
+        <p class="msg no-score-msg">
           No finance score yet <br> Keep forecasting & check back.
-        </div>
+        </p>
       `;
       return;
     }
