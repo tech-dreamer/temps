@@ -447,7 +447,11 @@
   <div id="status" style="text-align:center; margin-top:0.8rem; min-height:1.3rem;"></div>
 
   <div style="text-align:center; margin: 0;">
-    <a id="dailyScoreBtn" href="score"> 📈 View My Score </a>
+    <a
+      href="score"
+      onclick="localStorage.setItem('scoreCategory','temps')">
+      🎯 View My Score
+    </a>
   </div>
   
   <script src="music.js"></script>
