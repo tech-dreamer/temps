@@ -1866,6 +1866,12 @@
       .eq("user_id", currentUserId)
       .eq("date", todayInPT)
       .maybeSingle();
+    
+    console.log("todayInPT", todayInPT);
+    console.log("finance data", data);
+    console.log("currentUserId", currentUserId);
+    console.log("finance data", data);
+    console.log("todayInPT =", todayInPT);
   
     if (error) {
       console.error("Finance Score Error:", error);
@@ -1883,21 +1889,21 @@
         <p class="msg no-score-msg">
           No finance score yet.<br>
           Keep forecasting & check back.
-        </p>
+        </p> <br>
     
         <div class="finance-score-grid">
           <div class="finance-score-emoji"> ⛽ </div>
           <div class="finance-score-emoji"> ₿ </div>
-          <div class="finance-score-emoji"> 🥇 </div>
+          <div class="finance-score-emoji"> 🥇 </div> <br>
     
+          <div class="finance-score-circle"> ⚪ </div> 
           <div class="finance-score-circle"> ⚪ </div>
           <div class="finance-score-circle"> ⚪ </div>
-          <div class="finance-score-circle"> ⚪ </div>
-        </div>
+        </div> <br>
     
-        <div class="finance-score-coins"> 🪙 0 </div>
+        <div class="finance-score-coins"> 🪙 0 </div> <br>
     
-        <div class="finance-score-ratio"> 0/3 </div>
+        <div class="finance-score-ratio"> 0/3 </div> <br>
     
         <button id="shareBtn"> Share </button>
       `;
