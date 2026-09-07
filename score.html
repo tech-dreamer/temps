@@ -1879,12 +1879,29 @@
     }
   
     if (!data) {
-      scoreListEl.innerHTML = "";
       financeSummaryEl.innerHTML = `
         <p class="msg no-score-msg">
-          No finance score yet <br> Keep forecasting & check back.
+          No finance score yet.<br>
+          Keep forecasting & check back.
         </p>
+    
+        <div class="finance-score-grid">
+          <div class="finance-score-emoji"> ⛽ </div>
+          <div class="finance-score-emoji"> ₿ </div>
+          <div class="finance-score-emoji"> 🥇 </div>
+    
+          <div class="finance-score-circle"> ⚪ </div>
+          <div class="finance-score-circle"> ⚪ </div>
+          <div class="finance-score-circle"> ⚪ </div>
+        </div>
+    
+        <div class="finance-score-coins"> 🪙 0 </div>
+    
+        <div class="finance-score-ratio"> 0/3 </div>
+    
+        <button id="shareBtn"> Share </button>
       `;
+    
       return;
     }
   
