@@ -1859,19 +1859,16 @@
     if (scoreDateEl) {
       scoreDateEl.textContent = dateLabelFromYMD(todayInPT);
     }
+
+    console.log("currentUserId", currentUserId);
+    console.log("todayInPT", todayInPT);
   
     const { data, error } = await client
       .from("finance_scores")
       .select("*")
-      .eq("user_id", currentUserId)
-      .eq("date", todayInPT)
-      .maybeSingle();
+      .eq("user_id", currentUserId);
     
-    console.log("todayInPT", todayInPT);
-    console.log("finance data", data);
-    console.log("currentUserId", currentUserId);
-    console.log("finance data", data);
-    console.log("todayInPT =", todayInPT);
+    console.log("finance rows", data);
   
     if (error) {
       console.error("Finance Score Error:", error);
@@ -1894,18 +1891,16 @@
         <div class="finance-score-grid">
           <div class="finance-score-emoji"> ⛽ </div>
           <div class="finance-score-emoji"> ₿ </div>
-          <div class="finance-score-emoji"> 🥇 </div> <br>
+          <div class="finance-score-emoji"> 🥇 </div>
     
           <div class="finance-score-circle"> ⚪ </div> 
           <div class="finance-score-circle"> ⚪ </div>
           <div class="finance-score-circle"> ⚪ </div>
-        </div> <br>
+        </div>
     
-        <div class="finance-score-coins"> 🪙 0 </div> <br>
+        <div class="finance-score-coins"> 🪙 0 </div>
     
-        <div class="finance-score-ratio"> 0/3 </div> <br>
-    
-        <button id="shareBtn"> Share </button>
+        <div class="finance-score-ratio"> 0/3 </div>
       `;
     
       return;
@@ -1935,22 +1930,24 @@
   
     financeSummaryEl.innerHTML = `
       <div class="finance-score-grid">
-        <div class="finance-score-emoji">⛽</div>
-        <div class="finance-score-emoji">₿</div>
-        <div class="finance-score-emoji">🥇</div>
-  
+        <div class="finance-score-emoji"> ⛽ </div>
+        <div class="finance-score-emoji"> ₿ </div>
+        <div class="finance-score-emoji"> 🥇 </div>
+    
         <div class="finance-score-circle">${gasCircle}</div>
         <div class="finance-score-circle">${btcCircle}</div>
         <div class="finance-score-circle">${goldCircle}</div>
       </div>
-  
+    
       <div class="finance-score-coins">
         🪙 ${totalCoins}
       </div>
-  
+    
       <div class="finance-score-ratio">
         ${successCount}/3
       </div>
+    
+      <button id="financeShareBtn"> Share </button>
     `;
   }
   
