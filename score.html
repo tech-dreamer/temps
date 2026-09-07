@@ -1872,16 +1872,17 @@
   
       financeSummaryEl.innerHTML = `
         <div style="text-align:center;">
-          Could not load finance score
+          Cannot load finance score
         </div>
       `;
       return;
     }
   
     if (!data) {
+      scoreListEl.innerHTML = "";
       financeSummaryEl.innerHTML = `
         <div style="text-align:center;">
-          No finance score yet today
+          No finance score yet <br> Keep forecasting & check back.
         </div>
       `;
       return;
@@ -2074,7 +2075,7 @@
     }
 
     if (!scores || scores.length === 0) {
-      scoreListEl.innerHTML = `<p class="msg no-score-msg"> No ${isHourly ? "hourly" : "daily"} score yet. <br> Keep forecasting & check back. </p>`;
+      scoreListEl.innerHTML = `<p class="msg no-score-msg"> No temps score yet. <br> Keep forecasting & check back. </p>`;
 
       if (isHourly) {
         scoreMusicState = "ambient";
